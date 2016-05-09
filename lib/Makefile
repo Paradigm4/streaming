@@ -1,3 +1,4 @@
+all: serial slave test
 
 serial:
 	$(CC) -Wall -c serial.c
