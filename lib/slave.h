@@ -9,8 +9,8 @@ typedef struct slaves {
 } slave;
 
 typedef struct limits {
-  rlim_t DATA;     // Max program memory space in bytes default 1 GB
-  rlim_t STACK;    // Max program stack space in bytes default 8192
+  rlim_t DATA;     // Max program memory space in bytes
+  rlim_t STACK;    // Max program stack space in bytes
   rlim_t CPU;      // Max CPU time in seconds
   rlim_t NOFILE;   // Max number of open files + 1 (forced to be at least 8)
 } limits;
