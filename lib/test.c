@@ -38,16 +38,19 @@ main (int argc, char **argv)
   // program data
   int integer_attribute[] = { 1, 2, 3, 4, 5 };
   double double_attribute[] = { 1, 2, 3, 4, 5 };
-  char *name[] = { "x", "y" };
-  int n[] = { 1, 1 }; // string length of each name
+  char * string_attribute[] = { "string 1", "string 2", "string 3", "string 4", "string 5" };
+  int sn[] = { 8, 8, 8, 8, 8 };
+  char *name[] = { "x", "y", "z" };
+  int n[] = { 1, 1, 1 }; // string length of each name
   fprintf (stderr, "slave pid is %d\n", (int) s.pid);
 
 // Write data to slave
 // XXX check these for error (-1) return value
-  write_header (s.in, 2);
+  write_header (s.in, 3);
   write_ints (s.in, integer_attribute, 5);
   write_doubles (s.in, double_attribute, 5);
-  write_names (s.in, name, n, 2);
+  write_strings (s.in, string_attribute, sn, 5);
+  write_names (s.in, name, n, 3);
   close (s.in);
 
 // Read character output from slave and print it out

@@ -10,7 +10,7 @@
 /* The R_HEADER starts with B\n indicating native binary format */
 const char R_HEADER[] =
   { 0x42, 0x0a, 0x02, 0x00, 0x00, 0x00, 0x02, 0x02, 0x03, 0x00, 0x00, 0x03,
-0x02, 0x00 };
+    0x02, 0x00 };
 const char R_VECSXP[] = { 0x13, 0x02, 0x00, 0x00 };     // R list with attributes
 const char R_INTSXP[] = { 0x0d, 0x00, 0x00, 0x00 };
 const char R_REALSXP[] = { 0x0e, 0x00, 0x00, 0x00 };
@@ -44,7 +44,7 @@ write_names (int fd, char **buffer, int *n, int length)
 {
   char HDR[] =
     { 0x02, 0x04, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x09, 0x00, 0x04, 0x00,
-0x05, 0x00, 0x00, 0x00, 0x6e, 0x61, 0x6d, 0x65, 0x73 };
+      0x05, 0x00, 0x00, 0x00, 0x6e, 0x61, 0x6d, 0x65, 0x73 };
   char NEND[] = { 0xfe, 0x00, 0x00, 0x00 };
   int j;
   if (write (fd, HDR, sizeof (HDR)) < sizeof (HDR))
@@ -80,7 +80,21 @@ write_doubles (int fd, double *buffer, int length)
 ssize_t
 write_strings (int fd, char **buffer, int *n, int length)
 {
-  return -1;
+  int j;
+  if (write (fd, R_STRSXP, sizeof (R_STRSXP)) < sizeof (R_STRSXP))
+    return -1;
+  if (write (fd, &length, sizeof (length)) < sizeof (length))
+    return -1;
+  for (j = 0; j < length; ++j)
+    {
+      if (write (fd, R_CHARSXP, sizeof (R_CHARSXP)) < sizeof (R_CHARSXP))
+        return -1;
+      if (write (fd, &(n[j]), 4) < 4)
+        return -1;
+      if (write (fd, buffer[j], n[j]) < n[j])
+        return -1;
+    }
+  return j;
 }
 
 // write length ints from a buffer to the file descriptor
