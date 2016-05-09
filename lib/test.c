@@ -23,7 +23,9 @@ main (int argc, char **argv)
   lim.NOFILE = 500;             // max total open files
 
   // the program command line and limits
-  slave s = run (argv + 1, NULL, &lim);
+//  slave s = run (argv + 1, NULL, &lim);
+  // invocation without limits
+  slave s = run (argv + 1, NULL, NULL);
 
   // IMPORTANT: check return value
   if (s.pid < 0)
