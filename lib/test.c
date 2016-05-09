@@ -15,6 +15,7 @@
 int
 main (int argc, char **argv)
 {
+  char buf;
   // program limits
   limits lim;
   lim.DATA = 1000000000;      // memory limit (bytes)
@@ -35,8 +36,8 @@ main (int argc, char **argv)
     }
 
   // program data
-  int buf[] = { 1, 2, 3, 4, 5 };
-  double db[] = { 1, 2, 3, 4, 5 };
+  int integer_attribute[] = { 1, 2, 3, 4, 5 };
+  double double_attribute[] = { 1, 2, 3, 4, 5 };
   char *name[] = { "x", "y" };
   int n[] = { 1, 1 };
   fprintf (stderr, "slave pid is %d\n", (int) s.pid);
@@ -44,8 +45,8 @@ main (int argc, char **argv)
 // Write data to slave
 // XXX check these for error (-1) return value
   write_header (s.in, 2);
-  write_ints (s.in, buf, 5);
-  write_doubles (s.in, db, 5);
+  write_ints (s.in, integer_attribute, 5);
+  write_doubles (s.in, double_attribute, 5);
   write_names (s.in, name, n, 2);
   close (s.in);
 
