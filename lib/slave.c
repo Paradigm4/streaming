@@ -33,6 +33,7 @@ run (char **argv, char **envp, limits * lim)
       close (parent_child[1]);
       close (child_parent[0]);
       execvpe (argv[0], argv, envp);
+      break;
     default:                   // parent
       if (lim != NULL)
         {
@@ -42,26 +43,26 @@ run (char **argv, char **envp, limits * lim)
           if (lim->NOFILE < 5)
             lim->NOFILE = 5;
           // now try to set them
-          j = 1;
+          j = 0;
           struct rlimit rl;
           rl.rlim_cur = lim->AS;
           rl.rlim_max = lim->AS;
-          j = j && (prlimit (s.pid, RLIMIT_AS, &rl, NULL) < 0);
+          j = j || (prlimit (s.pid, RLIMIT_AS, &rl, NULL) < 0);
           rl.rlim_cur = lim->CPU;
           rl.rlim_max = lim->CPU;
-          j = j && (prlimit (s.pid, RLIMIT_CPU, &rl, NULL) < 0);
+          j = j || (prlimit (s.pid, RLIMIT_CPU, &rl, NULL) < 0);
           rl.rlim_cur = lim->NPROC;
           rl.rlim_max = lim->NPROC;
-          j = j && (prlimit (s.pid, RLIMIT_NPROC, &rl, NULL) < 0);
+          j = j || (prlimit (s.pid, RLIMIT_NPROC, &rl, NULL) < 0);
           rl.rlim_cur = lim->NOFILE;
           rl.rlim_max = lim->NOFILE;
-          j = j && (prlimit (s.pid, RLIMIT_NOFILE, &rl, NULL) < 0);
-          if (!j)               // something went wrong setting the limits!
+          j = j || (prlimit (s.pid, RLIMIT_NOFILE, &rl, NULL) < 0);
+          if (j)               // something went wrong setting the limits!
             {
               kill (s.pid, SIGKILL);
               waitpid (s.pid, &status, WNOHANG);
+              s.pid = -1;
             }
-            s.pid = -1;
         }
       close (parent_child[0]);
       close (child_parent[1]);

@@ -1,3 +1,8 @@
+/* self-contained test program:
+ * send 5 integers and 5 doubles to a process stdin in R's columnar binary formatted as list(x=as.integer(1:5), y=as.double(1:5))
+ * then just read the character output of the process stdout and print it
+ * also show how the limits work
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -10,7 +15,24 @@
 int
 main (int argc, char **argv)
 {
-  slave s = run (argv + 1, NULL, NULL);
+  // program limits
+  limits lim;
+  lim.AS = 10000000000;          // memory limit (bytes)
+  lim.CPU = 1000;                // CPU limit (seconds)
+  lim.NPROC = 2;                // max num. threads
+  lim.NOFILE = 500;             // max total open files
+
+  // the program command line and limits
+  slave s = run (argv + 1, NULL, &lim);
+
+  // IMPORTANT: check return value
+  if (s.pid < 0)
+    {
+      fprintf (stderr, "fork failed, bummer\n");
+      return -1;
+    }
+
+  // program data
   int buf[] = { 1, 2, 3, 4, 5 };
   double db[] = { 1, 2, 3, 4, 5 };
   char *name[] = { "x", "y" };
