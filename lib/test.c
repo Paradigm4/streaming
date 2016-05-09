@@ -16,7 +16,7 @@ int
 main (int argc, char **argv)
 {
   char buf;
-  // program limits
+  // slave limits, try chaning these!
   limits lim;
   lim.DATA = 1000000000;      // memory limit (bytes)
   lim.STACK = 1000000;        // stack limit (bytes)
