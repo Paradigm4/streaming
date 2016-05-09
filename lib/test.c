@@ -1,8 +1,9 @@
-/* self-contained test program:
- * send 5 integers and 5 doubles to a process stdin in R's columnar binary formatted as list(x=as.integer(1:5), y=as.double(1:5))
- * then just read the character output of the process stdout and print it
- * also show how the limits work
+/* self-contained test program: send 5 integers, 5 doubles and 5 strings to a
+ * process stdin in R's columnar binary formatted as list(x=as.integer(1:5),
+ * y=as.double(1:5)) then just read the character output of the process stdout
+ * and print it also show how the limits work
  */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
