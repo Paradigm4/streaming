@@ -10,7 +10,7 @@
  * write_names  write the names of the attributes
  * done
  *
- * see test_serial.c and Make test for an example
+ * see test.c and Make test for an example
  */
 
 // @param fd file descriptor to write to
