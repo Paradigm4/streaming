@@ -61,6 +61,7 @@ run (char **argv, char **envp, limits * lim)
               kill (s.pid, SIGKILL);
               waitpid (s.pid, &status, WNOHANG);
             }
+            s.pid = -1;
         }
       close (parent_child[0]);
       close (child_parent[1]);
