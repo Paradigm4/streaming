@@ -10,7 +10,7 @@
 int
 main (int argc, char **argv)
 {
-  slave s = run (argv + 1, NULL);
+  slave s = run (argv + 1, NULL, NULL);
   int buf[] = { 1, 2, 3, 4, 5 };
   double db[] = { 1, 2, 3, 4, 5 };
   char *name[] = { "x", "y" };

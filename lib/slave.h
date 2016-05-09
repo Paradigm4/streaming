@@ -1,4 +1,6 @@
 /* forking library functions */
+#include <sys/time.h>
+#include <sys/resource.h>
 
 typedef struct slaves {
   pid_t pid;  // slave process id
@@ -6,7 +8,16 @@ typedef struct slaves {
   int out;    // slave process stdout descriptor, parent reads from this
 } slave;
 
+typedef struct limits {
+  rlim_t AS;     // Max address space in bytes
+  rlim_t CPU;    // Max CPU time in seconds
+  rlim_t NPROC;  // Max number of processes/threads allowed (> 0)
+  rlim_t NOFILE; // Max number of open files + 1 (forced to be > 4)
+} limits;
+
 // start a slave process
 // @param argv, envp the process command line and optional environment
+// @param lim optional process ulimits, set to NULL to skip setting limits, otherwise use the limits structure above
 //        (NULL terminated string)
-slave run(char **argv, char **envp);
+// @return a slave value; if an error occurred then slave.pid = -1.
+slave run(char **argv, char **envp, limits *lim);
