@@ -39,7 +39,7 @@ main (int argc, char **argv)
   int integer_attribute[] = { 1, 2, 3, 4, 5 };
   double double_attribute[] = { 1, 2, 3, 4, 5 };
   char *name[] = { "x", "y" };
-  int n[] = { 1, 1 };
+  int n[] = { 1, 1 }; // string length of each name
   fprintf (stderr, "slave pid is %d\n", (int) s.pid);
 
 // Write data to slave

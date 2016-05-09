@@ -28,12 +28,12 @@ write_doubles (int fd, double *buffer, int length);
 ssize_t
 write_ints (int fd, int *buffer, int length);
 // @parm buffer of character arrays
-// @param n array of integer lengths of each string in the buffer
+// @param n array of integer lengths of each string in the buffer, not including trailing NULL byte
 // @param length number of strings (length of buffer)
 ssize_t
 write_strings (int fd, char **buffer, int *n, int length);
 // @parm buffer of character arrays
-// @param n array of integer lengths of each string in the buffer
+// @param n array of integer lengths of each string in the buffer, not including trailing NULL byte
 // @param length number of names, must match length in write_header function
 ssize_t
 write_names (int fd, char **buffer, int *n, int length);
