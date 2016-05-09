@@ -17,15 +17,15 @@ main (int argc, char **argv)
 {
   // program limits
   limits lim;
-  lim.AS = 10000000000;          // memory limit (bytes)
-  lim.CPU = 1000;                // CPU limit (seconds)
-  lim.NPROC = 2;                // max num. threads
-  lim.NOFILE = 500;             // max total open files
+  lim.DATA = 1000000000;      // memory limit (bytes)
+  lim.STACK = 1000000;        // stack limit (bytes)
+  lim.CPU = 100;              // CPU limit (seconds)
+  lim.NOFILE = 8;             // max total open files
 
   // the program command line and limits
-//  slave s = run (argv + 1, NULL, &lim);
+  slave s = run (argv + 1, NULL, &lim);
   // invocation without limits
-  slave s = run (argv + 1, NULL, NULL);
+//  slave s = run (argv + 1, NULL, NULL);
 
   // IMPORTANT: check return value
   if (s.pid < 0)

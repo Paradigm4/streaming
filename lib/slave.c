@@ -38,22 +38,20 @@ run (char **argv, char **envp, limits * lim)
       if (lim != NULL)
         {
           // first validate the limits
-          if (lim->NPROC < 1)
-            lim->NPROC = 1;
-          if (lim->NOFILE < 5)
-            lim->NOFILE = 5;
+          if (lim->NOFILE < 8)
+            lim->NOFILE = 8;
           // now try to set them
           j = 0;
           struct rlimit rl;
-          rl.rlim_cur = lim->AS;
-          rl.rlim_max = lim->AS;
-          j = j || (prlimit (s.pid, RLIMIT_AS, &rl, NULL) < 0);
+          rl.rlim_cur = lim->DATA;
+          rl.rlim_max = lim->DATA;
+          j = j || (prlimit (s.pid, RLIMIT_DATA, &rl, NULL) < 0);
+          rl.rlim_cur = lim->STACK;
+          rl.rlim_max = lim->STACK;
+          j = j || (prlimit (s.pid, RLIMIT_STACK, &rl, NULL) < 0);
           rl.rlim_cur = lim->CPU;
           rl.rlim_max = lim->CPU;
           j = j || (prlimit (s.pid, RLIMIT_CPU, &rl, NULL) < 0);
-          rl.rlim_cur = lim->NPROC;
-          rl.rlim_max = lim->NPROC;
-          j = j || (prlimit (s.pid, RLIMIT_NPROC, &rl, NULL) < 0);
           rl.rlim_cur = lim->NOFILE;
           rl.rlim_max = lim->NOFILE;
           j = j || (prlimit (s.pid, RLIMIT_NOFILE, &rl, NULL) < 0);
