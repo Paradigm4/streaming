@@ -1,6 +1,7 @@
 /* mini R serialization library
  * only supports a subset of R binary serialization
  */
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -10,13 +11,26 @@
 /* The R_HEADER starts with B\n indicating native binary format */
 const char R_HEADER[] =
   { 0x42, 0x0a, 0x02, 0x00, 0x00, 0x00, 0x02, 0x02, 0x03, 0x00, 0x00, 0x03,
-    0x02, 0x00 };
+  0x02, 0x00
+};
 const char R_VECSXP[] = { 0x13, 0x02, 0x00, 0x00 };     // R list with attributes
 const char R_INTSXP[] = { 0x0d, 0x00, 0x00, 0x00 };
 const char R_REALSXP[] = { 0x0e, 0x00, 0x00, 0x00 };
 const char R_CHARSXP[] = { 0x09, 0x00, 0x04, 0x00 };    // UTF-8
 const char R_STRSXP[] = { 0x10, 0x00, 0x00, 0x00 };
 const char R_LISTSXP[] = { 0x02, 0x04, 0x00, 0x00 };    // internal R pairlist
+
+ssize_t
+write_tsv (int fd, char *buf, int nlines)
+{
+  char hdr[4096];
+  snprintf (hdr, 4096, "%d\n", nlines);
+  size_t n = strlen (hdr);
+  if (write (fd, hdr, n) < n)
+    return -1;
+  return write (fd, buf, strlen (buf));
+}
+
 
 /* first step
  * fd     the file descriptor to write to
@@ -44,7 +58,8 @@ write_names (int fd, char **buffer, int *n, int length)
 {
   char HDR[] =
     { 0x02, 0x04, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x09, 0x00, 0x04, 0x00,
-      0x05, 0x00, 0x00, 0x00, 0x6e, 0x61, 0x6d, 0x65, 0x73 };
+    0x05, 0x00, 0x00, 0x00, 0x6e, 0x61, 0x6d, 0x65, 0x73
+  };
   char NEND[] = { 0xfe, 0x00, 0x00, 0x00 };
   int j;
   if (write (fd, HDR, sizeof (HDR)) < sizeof (HDR))

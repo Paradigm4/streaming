@@ -2,7 +2,7 @@
  * Only supports a tiny subset of R binary serialization
  * in native encoding (not XDR)
  *
- * Usage:
+ * Usage (columnar binary format):
  * write_header length = number of attributes
  * write_xxx    first attribute
  * write_xxx    2nd attribute
@@ -11,10 +11,19 @@
  * done
  *
  * see test.c and Make test for an example
+ *
+ * or, just use write_tsv to send text to the client
  */
 
 // @param fd file descriptor to write to
 // @return a ssize_t value, negative value means error, otherwise OK
+
+// write a TSV + newline delimited text buffer with number of lines 'nlines' to fd
+// The format written is (first line is integer number of lines):
+// n\n
+// < n TSV lines>
+ssize_t
+write_tsv(int fd, char *buf, int nlines);
 
 // @param length number of attributes
 ssize_t
