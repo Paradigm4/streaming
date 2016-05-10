@@ -19,9 +19,12 @@
 // @return a ssize_t value, negative value means error, otherwise OK
 
 // write a TSV + newline delimited text buffer with number of lines 'nlines' to fd
-// The format written is (first line is integer number of lines):
+// The format written is (first line is integer number of lines + newline):
 // n\n
-// < n TSV lines>
+// line 1
+// line 2
+// ...
+// line n
 ssize_t
 write_tsv(int fd, char *buf, int nlines);
 
