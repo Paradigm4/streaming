@@ -21,7 +21,7 @@ const char R_STRSXP[] = { 0x10, 0x00, 0x00, 0x00 };
 const char R_LISTSXP[] = { 0x02, 0x04, 0x00, 0x00 };    // internal R pairlist
 
 ssize_t
-write_tsv (int fd, char *buf, int nlines)
+write_tsv (int fd, char const* buf, int nlines)
 {
   char hdr[4096];
   snprintf (hdr, 4096, "%d\n", nlines);

@@ -26,7 +26,7 @@
 // ...
 // line n
 ssize_t
-write_tsv(int fd, char *buf, int nlines);
+write_tsv(int fd, char const* buf, int nlines);
 
 // @param length number of attributes
 ssize_t

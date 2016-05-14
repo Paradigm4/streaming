@@ -11,7 +11,7 @@
 #include "slave.h"
 
 slave
-run (char **argv, char **envp, limits * lim)
+run (char* const argv[], char* const envp[], limits* lim)
 {
   int j, status;
   slave s;
