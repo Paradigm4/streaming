@@ -489,26 +489,6 @@ std::shared_ptr< Array> execute(std::vector< std::shared_ptr< Array> >& inputArr
         }
     }
     slave.terminate();
-//
-//
-//
-//
-//
-//    if(p.isAlive())
-//    {
-//        char *chunk_1 = "a\tb\tc\n4\t5\t6\n";
-//        char *chunk_2 = "1\t2\t3\nd\te\tf\n";
-//        string output;
-//        bool retCode = p.tsvExchange(2, chunk_1, output);
-//        LOG4CXX_DEBUG(logger, "output 1"<<output);
-//        if(retCode)
-//        {
-//            p.tsvExchange(2, chunk_2, output);
-//            LOG4CXX_DEBUG(logger, "output 2"<<output);
-//        }
-//        p.terminate();
-//    }
-
     return outputWriter.finalize();
 }
 };
