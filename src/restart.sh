@@ -7,8 +7,10 @@ CONFIG_NAME=`iquery -otsv -aq "project(filter(list('instances'), No=0), instance
 echo "Using scidb at " $SCIDB_BIN
 echo "Using config " $CONFIG_NAME
 
+
 iquery -aq "unload_library('stream')"
 set -e
+set -x
 make
 scidb.py stopall $CONFIG_NAME
 cp libstream.so $SCIDB_BIN/../lib/scidb/plugins

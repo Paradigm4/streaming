@@ -40,6 +40,11 @@ else
   endif
 endif
 
+all: client plugin
+
+client: client.c
+	$(CC) client.c -ggdb -o client
+	
 plugin: $(SRCS)
 	@if test ! -d "$(SCIDB)"; then echo  "Error. Try:\n\nmake SCIDB=<PATH TO SCIDB INSTALL PATH>"; exit 1; fi
 	$(CXX) $(CFLAGS) $(INC) -o libstream.so $(SRCS) $(LIBS)
@@ -49,11 +54,6 @@ plugin: $(SRCS)
 	@echo "Re-start SciDB if the plugin was already loaded previously."
 	@echo "Remember to copy the plugin to all your nodes in the cluster."
 
-client: client.c
-	$(CC) client.c -o client
-
-all: plugin client
-	
 test:
 	@./test.sh
 	
