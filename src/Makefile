@@ -31,7 +31,7 @@ CFLAGS+=-std=c++11 -DCPP11
 SRCS=plugin.cpp LogicalStream.cpp PhysicalStream.cpp ../lib/serial.c ../lib/slave.c
 # Compiler settings for SciDB version >= 15.7
 ifneq ("$(wildcard /usr/bin/g++-4.9)","")
-  CC := "/usr/bin/gcc-4.9"a
+  CC := "/usr/bin/gcc-4.9"
   CXX := "/usr/bin/g++-4.9"
 else
   ifneq ("$(wildcard /opt/rh/devtoolset-3/root/usr/bin/gcc)","")
@@ -40,7 +40,7 @@ else
   endif
 endif
 
-all:
+plugin: $(SRCS)
 	@if test ! -d "$(SCIDB)"; then echo  "Error. Try:\n\nmake SCIDB=<PATH TO SCIDB INSTALL PATH>"; exit 1; fi
 	$(CXX) $(CFLAGS) $(INC) -o libstream.so $(SRCS) $(LIBS)
 	@echo "Now copy *.so to your SciDB lib/scidb/plugins directory and run"
@@ -48,7 +48,14 @@ all:
 	@echo
 	@echo "Re-start SciDB if the plugin was already loaded previously."
 	@echo "Remember to copy the plugin to all your nodes in the cluster."
+
+client: client.c
+	$(CC) client.c -o client
+
+all: plugin client
+	
 test:
 	@./test.sh
+	
 clean:
-	rm -f *.so *.o
+	rm -f *.so *.o client

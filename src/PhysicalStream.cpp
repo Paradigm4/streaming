@@ -187,20 +187,23 @@ public:
             terminate();
             return false;
         }
+        LOG4CXX_DEBUG(logger, "STREAM: got line "<<line.text);
         errno = 0;
-        int64_t nOutputLines = strtoll(line.text, NULL, 10);
-        if(errno != 0 || nOutputLines < 0)
+        char* end = line.text;
+        int64_t nOutputLines = strtoll(line.text, &end, 10);
+        if(errno != 0 || *end != '\n' || nOutputLines < 0)
         {
             LOG4CXX_DEBUG(logger, "STREAM: slave terminated early: header not valid");
             terminate();
             return false;
         }
+        LOG4CXX_DEBUG(logger, "STREAM: out lines "<<nOutputLines);
         ostringstream output;
         for (int64_t j = 0; j < nOutputLines; ++j)
         {
             if (getline (&line.text, &lineLen, _slaveOutput) < 0)
             {
-                LOG4CXX_DEBUG(logger, "Slave terminated early: getline");
+                LOG4CXX_DEBUG(logger, "STREAM: slave terminated early: getline");
                 terminate();
                 return false;
             }
@@ -466,7 +469,7 @@ std::shared_ptr< Array> execute(std::vector< std::shared_ptr< Array> >& inputArr
     vector <shared_ptr<ConstChunkIterator> > citers (nAttrs);
     TextChunkConverter converter(inputSchema);
     OutputWriter outputWriter(_schema, query);
-    SlaveProcess slave("/home/apoliakov/streaming/lib/example.sh");
+    SlaveProcess slave("/home/apoliakov/streaming/src/client");
     bool slaveAlive = slave.isAlive();
     string tsvInput;
     string output;
