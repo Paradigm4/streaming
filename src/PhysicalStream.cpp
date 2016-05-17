@@ -124,7 +124,7 @@ private:
     bool _alive;
     int _pollTimeoutMillis;
     shared_ptr<Query> _query;
-    slave _slaveContext;
+    slave _childContext;
 
 public:
     /**
@@ -140,14 +140,14 @@ public:
         char* argv[2];
         argv[0] = const_cast<char*>(commandLine.c_str());
         argv[1] = NULL;
-        _slaveContext = run (argv, NULL, NULL);
-        if (_slaveContext.pid < 0)
+        _childContext = run (argv, NULL, NULL);
+        if (_childContext.pid < 0)
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "fork failed, bummer";
         }
         _alive = true;
-        int flags = fcntl(_slaveContext.out, F_GETFL, 0);
-        fcntl(_slaveContext.out, F_SETFL, flags | O_NONBLOCK);
+        int flags = fcntl(_childContext.out, F_GETFL, 0);
+        fcntl(_childContext.out, F_SETFL, flags | O_NONBLOCK);
     }
 
     ~SlaveProcess()
@@ -174,7 +174,7 @@ public:
     ssize_t readBytesFromChild(char* outputBuf, size_t const maxBytes)
     {
         struct pollfd pollstat [1];
-        pollstat[0].fd = _slaveContext.out;
+        pollstat[0].fd = _childContext.out;
         pollstat[0].events = POLLIN;
         int ret = 0;
         while( ret == 0 )
@@ -198,7 +198,7 @@ public:
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "poll failed";
         }
         errno = 0;
-        ssize_t nRead = read(_slaveContext.out, outputBuf, maxBytes);
+        ssize_t nRead = read(_childContext.out, outputBuf, maxBytes);
         if(nRead <= 0)
         {
             LOG4CXX_DEBUG(logger, "STREAM: child terminated early: read "<<nRead <<" errno "<<errno);
@@ -231,7 +231,7 @@ public:
         {
             ++ idx;
         }
-        if( buf[idx] != '\n')
+        if( idx >= occupied || buf[idx] != '\n')
         {
             LOG4CXX_DEBUG(logger, "STREAM: child failed to atomically write a proper TSV header");
             terminate();
@@ -288,7 +288,7 @@ public:
 
     bool tsvExchange(size_t const nLines, char const* inputData, string& outputData)
     {
-        ssize_t ret = write_tsv(_slaveContext.in, inputData, nLines);
+        ssize_t ret = write_tsv(_childContext.in, inputData, nLines);
         if(ret<0)
         {
             LOG4CXX_DEBUG(logger, "STREAM: child terminated early: write_tsv");
@@ -302,24 +302,25 @@ public:
     {
         if(_alive)
         {
-            close (_slaveContext.in);
-            close (_slaveContext.out);
-            kill (_slaveContext.pid, SIGTERM);
-            pid_t res = waitpid (_slaveContext.pid, NULL, WNOHANG);
+            _alive = false;
+            close (_childContext.in);
+            close (_childContext.out);
+            kill (_childContext.pid, SIGTERM);
+            pid_t res = 0;
             size_t retries = 0;
-            while ( res == 0 && retries < 5) //child's got ~0.5 seconds to get off our lawn
+            while( res == 0 && retries < 50) // allow up to ~0.5 seconds for child to stop
             {
-                usleep(100000);
-                res = waitpid (_slaveContext.pid, NULL, WNOHANG);
+                usleep(10000);
+                res = waitpid (_childContext.pid, NULL, WNOHANG);
                 ++retries;
             }
-            if(res == 0)
+            if( res == 0 )
             {
-                LOG4CXX_DEBUG(logger, "child did not exit in time, sending sigkill and waiting indefinitely");
-                kill (_slaveContext.pid, SIGKILL);
-                waitpid (_slaveContext.pid, NULL, 0);
+                LOG4CXX_WARN(logger, "child did not exit in time, sending sigkill and waiting indefinitely");
+                kill (_childContext.pid, SIGKILL);
+                waitpid (_childContext.pid, NULL, 0);
             }
-            _alive = false;
+            LOG4CXX_DEBUG(logger, "child killed");
         }
     }
 };
