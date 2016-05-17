@@ -246,17 +246,18 @@ public:
             terminate();
             return false;
         }
-        size_t const tsvStartIdx = idx+1;
+        ++idx;
+        size_t const tsvStartIdx = idx;
         int64_t linesReceived = 0;
         while(linesReceived < expectedNumLines)
         {
             while(idx < occupied && linesReceived < expectedNumLines)
             {
-                ++idx;
                 if(buf[idx] == '\n')
                 {
                     ++linesReceived;
                 }
+                ++idx;
             }
             if(linesReceived < expectedNumLines)
             {
