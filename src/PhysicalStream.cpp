@@ -29,10 +29,13 @@
 #include <string>
 #include <vector>
 #include <ctype.h>
+#include <poll.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <query/TypeSystem.h>
 #include <query/Operator.h>
 #include <log4cxx/logger.h>
-#include <sys/wait.h>
+
 #include "../lib/slave.h"
 #include "../lib/serial.h"
 
@@ -118,17 +121,20 @@ public:
 class SlaveProcess
 {
 private:
-    slave _slaveContext;
-    FILE *_slaveOutput;
     bool _alive;
+    int _pollTimeoutMillis;
+    shared_ptr<Query> _query;
+    slave _slaveContext;
 
 public:
     /**
      * Fork a new process.
      * @param commandLine a single executable file at the moment. Just put it all in a script, bro.
      */
-    SlaveProcess(string const& commandLine):
-        _alive(false)
+    SlaveProcess(string const& commandLine, shared_ptr<Query>& query):
+        _alive(false),
+        _pollTimeoutMillis(100),
+        _query(query)
     {
         string commandLineCopy = commandLine;
         char* argv[2];
@@ -140,12 +146,8 @@ public:
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "fork failed, bummer";
         }
         _alive = true;
-        _slaveOutput = fdopen (_slaveContext.out, "r");
-        if(_slaveOutput == NULL)
-        {
-            LOG4CXX_DEBUG(logger, "STREAM: slave terminated early: fopen");
-            terminate();
-        }
+        int flags = fcntl(_slaveContext.out, F_GETFL, 0);
+        fcntl(_slaveContext.out, F_SETFL, flags | O_NONBLOCK);
     }
 
     ~SlaveProcess()
@@ -161,56 +163,138 @@ public:
         return _alive;
     }
 
+    /**
+     * Read from child while checking the query context for cancellation. If the query is cancelled
+     * while waiting for data, the child is terminated and an exception is thrown. If the child is
+     * finished, or there is read error, 0 or -1 is returned respectively, and the child is terminated.
+     * @param outputBuf the destination to write data to
+     * @param maxBytes the maximum number of bytes to read (must not exceed the size of outputBuf
+     * @return the number of actual bytes read, -1 if an error occured, 0 if done or EOF.
+     */
+    ssize_t readBytesFromChild(char* outputBuf, size_t const maxBytes)
+    {
+        struct pollfd pollstat [1];
+        pollstat[0].fd = _slaveContext.out;
+        pollstat[0].events = POLLIN;
+        int ret = 0;
+        while( ret == 0 )
+        {
+            try
+            {
+                Query::validateQueryPtr(_query); //are we still OK to execute the query?
+            }
+            catch(...)
+            {
+                terminate(); //oh no, we're not OK! Shoot the child on our way down.
+                throw;
+            }
+            errno = 0;
+            ret = poll(pollstat, 1, _pollTimeoutMillis); //chill out until the child gives us some data
+        }
+        if (ret < 0)
+        {
+            LOG4CXX_DEBUG(logger, "STREAM: poll failure errno "<<errno);
+            terminate();
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "poll failed";
+        }
+        errno = 0;
+        ssize_t nRead = read(_slaveContext.out, outputBuf, maxBytes);
+        if(nRead <= 0)
+        {
+            LOG4CXX_DEBUG(logger, "STREAM: child terminated early: read "<<nRead <<" errno "<<errno);
+            terminate();
+        }
+        return nRead;
+    }
+
+    /**
+     * Read a full-formatted TSV message from child. Expects the first line to contain the number of following
+     * lines (which needs to be written atomically and less than 4096 characters), followed by exactly that many
+     * lines of text, terminated with newline.
+     * @param[out] output set to the result
+     * @return true if the read was successful and output is set to the valid TSV string (minus the header number),
+     *         false if the read failed in which case output is not modified.
+     */
+    bool readTsvFromChild(string& output)
+    {
+        size_t bufSize = 4096;
+        vector<char> buf(bufSize);
+        ssize_t numRead = readBytesFromChild( &(buf[0]), bufSize);
+        if (numRead <= 0)
+        {
+            LOG4CXX_DEBUG(logger, "STREAM: child failed to atomically write a proper TSV header; retcode '"<<numRead<<"'");
+            terminate();
+            return false;
+        }
+        size_t occupied = numRead, idx =0;
+        while ( idx < occupied && buf[idx] != '\n')
+        {
+            ++ idx;
+        }
+        if( buf[idx] != '\n')
+        {
+            LOG4CXX_DEBUG(logger, "STREAM: child failed to atomically write a proper TSV header");
+            terminate();
+            return false;
+        }
+        char* end = &(buf[0]);
+        errno = 0;
+        int64_t expectedNumLines = strtoll(&(buf[0]), &end, 10);
+        if(*end != '\n' || (size_t) (end - &(buf[0])) != idx || errno !=0 || expectedNumLines < 0)
+        {
+            LOG4CXX_DEBUG(logger, "STREAM: child failed to provide number of lines");
+            terminate();
+            return false;
+        }
+        size_t const tsvStartIdx = idx+1;
+        int64_t linesReceived = 0;
+        while(linesReceived < expectedNumLines)
+        {
+            while(idx < occupied && linesReceived < expectedNumLines)
+            {
+                ++idx;
+                if(buf[idx] == '\n')
+                {
+                    ++linesReceived;
+                }
+            }
+            if(linesReceived < expectedNumLines)
+            {
+                if(idx >= bufSize)
+                {
+                    bufSize = bufSize * 2;
+                    buf.resize(bufSize);
+                }
+                numRead = readBytesFromChild( &(buf[0]) + occupied, bufSize - occupied);
+                if (numRead <= 0)
+                {
+                    LOG4CXX_DEBUG(logger, "STREAM: failed to fetch subsequent lines");
+                    terminate();
+                    return false;
+                }
+                occupied += numRead;
+            }
+        }
+        if(buf[occupied-1] != '\n')
+        {
+            LOG4CXX_DEBUG(logger, "STREAM: child failed to end with newline");
+            terminate();
+            return false;
+        }
+        output.assign( &(buf[tsvStartIdx]), occupied - tsvStartIdx);
+        return true;
+    }
+
     bool tsvExchange(size_t const nLines, char const* inputData, string& outputData)
     {
         ssize_t ret = write_tsv(_slaveContext.in, inputData, nLines);
         if(ret<0)
         {
-            LOG4CXX_DEBUG(logger, "STREAM: slave terminated early: write_tsv");
+            LOG4CXX_DEBUG(logger, "STREAM: child terminated early: write_tsv");
             terminate();
             return false;
         }
-        // "f[orget] them new model cars, we ridin old skool!"
-        class auto_free_line
-        {
-        public:
-           char *text;
-           auto_free_line(): text(NULL) {}
-           ~auto_free_line() { ::free(text); }
-        };
-        auto_free_line line;
-        size_t lineLen = 0;
-        //TODO: HOLE - if the slave never responds, we are in trouble!
-        if (getline (&line.text, &lineLen, _slaveOutput) < 0)
-        {
-            LOG4CXX_DEBUG(logger, "STREAM: slave terminated early: getline (header)");
-            terminate();
-            return false;
-        }
-        LOG4CXX_DEBUG(logger, "STREAM: got line "<<line.text);
-        errno = 0;
-        char* end = line.text;
-        int64_t nOutputLines = strtoll(line.text, &end, 10);
-        if(errno != 0 || *end != '\n' || nOutputLines < 0)
-        {
-            LOG4CXX_DEBUG(logger, "STREAM: slave terminated early: header not valid");
-            terminate();
-            return false;
-        }
-        LOG4CXX_DEBUG(logger, "STREAM: out lines "<<nOutputLines);
-        ostringstream output;
-        for (int64_t j = 0; j < nOutputLines; ++j)
-        {
-            if (getline (&line.text, &lineLen, _slaveOutput) < 0)
-            {
-                LOG4CXX_DEBUG(logger, "STREAM: slave terminated early: getline");
-                terminate();
-                return false;
-            }
-            output<<line.text;
-        }
-        outputData = output.str();
-        return true;
+        return readTsvFromChild(outputData);
     }
 
     void terminate()
@@ -220,14 +304,20 @@ public:
             close (_slaveContext.in);
             close (_slaveContext.out);
             kill (_slaveContext.pid, SIGTERM);
-            int status;
-            waitpid (_slaveContext.pid, &status, WNOHANG);
-            if (!WIFEXITED (status))
+            pid_t res = waitpid (_slaveContext.pid, NULL, WNOHANG);
+            size_t retries = 0;
+            while ( res == 0 && retries < 5) //child's got ~0.5 seconds to get off our lawn
             {
-                kill (_slaveContext.pid, SIGKILL);
-                waitpid (_slaveContext.pid, &status, WNOHANG);
+                usleep(100000);
+                res = waitpid (_slaveContext.pid, NULL, WNOHANG);
+                ++retries;
             }
-            ::fclose(_slaveOutput);
+            if(res == 0)
+            {
+                LOG4CXX_DEBUG(logger, "child did not exit in time, sending sigkill and waiting indefinitely");
+                kill (_slaveContext.pid, SIGKILL);
+                waitpid (_slaveContext.pid, NULL, 0);
+            }
             _alive = false;
         }
     }
@@ -459,6 +549,7 @@ public:
 std::shared_ptr< Array> execute(std::vector< std::shared_ptr< Array> >& inputArrays, std::shared_ptr<Query> query)
 {
     shared_ptr<Array>& inputArray = inputArrays[0];
+    string command = ((shared_ptr<OperatorParamPhysicalExpression>&) _parameters[0])->getExpression()->evaluate().getString();
     ArrayDesc const& inputSchema = inputArray ->getArrayDesc();
     size_t const nAttrs = inputSchema.getAttributes(true).size();
     vector <shared_ptr<ConstArrayIterator> > aiters (nAttrs);
@@ -469,7 +560,7 @@ std::shared_ptr< Array> execute(std::vector< std::shared_ptr< Array> >& inputArr
     vector <shared_ptr<ConstChunkIterator> > citers (nAttrs);
     TextChunkConverter converter(inputSchema);
     OutputWriter outputWriter(_schema, query);
-    SlaveProcess slave("/home/apoliakov/streaming/src/client");
+    SlaveProcess slave(command, query);
     bool slaveAlive = slave.isAlive();
     string tsvInput;
     string output;

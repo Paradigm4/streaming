@@ -14,6 +14,7 @@ int main(void)
         char * end = line;
         errno = 0;
         int nLines = strtoll(line, &end, 10);
+        printf("%i\n",nLines+1);
         if(errno!=0  || nLines == 0 || (*end) != '\n')
         {
             return 1;
@@ -26,9 +27,9 @@ int main(void)
             {
                 return 1;
             }
+            printf("Hello\t%s", line);
         }
-        printf("1\nI'll sleep now. You suck buddy. OK thanks\n");
-        sleep(5);
+        printf("OK\tthanks!\n");
         fflush(stdout);
         read = getline(&line, &len, stdin);
     }

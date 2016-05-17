@@ -46,6 +46,7 @@ public:
         LogicalOperator(logicalName, alias)
     {
         ADD_PARAM_INPUT();
+        ADD_PARAM_CONSTANT("string");
     }
 
     ArrayDesc inferSchema(std::vector<ArrayDesc> schemas, shared_ptr<Query> query)
