@@ -384,12 +384,6 @@ public:
         }
         output.assign( &(buf[tsvStartIdx]), occupied - tsvStartIdx);
     }
-
-    void tsvExchange(size_t const nLines, char const* inputData, string& outputData)
-    {
-        writeTsvToChild(nLines, inputData);
-        return readTsvFromChild(outputData);
-    }
 };
 
 
