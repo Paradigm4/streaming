@@ -145,9 +145,12 @@ public:
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "fork failed, bummer";
         }
-        _alive = true;
         int flags = fcntl(_childContext.out, F_GETFL, 0);
-        fcntl(_childContext.out, F_SETFL, flags | O_NONBLOCK);
+        if(fcntl(_childContext.out, F_SETFL, flags | O_NONBLOCK) < 0 )
+        {
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "fcntl failed, bummer";
+        }
+        _alive = true;
     }
 
     ~SlaveProcess()
@@ -212,19 +215,16 @@ public:
      * lines (which needs to be written atomically and less than 4096 characters), followed by exactly that many
      * lines of text, terminated with newline.
      * @param[out] output set to the result
-     * @return true if the read was successful and output is set to the valid TSV string (minus the header number),
-     *         false if the read failed in which case output is not modified.
+     * throws if the read was not successful
      */
-    bool readTsvFromChild(string& output)
+    void readTsvFromChild(string& output)
     {
         size_t bufSize = 4096;
         vector<char> buf(bufSize);
         ssize_t numRead = readBytesFromChild( &(buf[0]), bufSize);
         if (numRead <= 0)
         {
-            LOG4CXX_DEBUG(logger, "STREAM: child failed to atomically write a proper TSV header; retcode '"<<numRead<<"'");
-            terminate();
-            return false;
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child process failed to write a TSV header";
         }
         size_t occupied = numRead, idx =0;
         while ( idx < occupied && buf[idx] != '\n')
@@ -233,18 +233,14 @@ public:
         }
         if( idx >= occupied || buf[idx] != '\n')
         {
-            LOG4CXX_DEBUG(logger, "STREAM: child failed to atomically write a proper TSV header");
-            terminate();
-            return false;
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "TSV header provided by child did not contain a newline";
         }
         char* end = &(buf[0]);
         errno = 0;
         int64_t expectedNumLines = strtoll(&(buf[0]), &end, 10);
         if(*end != '\n' || (size_t) (end - &(buf[0])) != idx || errno !=0 || expectedNumLines < 0)
         {
-            LOG4CXX_DEBUG(logger, "STREAM: child failed to provide number of lines");
-            terminate();
-            return false;
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child provided invalid number of lines";
         }
         ++idx;
         size_t const tsvStartIdx = idx;
@@ -269,31 +265,24 @@ public:
                 numRead = readBytesFromChild( &(buf[0]) + occupied, bufSize - occupied);
                 if (numRead <= 0)
                 {
-                    LOG4CXX_DEBUG(logger, "STREAM: failed to fetch subsequent lines");
-                    terminate();
-                    return false;
+                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "failed to fetch additional lines from child";
                 }
                 occupied += numRead;
             }
         }
         if(buf[occupied-1] != '\n')
         {
-            LOG4CXX_DEBUG(logger, "STREAM: child failed to end with newline");
-            terminate();
-            return false;
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child did not end message with newline";
         }
         output.assign( &(buf[tsvStartIdx]), occupied - tsvStartIdx);
-        return true;
     }
 
-    bool tsvExchange(size_t const nLines, char const* inputData, string& outputData)
+    void tsvExchange(size_t const nLines, char const* inputData, string& outputData)
     {
         ssize_t ret = write_tsv(_childContext.in, inputData, nLines);
         if(ret<0)
         {
-            LOG4CXX_DEBUG(logger, "STREAM: child terminated early: write_tsv");
-            terminate();
-            return false;
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "failed to write TSV data to child";
         }
         return readTsvFromChild(outputData);
     }
@@ -574,11 +563,8 @@ std::shared_ptr< Array> execute(std::vector< std::shared_ptr< Array> >& inputArr
             citers[i] = aiters[i]->getChunk().getConstIterator(ConstChunkIterator::IGNORE_OVERLAPS | ConstChunkIterator::IGNORE_EMPTY_CELLS);
         }
         converter.convertChunk(citers, nCells, tsvInput);
-        slaveAlive = slave.tsvExchange(nCells, tsvInput.c_str(), output);
-        if(slaveAlive)
-        {
-            outputWriter.writeString(output);
-        }
+        slave.tsvExchange(nCells, tsvInput.c_str(), output);
+        outputWriter.writeString(output);
         for(size_t i =0; i<nAttrs; ++i)
         {
            ++(*aiters[i]);

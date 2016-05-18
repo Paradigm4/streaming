@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-int main(void)
+int normal()
 {
     char* line = NULL;
     size_t len = 0;
@@ -35,4 +35,9 @@ int main(void)
     }
     free(line);
     return 0;
+}
+
+int main(void)
+{
+    return normal();
 }

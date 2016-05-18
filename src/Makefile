@@ -40,12 +40,12 @@ else
   endif
 endif
 
-all: client plugin
+all: client libstream.so
 
 client: client.c
 	$(CC) client.c -ggdb -o client
 	
-plugin: $(SRCS)
+libstream.so: $(SRCS)
 	@if test ! -d "$(SCIDB)"; then echo  "Error. Try:\n\nmake SCIDB=<PATH TO SCIDB INSTALL PATH>"; exit 1; fi
 	$(CXX) $(CFLAGS) $(INC) -o libstream.so $(SRCS) $(LIBS)
 	@echo "Now copy *.so to your SciDB lib/scidb/plugins directory and run"

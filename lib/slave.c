@@ -33,10 +33,11 @@ run (char* const argv[], char* const envp[], limits* lim)
       close (parent_child[1]);
       close (child_parent[0]);
       execvpe (argv[0], argv, envp);
+      abort(); //if execvpe returns, it means we're in trouble. bail asap.
       break;
     default:                   // parent
       if (lim != NULL)
-        {
+      {
           // first validate the limits
           if (lim->NOFILE < 8)
             lim->NOFILE = 8;
@@ -56,16 +57,17 @@ run (char* const argv[], char* const envp[], limits* lim)
           rl.rlim_max = lim->NOFILE;
           j = j || (prlimit (s.pid, RLIMIT_NOFILE, &rl, NULL) < 0);
           if (j)               // something went wrong setting the limits!
-            {
+          {
               kill (s.pid, SIGKILL);
-              waitpid (s.pid, &status, WNOHANG);
+              waitpid (s.pid, &status, 0);
               s.pid = -1;
-            }
-        }
+              return s;
+          }
+      }
       close (parent_child[0]);
       close (child_parent[1]);
       s.in = parent_child[1];
       s.out = child_parent[0];
     }
-  return s;
+    return s;
 }
