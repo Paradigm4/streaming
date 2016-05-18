@@ -118,7 +118,7 @@ public:
 /**
  * An abstraction over the slave process forked by SciDB.
  */
-class SlaveProcess
+class ChildProcess
 {
 private:
     bool _alive;
@@ -129,9 +129,10 @@ private:
 public:
     /**
      * Fork a new process.
-     * @param commandLine a single executable file at the moment. Just put it all in a script, bro.
+     * @param commandLine a single executable file at the moment
+     * @param query the query context
      */
-    SlaveProcess(string const& commandLine, shared_ptr<Query>& query):
+    ChildProcess(string const& commandLine, shared_ptr<Query>& query):
         _alive(false),
         _pollTimeoutMillis(100),
         _query(query)
@@ -150,15 +151,50 @@ public:
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "fcntl failed, bummer";
         }
+        flags = fcntl(_childContext.in, F_GETFL, 0);
+        if(fcntl(_childContext.in, F_SETFL, flags | O_NONBLOCK) < 0 )
+        {
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "fcntl failed, bummer";
+        }
         _alive = true;
     }
 
-    ~SlaveProcess()
+    ~ChildProcess()
     {
         terminate();
     }
 
     /**
+     * Tear down the connection and kill the child process. Idempotent.
+     */
+    void terminate()
+    {
+        if(_alive)
+        {
+            _alive = false;
+            close (_childContext.in);
+            close (_childContext.out);
+            kill (_childContext.pid, SIGTERM);
+            pid_t res = 0;
+            size_t retries = 0;
+            while( res == 0 && retries < 50) // allow up to ~0.5 seconds for child to stop
+            {
+                usleep(10000);
+                res = waitpid (_childContext.pid, NULL, WNOHANG);
+                ++retries;
+            }
+            if( res == 0 )
+            {
+                LOG4CXX_WARN(logger, "child did not exit in time, sending sigkill and waiting indefinitely");
+                kill (_childContext.pid, SIGKILL);
+                waitpid (_childContext.pid, NULL, 0);
+            }
+            LOG4CXX_DEBUG(logger, "child killed");
+        }
+    }
+
+    /**
+     * Check the child status.
      * @return true if the child is alive and healthy as far as we know; false otherwise
      */
     bool isAlive()
@@ -166,65 +202,137 @@ public:
         return _alive;
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // Low-level binary read and write (note they don't work symmetrically)
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+
     /**
-     * Read from child while checking the query context for cancellation. If the query is cancelled
-     * while waiting for data, the child is terminated and an exception is thrown. If the child is
-     * finished, or there is read error, 0 or -1 is returned respectively, and the child is terminated.
+     * Read up to maxBytes from child in a nonblocking manner that checks for query cancellation.
+     * The function shall retry until the child has *some* data to return, or the query is cancelled.
+     * The amount returned may be less than maxBytes if the child isn't ready to return more.
+     * If the child has exited, or errored out, terminates and returns 0 or -1 respectively.
      * @param outputBuf the destination to write data to
-     * @param maxBytes the maximum number of bytes to read (must not exceed the size of outputBuf
-     * @return the number of actual bytes read, -1 if an error occured, 0 if done or EOF.
+     * @param maxBytes the maximum number of bytes to read (must not exceed the size of outputBuf)
+     * @return the number of actual bytes read, -1 if an error occured, 0 if client exited
+     * @throw if the query was cancelled while reading
      */
     ssize_t readBytesFromChild(char* outputBuf, size_t const maxBytes)
     {
+        LOG4CXX_TRACE(logger, "Reading from child");
         struct pollfd pollstat [1];
         pollstat[0].fd = _childContext.out;
         pollstat[0].events = POLLIN;
         int ret = 0;
         while( ret == 0 )
         {
-            try
-            {
-                Query::validateQueryPtr(_query); //are we still OK to execute the query?
-            }
-            catch(...)
-            {
-                terminate(); //oh no, we're not OK! Shoot the child on our way down.
-                throw;
-            }
+            Query::validateQueryPtr(_query); //are we still OK to execute the query?
             errno = 0;
             ret = poll(pollstat, 1, _pollTimeoutMillis); //chill out until the child gives us some data
         }
         if (ret < 0)
         {
-            LOG4CXX_DEBUG(logger, "STREAM: poll failure errno "<<errno);
-            terminate();
+            LOG4CXX_WARN(logger, "STREAM: poll failure errno "<<errno);
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "poll failed";
         }
         errno = 0;
         ssize_t nRead = read(_childContext.out, outputBuf, maxBytes);
         if(nRead <= 0)
         {
-            LOG4CXX_DEBUG(logger, "STREAM: child terminated early: read "<<nRead <<" errno "<<errno);
+            LOG4CXX_WARN(logger, "STREAM: child terminated early: read returned "<<nRead <<" errno "<<errno);
             terminate();
         }
+        LOG4CXX_TRACE(logger, "Read "<<nRead<<" bytes from child");
         return nRead;
     }
 
     /**
-     * Read a full-formatted TSV message from child. Expects the first line to contain the number of following
-     * lines (which needs to be written atomically and less than 4096 characters), followed by exactly that many
-     * lines of text, terminated with newline.
+     * Write bytes to child in a nonblocking manner that checks for query cancellation.
+     * The function shall poll until the child accepts *all* the data, or the query is cancelled.
+     * If the child has exited, or errored out, terminates and returns false
+     * @param buf the data to write
+     * @param bytes the amount of data to write
+     * @return true if the write is successful, false otherwise
+     * @throw if the query was cancelled while writing
+     */
+    bool writeBytesToChild(char const* buf, size_t const bytes)
+    {
+        LOG4CXX_TRACE(logger, "Writing to child");
+        size_t bytesWritten = 0;
+        while(bytesWritten != bytes)
+        {
+            struct pollfd pollstat [1];
+            pollstat[0].fd = _childContext.in;
+            pollstat[0].events = POLLOUT;
+            int ret = 0;
+            while( ret == 0 )
+            {
+                Query::validateQueryPtr(_query); //are we still OK to execute the query?
+                errno = 0;
+                ret = poll(pollstat, 1, _pollTimeoutMillis); //chill out until the child can accept some data
+            }
+            if (ret < 0)
+            {
+                LOG4CXX_WARN(logger, "STREAM: poll failure errno "<<errno);
+                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "poll failed";
+            }
+            errno = 0;
+            size_t writeRet = write(_childContext.in, buf + bytesWritten, bytes - bytesWritten);
+            if(writeRet <= 0)
+            {
+                LOG4CXX_WARN(logger, "STREAM: child terminated early: write returned "<<writeRet <<" errno "<<errno);
+                terminate();
+                return false;
+            }
+            bytesWritten += writeRet;
+            LOG4CXX_TRACE(logger, "Write iteration");
+        }
+        LOG4CXX_TRACE(logger, "Wrote "<<bytes<<" bytes to child");
+        return true;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // High-level TSV read and write
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Write a TSV message to child.
+     * @param nLines number of lines to write
+     * @param inputData
+     * @throw if there's a query cancellation or write error
+     */
+    void writeTsvToChild(size_t const nLines, string const& inputData)
+    {
+        char hdr[4096];
+        snprintf (hdr, 4096, "%lu\n", nLines);
+        size_t n = strlen (hdr);
+        if (!writeBytesToChild (hdr, n))
+        {
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "failed writing to child";
+        }
+        if (!writeBytesToChild(inputData.c_str(), inputData.size()))
+        {
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "failed writing to child";
+        }
+    }
+
+    /**
+     * Read a TSV message to the child. Expects the first line to contain exactly the number of following
+     * lines (which needs to be written atomically), followed by exactly that many lines of text, terminated with newline.
      * @param[out] output set to the result
-     * throws if the read was not successful
+     * @throw if there's a query cancellation or read error
      */
     void readTsvFromChild(string& output)
     {
-        size_t bufSize = 4096;
+        size_t bufSize = 8*1024*1024;
         vector<char> buf(bufSize);
         ssize_t numRead = readBytesFromChild( &(buf[0]), bufSize);
-        if (numRead <= 0)
+        if (numRead == 0)
         {
-            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child process failed to write a TSV header";
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child process exited early";
+        }
+        else if (numRead < 0)
+        {
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "error reading from child process";
         }
         size_t occupied = numRead, idx =0;
         while ( idx < occupied && buf[idx] != '\n')
@@ -279,38 +387,8 @@ public:
 
     void tsvExchange(size_t const nLines, char const* inputData, string& outputData)
     {
-        ssize_t ret = write_tsv(_childContext.in, inputData, nLines);
-        if(ret<0)
-        {
-            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "failed to write TSV data to child";
-        }
+        writeTsvToChild(nLines, inputData);
         return readTsvFromChild(outputData);
-    }
-
-    void terminate()
-    {
-        if(_alive)
-        {
-            _alive = false;
-            close (_childContext.in);
-            close (_childContext.out);
-            kill (_childContext.pid, SIGTERM);
-            pid_t res = 0;
-            size_t retries = 0;
-            while( res == 0 && retries < 50) // allow up to ~0.5 seconds for child to stop
-            {
-                usleep(10000);
-                res = waitpid (_childContext.pid, NULL, WNOHANG);
-                ++retries;
-            }
-            if( res == 0 )
-            {
-                LOG4CXX_WARN(logger, "child did not exit in time, sending sigkill and waiting indefinitely");
-                kill (_childContext.pid, SIGKILL);
-                waitpid (_childContext.pid, NULL, 0);
-            }
-            LOG4CXX_DEBUG(logger, "child killed");
-        }
     }
 };
 
@@ -551,8 +629,8 @@ std::shared_ptr< Array> execute(std::vector< std::shared_ptr< Array> >& inputArr
     vector <shared_ptr<ConstChunkIterator> > citers (nAttrs);
     TextChunkConverter converter(inputSchema);
     OutputWriter outputWriter(_schema, query);
-    SlaveProcess slave(command, query);
-    bool slaveAlive = slave.isAlive();
+    ChildProcess child(command, query);
+    bool slaveAlive = child.isAlive();
     string tsvInput;
     string output;
     size_t nCells=0;
@@ -563,14 +641,16 @@ std::shared_ptr< Array> execute(std::vector< std::shared_ptr< Array> >& inputArr
             citers[i] = aiters[i]->getChunk().getConstIterator(ConstChunkIterator::IGNORE_OVERLAPS | ConstChunkIterator::IGNORE_EMPTY_CELLS);
         }
         converter.convertChunk(citers, nCells, tsvInput);
-        slave.tsvExchange(nCells, tsvInput.c_str(), output);
+        child.writeTsvToChild(nCells, tsvInput);
+        child.readTsvFromChild(output);
+        output.resize(output.size()-1);
         outputWriter.writeString(output);
         for(size_t i =0; i<nAttrs; ++i)
         {
            ++(*aiters[i]);
         }
     }
-    slave.terminate();
+    child.terminate();
     return outputWriter.finalize();
 }
 };

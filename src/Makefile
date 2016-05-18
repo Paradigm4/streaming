@@ -42,8 +42,8 @@ endif
 
 all: client libstream.so
 
-client: client.c
-	$(CC) client.c -ggdb -o client
+client: client.cpp
+	$(CXX) client.cpp -ggdb -o client
 	
 libstream.so: $(SRCS)
 	@if test ! -d "$(SCIDB)"; then echo  "Error. Try:\n\nmake SCIDB=<PATH TO SCIDB INSTALL PATH>"; exit 1; fi

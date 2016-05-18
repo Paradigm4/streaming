@@ -17,7 +17,6 @@ run (char* const argv[], char* const envp[], limits* lim)
   slave s;
   int parent_child[2];          // pipe descriptors parent writes to child
   int child_parent[2];          // pipe descriptors child writes to parent
-
   pipe (parent_child);
   pipe (child_parent);
   switch (s.pid = fork ())
