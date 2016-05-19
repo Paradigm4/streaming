@@ -222,17 +222,7 @@ public:
         while( ret == 0 )
         {
             Query::validateQueryPtr(_query); //are we still OK to execute the query?
-            int status;
-            if(waitpid (_childContext.pid, &status, WNOHANG) == _childContext.pid) //that child still there?
-            {
-                terminate();
-                LOG4CXX_WARN(logger, "Child terminated while reading; status "<<status);
-                if(WIFEXITED(status))
-                {
-                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child process terminated early (regular exit)";
-                }
-                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child process terminated early (error)";
-            }
+            //no waitpid here: child is allowed to write the last message, then terminate
             errno = 0;
             ret = poll(pollstat, 1, _pollTimeoutMillis); //chill out until the child gives us some data
         }
@@ -327,12 +317,18 @@ public:
     // a    0
     // b    1
     // c    2
+    //
+    // The parent sends a message in the above format to the child; the child then responds with
+    // a different message. The child must consume the whole message first, then send a response.
+    // When there is no more data to send, the parent sends one message with
+    // 0
+    // That denotes the last exchange. The child may then respond with 0 or a larger message.
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
     /**
      * Write a TSV message to the child.
-     * @param nLines number of lines to write
-     * @param inputData
+     * @param nLines number of lines to write (0 for last message)
+     * @param inputData data to write (if n > 0)
      * @throw if there's a query cancellation or write error
      */
     void writeTSV(size_t const nLines, string const& inputData)
@@ -341,13 +337,16 @@ public:
         snprintf (hdr, 4096, "%lu\n", nLines);
         size_t n = strlen (hdr);
         hardWrite (hdr, n);
-        hardWrite (inputData.c_str(), inputData.size());
+        if(n>0)
+        {
+            hardWrite (inputData.c_str(), inputData.size());
+        }
     }
 
     /**
      * Read a TSV message from the child. Expects the first line to contain exactly the number of following
      * lines (which needs to be written atomically), followed by exactly that many lines of text, terminated with newline.
-     * @param[out] output set to the result
+     * @param[out] output set to the result, may be zero-sized
      * @throw if there's a query cancellation or read error
      */
     void readTSV(string& output)
@@ -393,6 +392,10 @@ public:
                 }
                 dataSize += softRead( &(buf[0]) + dataSize, bufSize - dataSize);
             }
+        }
+        if(dataSize > idx)
+        {
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "received extraneous characters at end of message";
         }
         if(buf[dataSize-1] != '\n')
         {
@@ -652,12 +655,22 @@ std::shared_ptr< Array> execute(std::vector< std::shared_ptr< Array> >& inputArr
         converter.convertChunk(citers, nCells, tsvInput);
         child.writeTSV(nCells, tsvInput);
         child.readTSV(output);
-        output.resize(output.size()-1);
-        outputWriter.writeString(output);
+        if(output.size())
+        {
+            output.resize(output.size()-1);
+            outputWriter.writeString(output);
+        }
         for(size_t i =0; i<nAttrs; ++i)
         {
            ++(*aiters[i]);
         }
+    }
+    child.writeTSV(0, "");
+    child.readTSV(output);
+    if(output.size())
+    {
+        output.resize(output.size()-1);
+        outputWriter.writeString(output);
     }
     child.terminate();
     return outputWriter.finalize();

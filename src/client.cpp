@@ -16,7 +16,8 @@ enum ExecutionMode
 {
     NORMAL      = 0,
     READ_DELAY  = 1,
-    WRITE_DELAY = 2
+    WRITE_DELAY = 2,
+    SUMMARIZE   = 3
 };
 
 int basicLoop(ExecutionMode mode)
@@ -29,9 +30,15 @@ int basicLoop(ExecutionMode mode)
         char * end = line;
         errno = 0;
         int nLines = strtoll(line, &end, 10);
-        if(errno!=0  || nLines == 0 || (*end) != '\n')
+        if(errno!=0 || (*end) != '\n')
         {
             return 1;
+        }
+        if (nLines == 0)
+        {
+            cout<<0<<std::endl;
+            cout<<std::flush;
+            return 0;
         }
         ostringstream output;
         output<<nLines+1<<"\n";
@@ -61,7 +68,6 @@ int basicLoop(ExecutionMode mode)
                 sleep(10000);
             }
             string secondPacket = outputString.substr(20,outputString.length());
-            sleep(0);
             cout<<secondPacket;
             cout<<std::flush;
         }
@@ -70,6 +76,46 @@ int basicLoop(ExecutionMode mode)
     free(line);
     return 0;
 }
+
+int summarizeLoop()
+{
+    char* line = NULL;
+    size_t len = 0;
+    int read = getline(&line, &len, stdin);
+    size_t totalLines = 0;
+    while(read > 0)
+    {
+        char * end = line;
+        errno = 0;
+        int nLines = strtoll(line, &end, 10);
+        if(errno!=0 || (*end) != '\n')
+        {
+            return 1;
+        }
+        if (nLines == 0)
+        {
+            cout<<"1\n";
+            cout<<"Thanks! That was a total of "<<totalLines<<" lines.\n";
+            cout<<std::flush;
+            return 0;
+        }
+        for(int i =0 ; i<nLines; ++i)
+        {
+            read = getline(&line, &len, stdin);
+            if(read <= 0)
+            {
+                return 1;
+            }
+            ++totalLines;
+        }
+        cout<<"0\n";
+        cout<<std::flush;
+        read = getline(&line, &len, stdin);
+    }
+    free(line);
+    return 0;
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -88,6 +134,10 @@ int main(int argc, char* argv[])
         else if (modeString == "WRITE_DELAY")
         {
             return basicLoop(WRITE_DELAY);
+        }
+        else if (modeString == "SUMMARIZE")
+        {
+            return summarizeLoop();
         }
         else
         {

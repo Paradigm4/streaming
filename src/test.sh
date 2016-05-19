@@ -10,6 +10,7 @@ rm -rf $MYDIR/test.out
 iquery -anq "store(build(<val:double>[i=1:800000,100000,0], i), foo)" > /dev/null 2>&1
 iquery -aq "op_count(stream(foo, '$MYDIR/stream_test_client'))" >> $MYDIR/test.out 2>&1
 iquery -aq "stream(foo, '$MYDIR/stream_test_client')" | head -n 5 >> $MYDIR/test.out 2>&1
+iquery -otsv -aq "stream(_sg(foo, 2,0), '/home/apoliakov/streaming/src/stream_test_client SUMMARIZE')" | head -n 1 >> $MYDIR/test.out 2>&1
 
 #Test READ_DELAY: start a client with a delay
 iquery -aq "op_count(stream(foo, '$MYDIR/stream_test_client READ_DELAY'))" > /dev/null 2>&1 &
