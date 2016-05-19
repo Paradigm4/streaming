@@ -11,7 +11,7 @@
 #include "slave.h"
 
 slave
-run (char* const argv[], char* const envp[], limits* lim)
+run (char const* command, char* const envp[], limits* lim)
 {
   int j, status;
   slave s;
@@ -31,7 +31,7 @@ run (char* const argv[], char* const envp[], limits* lim)
       dup (parent_child[0]);    // parent writes to stdin
       close (parent_child[1]);
       close (child_parent[0]);
-      execvpe (argv[0], argv, envp);
+      execle ("/bin/bash", "/bin/bash", "-c", command, NULL, envp);
       abort(); //if execvpe returns, it means we're in trouble. bail asap.
       break;
     default:                   // parent

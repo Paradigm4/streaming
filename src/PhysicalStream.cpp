@@ -129,7 +129,7 @@ private:
 public:
     /**
      * Fork a new process.
-     * @param commandLine a single executable file at the moment
+     * @param commandLine the bash command to execute
      * @param query the query context
      */
     ChildProcess(string const& commandLine, shared_ptr<Query>& query):
@@ -137,11 +137,8 @@ public:
         _pollTimeoutMillis(100),
         _query(query)
     {
-        string commandLineCopy = commandLine;
-        char* argv[2];
-        argv[0] = const_cast<char*>(commandLine.c_str());
-        argv[1] = NULL;
-        _childContext = run (argv, NULL, NULL);
+        LOG4CXX_DEBUG(logger, "Executing "<<commandLine);
+        _childContext = run (commandLine.c_str(), NULL, NULL);
         if (_childContext.pid < 0)
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "fork failed, bummer";
@@ -385,7 +382,6 @@ public:
         output.assign( &(buf[tsvStartIdx]), occupied - tsvStartIdx);
     }
 };
-
 
 class TextChunkConverter
 {

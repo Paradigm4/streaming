@@ -20,4 +20,4 @@ typedef struct limits {
 // @param lim optional process ulimits, set to NULL to skip setting limits, otherwise use the limits structure above
 //        (NULL terminated string)
 // @return a slave value; if an error occurred then slave.pid = -1.
-slave run (char* const argv[], char* const envp[], limits* lim);
+slave run (char const* command, char* const envp[], limits* lim);

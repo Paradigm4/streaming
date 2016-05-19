@@ -41,12 +41,15 @@ int normal(unsigned int read_delay = 0, unsigned int write_delay = 0)
         output<<"OK\tthanks!\n";
         string outputString = output.str();
         string firstPacket = outputString.substr(0,1024);
-        string secondPacket = outputString.substr(1024,outputString.length());
         cout<<firstPacket;
         cout<<std::flush;
-        sleep(write_delay);
-        cout<<secondPacket;
-        cout<<std::flush;
+        if(outputString.size()>1024)
+        {
+            string secondPacket = outputString.substr(1024,outputString.length());
+            sleep(write_delay);
+            cout<<secondPacket;
+            cout<<std::flush;
+        }
         read = getline(&line, &len, stdin);
     }
     free(line);

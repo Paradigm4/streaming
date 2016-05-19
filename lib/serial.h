@@ -18,15 +18,6 @@
 // @param fd file descriptor to write to
 // @return a ssize_t value, negative value means error, otherwise OK
 
-// write a TSV + newline delimited text buffer with number of lines 'nlines' to fd
-// The format written is (first line is integer number of lines + newline):
-// n\n
-// line 1
-// line 2
-// ...
-// line n
-ssize_t
-write_tsv(int fd, char const* buf, int nlines);
 
 // @param length number of attributes
 ssize_t

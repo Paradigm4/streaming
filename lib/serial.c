@@ -20,18 +20,6 @@ const char R_CHARSXP[] = { 0x09, 0x00, 0x04, 0x00 };    // UTF-8
 const char R_STRSXP[] = { 0x10, 0x00, 0x00, 0x00 };
 const char R_LISTSXP[] = { 0x02, 0x04, 0x00, 0x00 };    // internal R pairlist
 
-ssize_t
-write_tsv (int fd, char const* buf, int nlines)
-{
-  char hdr[4096];
-  snprintf (hdr, 4096, "%d\n", nlines);
-  size_t n = strlen (hdr);
-  if (write (fd, hdr, n) < n)
-    return -1;
-  return write (fd, buf, strlen (buf));
-}
-
-
 /* first step
  * fd     the file descriptor to write to
  * length the number of variables (list length)
