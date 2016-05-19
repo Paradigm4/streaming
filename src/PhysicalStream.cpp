@@ -204,14 +204,13 @@ public:
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /**
-     * Read up to maxBytes from child in a nonblocking manner that checks for query cancellation.
-     * The function shall retry until the child has *some* data to return, or the query is cancelled.
-     * The amount returned may be less than maxBytes if the child isn't ready to return more.
-     * If the child has exited, or errored out, terminates and returns 0 or -1 respectively.
+     * Read up to maxBytes of data from child. The function returns only when there was *some* nonzero
+     * amount of data read successfully. The amount of data read may be less than maxBytes if the child
+     * is not ready to provide more.
      * @param outputBuf the destination to write data to
      * @param maxBytes the maximum number of bytes to read (must not exceed the size of outputBuf)
-     * @return the number of actual bytes read, -1 if an error occured, 0 if client exited
-     * @throw if the query was cancelled while reading
+     * @return the number of actual bytes read, always > 0
+     * @throw if the query was cancelled while reading, or child has exited, or there was a read error
      */
     ssize_t softRead(char* outputBuf, size_t const maxBytes)
     {
@@ -223,6 +222,17 @@ public:
         while( ret == 0 )
         {
             Query::validateQueryPtr(_query); //are we still OK to execute the query?
+            int status;
+            if(waitpid (_childContext.pid, &status, WNOHANG) == _childContext.pid) //that child still there?
+            {
+                terminate();
+                LOG4CXX_WARN(logger, "Child terminated while reading; status "<<status);
+                if(WIFEXITED(status))
+                {
+                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child process terminated early (regular exit)";
+                }
+                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child process terminated early (error)";
+            }
             errno = 0;
             ret = poll(pollstat, 1, _pollTimeoutMillis); //chill out until the child gives us some data
         }
@@ -237,47 +247,34 @@ public:
         {
             LOG4CXX_WARN(logger, "STREAM: child terminated early: read returned "<<nRead <<" errno "<<errno);
             terminate();
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "error reading from child";
         }
         LOG4CXX_TRACE(logger, "Read "<<nRead<<" bytes from child");
         return nRead;
     }
 
     /**
-     * Read bytes from child in a nonblocking manner that checks for query cancellation.
-     * The function shall retry until the child returns *exactly* bytes of data or the query is cancelled.
-     * The amount returned may be less than maxBytes if the child isn't ready to return more.
-     * If the child has exited, or errored out, terminates and returns 0 or -1 respectively.
+     * Read exactly [bytes] of data from child into outputBuf. Returns only after successful read.
      * @param outputBuf the destination to write data to
-     * @param bytes the number of bytes to read
-     * @return true if the read was successful, false if there was an error or child exited
-     * @throw if the query was cancelled while reading
+     * @param bytes the number of bytes to read (must not exceed the size of outputBuf)
+     * @throw if the query was cancelled while reading, or child has exited, or there was a read error
      */
-    bool hardRead(char* outputBuf, size_t const bytes)
+    void hardRead(char* outputBuf, size_t const bytes)
     {
         size_t bytesRead = 0;
-        ssize_t status = 0;
         while (bytesRead < bytes)
         {
-            status = softRead(outputBuf + bytesRead, bytes - bytesRead);
-            if(status <= 0)
-            {
-                return false;
-            }
-            bytesRead += status;
+            bytesRead += softRead(outputBuf + bytesRead, bytes - bytesRead);
         }
-        return true;
     }
 
     /**
-     * Write bytes to child in a nonblocking manner that checks for query cancellation.
-     * The function shall poll until the child accepts *all* the data, or the query is cancelled.
-     * If the child has exited, or errored out, terminates and returns false
+     * Write exactly [bytes] of data from buf to child. Returns only after successful write.
      * @param buf the data to write
      * @param bytes the amount of data to write
-     * @return true if the write is successful, false otherwise
-     * @throw if the query was cancelled while writing
+     * @throw if the query was cancelled while writing, or child has exited or there was a write error
      */
-    bool hardWrite(char const* buf, size_t const bytes)
+    void hardWrite(char const* buf, size_t const bytes)
     {
         LOG4CXX_TRACE(logger, "Writing to child");
         size_t bytesWritten = 0;
@@ -290,6 +287,17 @@ public:
             while( ret == 0 )
             {
                 Query::validateQueryPtr(_query); //are we still OK to execute the query?
+                int status;
+                if(waitpid (_childContext.pid, &status, WNOHANG) == _childContext.pid) //that child still there?
+                {
+                    terminate();
+                    LOG4CXX_WARN(logger, "Child terminated while writing; status "<<status);
+                    if(WIFEXITED(status))
+                    {
+                        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child process terminated early (regular exit)";
+                    }
+                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child process terminated early (error)";
+                }
                 errno = 0;
                 ret = poll(pollstat, 1, _pollTimeoutMillis); //chill out until the child can accept some data
             }
@@ -304,13 +312,12 @@ public:
             {
                 LOG4CXX_WARN(logger, "STREAM: child terminated early: write returned "<<writeRet <<" errno "<<errno);
                 terminate();
-                return false;
+                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "error writing to child";
             }
             bytesWritten += writeRet;
             LOG4CXX_TRACE(logger, "Write iteration");
         }
         LOG4CXX_TRACE(logger, "Wrote "<<bytes<<" bytes to child");
-        return true;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -333,14 +340,8 @@ public:
         char hdr[4096];
         snprintf (hdr, 4096, "%lu\n", nLines);
         size_t n = strlen (hdr);
-        if (!hardWrite (hdr, n))
-        {
-            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "failed writing to child";
-        }
-        if (!hardWrite(inputData.c_str(), inputData.size()))
-        {
-            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "failed writing to child";
-        }
+        hardWrite (hdr, n);
+        hardWrite (inputData.c_str(), inputData.size());
     }
 
     /**
@@ -353,21 +354,13 @@ public:
     {
         size_t bufSize = 8*1024*1024;
         vector<char> buf(bufSize);
-        ssize_t numRead = softRead( &(buf[0]), bufSize);
-        if (numRead == 0)
-        {
-            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child process exited early";
-        }
-        else if (numRead < 0)
-        {
-            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "error reading from child process";
-        }
-        size_t occupied = numRead, idx =0;
-        while ( idx < occupied && buf[idx] != '\n')
+        size_t dataSize = softRead( &(buf[0]), bufSize);
+        size_t idx =0;
+        while ( idx < dataSize && buf[idx] != '\n')
         {
             ++ idx;
         }
-        if( idx >= occupied || buf[idx] != '\n')
+        if( idx >= dataSize)
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "TSV header provided by child did not contain a newline";
         }
@@ -383,7 +376,7 @@ public:
         int64_t linesReceived = 0;
         while(linesReceived < expectedNumLines)
         {
-            while(idx < occupied && linesReceived < expectedNumLines)
+            while(idx < dataSize && linesReceived < expectedNumLines)
             {
                 if(buf[idx] == '\n')
                 {
@@ -398,19 +391,14 @@ public:
                     bufSize = bufSize * 2;
                     buf.resize(bufSize);
                 }
-                numRead = softRead( &(buf[0]) + occupied, bufSize - occupied);
-                if (numRead <= 0)
-                {
-                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "failed to fetch additional lines from child";
-                }
-                occupied += numRead;
+                dataSize += softRead( &(buf[0]) + dataSize, bufSize - dataSize);
             }
         }
-        if(buf[occupied-1] != '\n')
+        if(buf[dataSize-1] != '\n')
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child did not end message with newline";
         }
-        output.assign( &(buf[tsvStartIdx]), occupied - tsvStartIdx);
+        output.assign( &(buf[tsvStartIdx]), dataSize - tsvStartIdx);
     }
 };
 

@@ -1,0 +1,17 @@
+{i} count
+{0} 8
+{instance_id,chunk_no} status
+{0,0} 'Hello	1
+Hello	2
+Hello	3
+Hello	4
+{i} count
+{0} 2
+Query was executed successfully
+{i} count
+{0} 1
+{i} count
+{0} 2
+Query was executed successfully
+{i} count
+{0} 1

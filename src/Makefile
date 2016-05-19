@@ -40,10 +40,10 @@ else
   endif
 endif
 
-all: client libstream.so
+all: stream_test_client libstream.so
 
-client: client.cpp
-	$(CXX) client.cpp -ggdb -o client
+stream_test_client: client.cpp
+	$(CXX) client.cpp -ggdb -o stream_test_client
 	
 libstream.so: $(SRCS)
 	@if test ! -d "$(SCIDB)"; then echo  "Error. Try:\n\nmake SCIDB=<PATH TO SCIDB INSTALL PATH>"; exit 1; fi
@@ -58,4 +58,4 @@ test:
 	@./test.sh
 	
 clean:
-	rm -f *.so *.o client
+	rm -f *.so *.o stream_test_client

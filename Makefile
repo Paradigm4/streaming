@@ -1,6 +1,6 @@
 all:
 	$(MAKE) -C src
-	@cp src/*.so src/client .
+	@cp src/*.so src/stream_test_client .
 
 clean:
 	$(MAKE) -C src clean

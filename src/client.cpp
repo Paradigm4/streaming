@@ -10,8 +10,16 @@
 using std::string;
 using std::ostringstream;
 using std::cout;
+using std::endl;
 
-int normal(unsigned int read_delay = 0, unsigned int write_delay = 0)
+enum ExecutionMode
+{
+    NORMAL      = 0,
+    READ_DELAY  = 1,
+    WRITE_DELAY = 2
+};
+
+int basicLoop(ExecutionMode mode)
 {
     char* line = NULL;
     size_t len = 0;
@@ -30,23 +38,30 @@ int normal(unsigned int read_delay = 0, unsigned int write_delay = 0)
         size_t i;
         for( i =0 ; i<nLines; ++i)
         {
+            if(mode == READ_DELAY)
+            {
+                sleep(10000);
+            }
             read = getline(&line, &len, stdin);
             if(read <= 0)
             {
                 return 1;
             }
-            sleep(read_delay);
             output<<"Hello\t"<<line;
         }
         output<<"OK\tthanks!\n";
         string outputString = output.str();
-        string firstPacket = outputString.substr(0,1024);
+        string firstPacket = outputString.substr(0,20);
         cout<<firstPacket;
         cout<<std::flush;
-        if(outputString.size()>1024)
+        if(outputString.size()>20)
         {
-            string secondPacket = outputString.substr(1024,outputString.length());
-            sleep(write_delay);
+            if(mode == WRITE_DELAY)
+            {
+                sleep(10000);
+            }
+            string secondPacket = outputString.substr(20,outputString.length());
+            sleep(0);
             cout<<secondPacket;
             cout<<std::flush;
         }
@@ -56,7 +71,29 @@ int normal(unsigned int read_delay = 0, unsigned int write_delay = 0)
     return 0;
 }
 
-int main(void)
+int main(int argc, char* argv[])
 {
-    return normal(0,0);
+    ExecutionMode mode = NORMAL;
+    if(argc==2)
+    {
+        string modeString(argv[1]);
+        if(modeString == "NORMAL")
+        {
+            return basicLoop(NORMAL);
+        }
+        else if (modeString == "READ_DELAY")
+        {
+            return basicLoop(READ_DELAY);
+        }
+        else if (modeString == "WRITE_DELAY")
+        {
+            return basicLoop(WRITE_DELAY);
+        }
+        else
+        {
+            std::cerr<<"Unknown mode "<<modeString<<std::endl;
+            abort();
+        }
+    }
+    return basicLoop(NORMAL);
 }
