@@ -56,8 +56,7 @@ int normal(unsigned int read_delay = 0, unsigned int write_delay = 0)
     return 0;
 }
 
-
 int main(void)
 {
-    return normal(0,00);
+    return normal(0,0);
 }

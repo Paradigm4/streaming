@@ -199,9 +199,9 @@ public:
         return _alive;
     }
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////
-    // Low-level binary read and write (note they don't work symmetrically)
-    ////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    // Low-level binary interface: soft read (up to n bytes), hard read (n bytes), hard write (n bytes)
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     /**
      * Read up to maxBytes from child in a nonblocking manner that checks for query cancellation.
@@ -213,7 +213,7 @@ public:
      * @return the number of actual bytes read, -1 if an error occured, 0 if client exited
      * @throw if the query was cancelled while reading
      */
-    ssize_t readBytesFromChild(char* outputBuf, size_t const maxBytes)
+    ssize_t softRead(char* outputBuf, size_t const maxBytes)
     {
         LOG4CXX_TRACE(logger, "Reading from child");
         struct pollfd pollstat [1];
@@ -243,6 +243,32 @@ public:
     }
 
     /**
+     * Read bytes from child in a nonblocking manner that checks for query cancellation.
+     * The function shall retry until the child returns *exactly* bytes of data or the query is cancelled.
+     * The amount returned may be less than maxBytes if the child isn't ready to return more.
+     * If the child has exited, or errored out, terminates and returns 0 or -1 respectively.
+     * @param outputBuf the destination to write data to
+     * @param bytes the number of bytes to read
+     * @return true if the read was successful, false if there was an error or child exited
+     * @throw if the query was cancelled while reading
+     */
+    bool hardRead(char* outputBuf, size_t const bytes)
+    {
+        size_t bytesRead = 0;
+        ssize_t status = 0;
+        while (bytesRead < bytes)
+        {
+            status = softRead(outputBuf + bytesRead, bytes - bytesRead);
+            if(status <= 0)
+            {
+                return false;
+            }
+            bytesRead += status;
+        }
+        return true;
+    }
+
+    /**
      * Write bytes to child in a nonblocking manner that checks for query cancellation.
      * The function shall poll until the child accepts *all* the data, or the query is cancelled.
      * If the child has exited, or errored out, terminates and returns false
@@ -251,7 +277,7 @@ public:
      * @return true if the write is successful, false otherwise
      * @throw if the query was cancelled while writing
      */
-    bool writeBytesToChild(char const* buf, size_t const bytes)
+    bool hardWrite(char const* buf, size_t const bytes)
     {
         LOG4CXX_TRACE(logger, "Writing to child");
         size_t bytesWritten = 0;
@@ -289,40 +315,45 @@ public:
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // High-level TSV read and write
+    // The format is an integer number of lines, folllowed by newline, followed by the data, i.e.:
+    // 3
+    // a    0
+    // b    1
+    // c    2
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
     /**
-     * Write a TSV message to child.
+     * Write a TSV message to the child.
      * @param nLines number of lines to write
      * @param inputData
      * @throw if there's a query cancellation or write error
      */
-    void writeTsvToChild(size_t const nLines, string const& inputData)
+    void writeTSV(size_t const nLines, string const& inputData)
     {
         char hdr[4096];
         snprintf (hdr, 4096, "%lu\n", nLines);
         size_t n = strlen (hdr);
-        if (!writeBytesToChild (hdr, n))
+        if (!hardWrite (hdr, n))
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "failed writing to child";
         }
-        if (!writeBytesToChild(inputData.c_str(), inputData.size()))
+        if (!hardWrite(inputData.c_str(), inputData.size()))
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "failed writing to child";
         }
     }
 
     /**
-     * Read a TSV message to the child. Expects the first line to contain exactly the number of following
+     * Read a TSV message from the child. Expects the first line to contain exactly the number of following
      * lines (which needs to be written atomically), followed by exactly that many lines of text, terminated with newline.
      * @param[out] output set to the result
      * @throw if there's a query cancellation or read error
      */
-    void readTsvFromChild(string& output)
+    void readTSV(string& output)
     {
         size_t bufSize = 8*1024*1024;
         vector<char> buf(bufSize);
-        ssize_t numRead = readBytesFromChild( &(buf[0]), bufSize);
+        ssize_t numRead = softRead( &(buf[0]), bufSize);
         if (numRead == 0)
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child process exited early";
@@ -367,7 +398,7 @@ public:
                     bufSize = bufSize * 2;
                     buf.resize(bufSize);
                 }
-                numRead = readBytesFromChild( &(buf[0]) + occupied, bufSize - occupied);
+                numRead = softRead( &(buf[0]) + occupied, bufSize - occupied);
                 if (numRead <= 0)
                 {
                     throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "failed to fetch additional lines from child";
@@ -631,8 +662,8 @@ std::shared_ptr< Array> execute(std::vector< std::shared_ptr< Array> >& inputArr
             citers[i] = aiters[i]->getChunk().getConstIterator(ConstChunkIterator::IGNORE_OVERLAPS | ConstChunkIterator::IGNORE_EMPTY_CELLS);
         }
         converter.convertChunk(citers, nCells, tsvInput);
-        child.writeTsvToChild(nCells, tsvInput);
-        child.readTsvFromChild(output);
+        child.writeTSV(nCells, tsvInput);
+        child.readTSV(output);
         output.resize(output.size()-1);
         outputWriter.writeString(output);
         for(size_t i =0; i<nAttrs; ++i)
