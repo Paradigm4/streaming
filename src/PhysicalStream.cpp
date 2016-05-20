@@ -657,6 +657,10 @@ std::shared_ptr< Array> execute(std::vector< std::shared_ptr< Array> >& inputArr
         child.readTSV(output);
         if(output.size())
         {
+            if(output.size() > 1024*1024*1024)
+            {
+                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "cannot receive output exceeding 1GB";
+            }
             output.resize(output.size()-1);
             outputWriter.writeString(output);
         }
@@ -669,6 +673,10 @@ std::shared_ptr< Array> execute(std::vector< std::shared_ptr< Array> >& inputArr
     child.readTSV(output);
     if(output.size())
     {
+        if(output.size() > 1024*1024*1024)
+        {
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "cannot receive output exceeding 1GB";
+        }
         output.resize(output.size()-1);
         outputWriter.writeString(output);
     }
