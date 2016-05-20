@@ -31,6 +31,12 @@ run (char const* command, char* const envp[], limits* lim)
       dup (parent_child[0]);    // parent writes to stdin
       close (parent_child[1]);
       close (child_parent[0]);
+      struct rlimit limit;
+      getrlimit(RLIMIT_NOFILE, &limit);
+      for(unsigned long i = 3; i<limit.rlim_max; i = i+1)
+      {
+          close(i);
+      }
       execle ("/bin/bash", "/bin/bash", "-c", command, NULL, envp);
       abort(); //if execvpe returns, it means we're in trouble. bail asap.
       break;
