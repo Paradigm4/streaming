@@ -69,6 +69,7 @@ write_names (int fd, char **buffer, int *n, int length)
 }
 
 // write length doubles from a buffer to the file descriptor
+// length 1 buffer[0] = 0x 7f f0 00  00 00 00 07 a2  means NA
 ssize_t
 write_doubles (int fd, double *buffer, int length)
 {
@@ -80,6 +81,7 @@ write_doubles (int fd, double *buffer, int length)
 }
 
 // write length strings, each of length n[j], from a buffer to the file desc
+// n[j] = -1 indicates NA string
 ssize_t
 write_strings (int fd, char **buffer, int *n, int length)
 {
@@ -94,13 +96,17 @@ write_strings (int fd, char **buffer, int *n, int length)
         return -1;
       if (write (fd, &(n[j]), 4) < 4)
         return -1;
-      if (write (fd, buffer[j], n[j]) < n[j])
-        return -1;
+      if(n[j] > 0)
+        {
+          if (write (fd, buffer[j], n[j]) < n[j])
+          return -1;
+        }
     }
   return j;
 }
 
 // write length ints from a buffer to the file descriptor
+// length 1 buffer[0] = 2147483648 indicates NA int
 ssize_t
 write_ints (int fd, int *buffer, int length)
 {
