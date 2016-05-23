@@ -31,9 +31,12 @@ run (char const* command, char* const envp[], limits* lim)
       dup (parent_child[0]);    // parent writes to stdin
       close (parent_child[1]);
       close (child_parent[0]);
+      //child needs to close all open FDs - just in case its parent is listening on a port (ahem)
+      //we wouldn't want the child to clog up said port for no reason
       struct rlimit limit;
       getrlimit(RLIMIT_NOFILE, &limit);
-      for(unsigned long i = 3; i<limit.rlim_max; i = i+1)
+      unsigned long i;
+      for(i = 3; i<limit.rlim_max; i = i+1)
       {
           close(i);
       }

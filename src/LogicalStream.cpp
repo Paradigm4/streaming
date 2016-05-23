@@ -53,11 +53,12 @@ public:
     {
         ArrayDesc const& inputSchema = schemas[0];
         Attributes outputAttributes;
-        outputAttributes.push_back( AttributeDesc(0, "response",   TID_STRING,    0, 0));
+        outputAttributes.push_back( AttributeDesc(0, "response",   TID_DOUBLE,    0, 0));
         outputAttributes = addEmptyTagAttribute(outputAttributes);
         Dimensions outputDimensions;
         outputDimensions.push_back(DimensionDesc("instance_id", 0,   query->getInstancesCount()-1, 1, 0));
         outputDimensions.push_back(DimensionDesc("chunk_no",    0,   CoordinateBounds::getMax(),   1, 0));
+        outputDimensions.push_back(DimensionDesc("value_no",    0,   CoordinateBounds::getMax(),   5, 0));
         return ArrayDesc(inputSchema.getName(), outputAttributes, outputDimensions, defaultPartitioning(), query->getDefaultArrayResidency());
     }
 };
