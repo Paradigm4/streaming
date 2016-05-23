@@ -11,9 +11,10 @@
 #include "slave.h"
 
 slave
-run (char const* command, char* const envp[], limits* lim)
+run (char const *command, char *const envp[], limits * lim)
 {
-  int j, status;
+  int j;
+  unsigned long i;
   slave s;
   int parent_child[2];          // pipe descriptors parent writes to child
   int child_parent[2];          // pipe descriptors child writes to parent
@@ -40,10 +41,6 @@ run (char const* command, char* const envp[], limits* lim)
       {
           close(i);
       }
-      execle ("/bin/bash", "/bin/bash", "-c", command, NULL, envp);
-      abort(); //if execvpe returns, it means we're in trouble. bail asap.
-      break;
-    default:                   // parent
       if (lim != NULL)
       {
           // first validate the limits
@@ -51,31 +48,31 @@ run (char const* command, char* const envp[], limits* lim)
             lim->NOFILE = 8;
           // now try to set them
           j = 0;
-          struct rlimit rl;
-          rl.rlim_cur = lim->DATA;
-          rl.rlim_max = lim->DATA;
-          j = j || (prlimit (s.pid, RLIMIT_DATA, &rl, NULL) < 0);
-          rl.rlim_cur = lim->STACK;
-          rl.rlim_max = lim->STACK;
-          j = j || (prlimit (s.pid, RLIMIT_STACK, &rl, NULL) < 0);
-          rl.rlim_cur = lim->CPU;
-          rl.rlim_max = lim->CPU;
-          j = j || (prlimit (s.pid, RLIMIT_CPU, &rl, NULL) < 0);
-          rl.rlim_cur = lim->NOFILE;
-          rl.rlim_max = lim->NOFILE;
-          j = j || (prlimit (s.pid, RLIMIT_NOFILE, &rl, NULL) < 0);
-          if (j)               // something went wrong setting the limits!
+          limit.rlim_cur = lim->DATA;
+          limit.rlim_max = lim->DATA;
+          j = j || (setrlimit (RLIMIT_DATA, &limit) < 0);
+          limit.rlim_cur = lim->STACK;
+          limit.rlim_max = lim->STACK;
+          j = j || (setrlimit (RLIMIT_STACK, &limit) < 0);
+          limit.rlim_cur = lim->CPU;
+          limit.rlim_max = lim->CPU;
+          j = j || (setrlimit (RLIMIT_CPU, &limit) < 0);
+          limit.rlim_cur = lim->NOFILE;
+          limit.rlim_max = lim->NOFILE;
+          j = j || (setrlimit (RLIMIT_NOFILE, &limit) < 0);
+          if (j)                // something went wrong setting the limits!
           {
-              kill (s.pid, SIGKILL);
-              waitpid (s.pid, &status, 0);
-              s.pid = -1;
-              return s;
+            abort ();
           }
       }
+      execle ("/bin/bash", "/bin/bash", "-c", command, NULL, envp);
+      abort ();                 //if execle returns, it means we're in trouble. bail asap.
+      break;
+    default:                   // parent
       close (parent_child[0]);
       close (child_parent[1]);
       s.in = parent_child[1];
       s.out = child_parent[0];
     }
-    return s;
+  return s;
 }
