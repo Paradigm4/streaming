@@ -16,7 +16,6 @@ Query was executed successfully
 Query was executed successfully
 {i} count
 {0} 1
-/usr/local/bin/R
 '1	2
 2	4
 3	6
@@ -29,3 +28,9 @@ Query was executed successfully
 10	20'
 {i} count
 {0} 8
+{instance_id,chunk_no,value_no} a0,a1
+{0,0,0} 2,8
+{0,0,1} 4,16
+{0,0,2} 6,24
+{0,0,3} 8,32
+{0,0,4} 10,40

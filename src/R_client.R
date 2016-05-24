@@ -14,7 +14,6 @@ while( TRUE )
     break;
   }
   nrow = length(input_list[[1]])
-  #Example modification: double the first column
   input_list[[1]] = input_list[[1]]*2
   input_list[[2]] = as.integer(input_list[[1]]*4)
   writeBin(serialize(input_list, NULL, xdr=FALSE), con_out)

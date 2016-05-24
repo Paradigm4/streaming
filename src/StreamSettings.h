@@ -71,6 +71,98 @@ private:
 public:
     static const size_t MAX_PARAMETERS = 4;
 
+private:
+    string paramToString(shared_ptr <OperatorParam> const& parameter, shared_ptr<Query>& query, bool logical)
+    {
+        if(logical)
+        {
+            string result = evaluate(((shared_ptr<OperatorParamLogicalExpression>&) parameter)->getExpression(),query, TID_STRING).getString();
+            return result;
+        }
+        return ((shared_ptr<OperatorParamPhysicalExpression>&) parameter)->getExpression()->evaluate().getString();
+    }
+
+    void setParamChunkSize(string trimmedContent)
+    {
+        try
+        {
+            _outputChunkSize = lexical_cast<int64_t>(trimmedContent);
+            if(_outputChunkSize <= 0)
+            {
+                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "chunk size must be positive";
+            }
+        }
+        catch (bad_lexical_cast const& exn)
+        {
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse chunk size";
+        }
+    }
+
+    void setParamFormat(string trimmedContent)
+    {
+        if(trimmedContent == "tsv")
+        {
+            _transferFormat = TSV;
+        }
+        else if(trimmedContent == "df")
+        {
+            _transferFormat = DF;
+        }
+        else
+        {
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse format";
+        }
+    }
+
+    void setParamDfTypes(string trimmedContent)
+    {
+        trim_left_if(trimmedContent, is_any_of("("));
+        trim_right_if(trimmedContent, is_any_of(")"));
+        vector<string> tokens;
+        split(tokens, trimmedContent, is_any_of(","));
+        if(tokens.size() == 0)
+        {
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse types";
+        }
+        for(size_t i =0; i<tokens.size(); ++i)
+        {
+            string const& t = tokens[i];
+            if(t == "int32")
+            {
+                _dfTypes.push_back(INTEGER);
+            }
+            else if(t == "double")
+            {
+                _dfTypes.push_back(DOUBLE);
+            }
+            else if(t == "string")
+            {
+                _dfTypes.push_back(STRING);
+                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "strings not supported yet";
+            }
+            else
+            {
+                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse types";
+            }
+        }
+    }
+
+    void setParam (string const& parameterString, bool& alreadySet, string const& header, void (Settings::* innersetter)(string) )
+    {
+        string paramContent = parameterString.substr(header.size());
+        if (alreadySet)
+        {
+            string header = parameterString.substr(0, header.size()-1);
+            ostringstream error;
+            error<<"illegal attempt to set "<<header<<" multiple times";
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << error.str().c_str();
+        }
+        trim(paramContent);
+        (this->*innersetter)(paramContent); //TODO:.. tried for an hour with a template first. #thisIsWhyWeCantHaveNiceThings
+        alreadySet = true;
+    }
+
+public:
     Settings(vector<shared_ptr <OperatorParam> > const& operatorParameters,
              bool logical,
              shared_ptr<Query>& query):
@@ -89,105 +181,21 @@ public:
         {   //assert-like exception. Caller should have taken care of this!
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "illegal number of parameters passed to stream";
         }
-        if(logical)
-        {
-            _command = evaluate(((shared_ptr<OperatorParamLogicalExpression>&) operatorParameters[0])->getExpression(),query, TID_STRING).getString();
-        }
-        else
-        {
-            _command = ((shared_ptr<OperatorParamPhysicalExpression>&) operatorParameters[0])->getExpression()->evaluate().getString();
-        }
+        _command = paramToString(operatorParameters[0], query, logical);
         for (size_t i= 1; i<nParams; ++i)
         {
-            shared_ptr<OperatorParam>const& param = operatorParameters[i];
-            string parameterString;
-            if (logical)
-            {
-                parameterString = evaluate(((shared_ptr<OperatorParamLogicalExpression>&) param)->getExpression(),query, TID_STRING).getString();
-            }
-            else
-            {
-                parameterString = ((shared_ptr<OperatorParamPhysicalExpression>&) param)->getExpression()->evaluate().getString();
-            }
+            string parameterString = paramToString(operatorParameters[i], query, logical);
             if (starts_with(parameterString, chunkSizeHeader))
             {
-                if (chunkSizeSet)
-                {
-                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "illegal attempt to set chunk_size multiple times";
-                }
-                string paramContent = parameterString.substr(chunkSizeHeader.size());
-                trim(paramContent);
-                try
-                {
-                    _outputChunkSize = lexical_cast<int64_t>(paramContent);
-                    if(_outputChunkSize <= 0)
-                    {
-                        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "chunk_size must be positive";
-                    }
-                }
-                catch (bad_lexical_cast const& exn)
-                {
-                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse chunk_size";
-                }
+                setParam(parameterString, chunkSizeSet, chunkSizeHeader, &Settings::setParamChunkSize);
             }
             else if (starts_with(parameterString, formatHeader))
             {
-                if (formatSet)
-                {
-                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "illegal attempt to set format multiple times";
-                }
-                string paramContent = parameterString.substr(formatHeader.size());
-                trim(paramContent);
-                if(paramContent == "tsv")
-                {
-                    _transferFormat = TSV;
-                }
-                else if(paramContent == "df")
-                {
-                    _transferFormat = DF;
-                }
-                else
-                {
-                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse format";
-                }
+                setParam(parameterString, formatSet, formatHeader, &Settings::setParamFormat);
             }
             else if (starts_with(parameterString, typesHeader))
             {
-                if(typesSet)
-                {
-                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "illegal attempt to set types multiple times";
-                }
-                string paramContent = parameterString.substr(typesHeader.size());
-                trim(paramContent);
-                trim_left_if(paramContent, is_any_of("("));
-                trim_right_if(paramContent, is_any_of(")"));
-                vector<string> tokens;
-                split(tokens, paramContent, is_any_of(","));
-                if(tokens.size() == 0)
-                {
-                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse types";
-                }
-                for(size_t i =0; i<tokens.size(); ++i)
-                {
-                    string const& t = tokens[i];
-                    if(t == "int32")
-                    {
-                        _dfTypes.push_back(INTEGER);
-                    }
-                    else if(t == "double")
-                    {
-                        _dfTypes.push_back(DOUBLE);
-                    }
-                    else if(t == "string")
-                    {
-                        _dfTypes.push_back(STRING);
-                        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "strings not supported yet";
-                    }
-                    else
-                    {
-                        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse types";
-                    }
-                }
+                setParam(parameterString, typesSet, typesHeader, &Settings::setParamDfTypes);
             }
             else
             {
@@ -221,7 +229,6 @@ public:
     {
         return _command;
     }
-
 };
 
 } }
