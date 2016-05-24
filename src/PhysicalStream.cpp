@@ -36,6 +36,7 @@
 #include <query/Operator.h>
 #include <log4cxx/logger.h>
 
+#include "StreamSettings.h"
 #include "../lib/slave.h"
 #include "../lib/serial.h"
 
@@ -45,10 +46,7 @@ using std::string;
 using std::ostringstream;
 using std::vector;
 
-namespace scidb
-{
-
-namespace stream
+namespace scidb { namespace stream
 {
 
 // Logger for operator. static to prevent visibility of variable outside of file
@@ -113,13 +111,6 @@ public:
         _query.reset();
         return res;
     }
-};
-
-enum DFDataType
-{
-    STRING  = 0,
-    DOUBLE  = 1,
-    INTEGER = 2
 };
 
 /**
@@ -425,6 +416,7 @@ public:
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
     const unsigned char R_HEADER[14]    = { 0x42, 0x0a, 0x02, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0x00, 0x00, 0x03, 0x02, 0x00 };
+    const unsigned char R_EVECSXP[4]    = { 0x13, 0x00, 0x00, 0x00 };     // R list without attributes
     const unsigned char R_VECSXP[4]     = { 0x13, 0x02, 0x00, 0x00 };     // R list with attributes
     const unsigned char R_INTSXP[4]     = { 0x0d, 0x00, 0x00, 0x00 };
     const unsigned char R_REALSXP[4]    = { 0x0e, 0x00, 0x00, 0x00 };
@@ -540,23 +532,15 @@ public:
 
     void writeEmptyDF()
     {
+        hardWrite(R_HEADER,  sizeof(R_HEADER));
+        hardWrite(R_EVECSXP, sizeof(R_VECSXP));
         int32_t numColumns = 0;
-        EasyBuf output;
-        char HDR[]  = { 0x02, 0x04, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x09, 0x00, 0x04, 0x00, 0x05, 0x00, 0x00, 0x00, 0x6e, 0x61, 0x6d, 0x65, 0x73 };
-        unsigned char NEND[] = { 0xfe, 0x00, 0x00, 0x00 };
-        output.addData(R_HEADER, sizeof(R_HEADER));
-        output.addData(R_VECSXP, sizeof(R_VECSXP));
-        output.addData(&numColumns, sizeof(int32_t));
-        output.addData(HDR, sizeof(HDR));
-        output.addData(R_STRSXP, sizeof(R_STRSXP));
-        output.addData(&numColumns, sizeof(int32_t));
-        output.addData(NEND, sizeof(NEND));
-        hardWrite(output.getData(), output.getSize());
+        hardWrite(&numColumns, sizeof(int32_t));
     }
 
     void readDF(vector<DFDataType>        const& types,
                 vector<shared_ptr<ArrayIterator> > oaiters,
-                Coordinates               & chunkPos,
+                Coordinates&              chunkPos,
                 shared_ptr<Query>&        query)
     {
         if(types.size() != oaiters.size() || oaiters.size() == 0)
@@ -567,10 +551,14 @@ public:
         vector<char> buffer(8*1024*1024,0);
         hardRead(&(buffer[0]), sizeof(R_HEADER) + sizeof(R_VECSXP));
         int32_t intBuf;
-        hardRead(&intBuf, sizeof(int32_t));
-        if (numColumns > 0 && intBuf != numColumns)
+        hardRead(&numColumns, sizeof(int32_t));
+        if (numColumns > 0 && numColumns != ((int32_t) types.size()))
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "received incorrect number of columns";
+        }
+        if (numColumns == 0)
+        {
+            return;
         }
         int32_t numRows;
         for(int32_t i =0; i<numColumns; ++i)
@@ -647,7 +635,7 @@ public:
                 case INTEGER:
                 {
                     int32_t v = ((int32_t*)(&(buffer[0])))[j];
-                    valBuf.setDouble(v);
+                    valBuf.setInt32(v);
                     ociter->writeItem(valBuf);
                     break;
                 }
@@ -949,81 +937,8 @@ shared_ptr<Array> runTSV(shared_ptr<Array> &inputArray,  string const& command, 
     return outputWriter.finalize();
 }
 
-shared_ptr<Array> runDF(shared_ptr<Array> &inputArray,  string const& command, shared_ptr<Query>& query)
-{
-    ArrayDesc const& inputSchema = inputArray ->getArrayDesc();
-    size_t const nAttrs = inputSchema.getAttributes(true).size();
-    vector<string> inputNames;
-    vector<DFDataType> inputTypes;
-    for(size_t i =0; i<nAttrs; ++i)
-    {
-        AttributeDesc const& inputAttr = inputSchema.getAttributes()[i];
-        inputNames.push_back(inputAttr.getName());
-        TypeId inputType = inputAttr.getType();
-        if(inputType == TID_STRING)
-        {
-            inputTypes.push_back(STRING);
-        }
-        else if (inputType == TID_DOUBLE)
-        {
-            inputTypes.push_back(DOUBLE);
-        }
-        else if (inputType == TID_INT32)
-        {
-            inputTypes.push_back(INTEGER);
-        }
-        else
-        {
-            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "unsupported input attribute type";
-        }
-    }
-    vector <shared_ptr<ConstArrayIterator> > aiters (nAttrs);
-    for(size_t i =0; i<nAttrs; ++i)
-    {
-        aiters[i] = inputArray->getConstIterator(i);
-    }
-    OutputWriter outputWriter(_schema, query);
-    ChildProcess child(command, query);
-    string output;
-    while(!aiters[0]->end())
-    {
-        vector<ConstChunk const*> chunks;
-        for(size_t i =0; i<nAttrs; ++i)
-        {
-            chunks.push_back(&(aiters[i]->getChunk()));
-        }
-        child.writeDF(inputTypes, inputNames, chunks);
-        child.readTSV(output);
-        if(output.size())
-        {
-            if(output.size() > 1024*1024*1024)
-            {
-                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "cannot receive output exceeding 1GB";
-            }
-            output.resize(output.size()-1);
-            outputWriter.writeString(output);
-        }
-        for(size_t i =0; i<nAttrs; ++i)
-        {
-           ++(*aiters[i]);
-        }
-    }
-    child.writeEmptyDF();
-    child.readTSV(output);
-    if(output.size())
-    {
-        if(output.size() > 1024*1024*1024)
-        {
-            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "cannot receive output exceeding 1GB";
-        }
-        output.resize(output.size()-1);
-        outputWriter.writeString(output);
-    }
-    return outputWriter.finalize();
-}
 
-
-shared_ptr<Array> runDF2(shared_ptr<Array> &inputArray,  string const& command, shared_ptr<Query>& query)
+shared_ptr<Array> runDF(shared_ptr<Array> &inputArray, string const& command, vector<DFDataType> outputTypes, shared_ptr<Query>& query)
 {
     ArrayDesc const& inputSchema = inputArray ->getArrayDesc();
     size_t const nAttrs = inputSchema.getAttributes(true).size();
@@ -1052,11 +967,15 @@ shared_ptr<Array> runDF2(shared_ptr<Array> &inputArray,  string const& command, 
         }
     }
     shared_ptr<Array> output(new MemArray(_schema, query));
-    vector <shared_ptr<ConstArrayIterator> > aiters (nAttrs);
-    vector <shared_ptr<ArrayIterator> >      oiters (nAttrs);
+    size_t const nOutputAttrs = _schema.getAttributes(true).size();
+    vector <shared_ptr<ConstArrayIterator> > aiters (nOutputAttrs);
+    vector <shared_ptr<ArrayIterator> >      oiters (nOutputAttrs);
     for(size_t i =0; i<nAttrs; ++i)
     {
         aiters[i] = inputArray->getConstIterator(i);
+    }
+    for(size_t i = 0; i<nOutputAttrs; ++i)
+    {
         oiters[i] = output->getIterator(i);
     }
     ChildProcess child(command, query);
@@ -1070,22 +989,31 @@ shared_ptr<Array> runDF2(shared_ptr<Array> &inputArray,  string const& command, 
             chunks.push_back(&(aiters[i]->getChunk()));
         }
         child.writeDF(inputTypes, inputNames, chunks);
-        child.readDF(inputTypes, oiters, outPos, query);
+        child.readDF(outputTypes, oiters, outPos, query);
         for(size_t i =0; i<nAttrs; ++i)
         {
            ++(*aiters[i]);
         }
     }
     child.writeEmptyDF();
-    child.readDF(inputTypes, oiters, outPos, query);
+    child.readDF(outputTypes, oiters, outPos, query);
     return output;
 }
 
 shared_ptr< Array> execute(std::vector< shared_ptr< Array> >& inputArrays, std::shared_ptr<Query> query)
 {
+    Settings settings(_parameters, false, query);
     shared_ptr<Array>& inputArray = inputArrays[0];
-    string command = ((shared_ptr<OperatorParamPhysicalExpression>&) _parameters[0])->getExpression()->evaluate().getString();
-    return runDF2(inputArray, command, query);
+    string command = settings.getCommand();
+    if(settings.getFormat() == TSV)
+    {
+        return runTSV(inputArray, command, query);
+    }
+    else
+    {
+        vector<DFDataType> types = settings.getTypes();
+        return runDF(inputArray, command, types, query);
+    }
 }
 };
 

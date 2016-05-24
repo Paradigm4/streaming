@@ -45,7 +45,7 @@ all: stream_test_client libstream.so
 stream_test_client: client.cpp
 	$(CXX) client.cpp -ggdb -o stream_test_client
 	
-libstream.so: $(SRCS)
+libstream.so: $(SRCS) StreamSettings.h
 	@if test ! -d "$(SCIDB)"; then echo  "Error. Try:\n\nmake SCIDB=<PATH TO SCIDB INSTALL PATH>"; exit 1; fi
 	$(CXX) $(CFLAGS) $(INC) -o libstream.so $(SRCS) $(LIBS)
 	@echo "Now copy *.so to your SciDB lib/scidb/plugins directory and run"

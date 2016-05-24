@@ -26,6 +26,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 #include <query/Operator.h>
+#include "StreamSettings.h"
 
 using std::shared_ptr;
 
@@ -39,6 +40,7 @@ using namespace std;
 namespace scidb
 {
 
+using namespace stream;
 class LogicalStream: public LogicalOperator
 {
 public:
@@ -47,18 +49,61 @@ public:
     {
         ADD_PARAM_INPUT();
         ADD_PARAM_CONSTANT("string");
+        ADD_PARAM_VARIES();
+    }
+
+    std::vector<shared_ptr<OperatorParamPlaceholder> > nextVaryParamPlaceholder(const std::vector< ArrayDesc> &schemas)
+    {
+        std::vector<shared_ptr<OperatorParamPlaceholder> > res;
+        res.push_back(END_OF_VARIES_PARAMS());
+        if (_parameters.size() < Settings::MAX_PARAMETERS)
+        {
+            res.push_back(PARAM_CONSTANT("string"));
+        }
+        return res;
     }
 
     ArrayDesc inferSchema(std::vector<ArrayDesc> schemas, shared_ptr<Query> query)
     {
         ArrayDesc const& inputSchema = schemas[0];
-        Attributes outputAttributes;
-        outputAttributes.push_back( AttributeDesc(0, "response",   TID_DOUBLE,    0, 0));
-        outputAttributes = addEmptyTagAttribute(outputAttributes);
         Dimensions outputDimensions;
         outputDimensions.push_back(DimensionDesc("instance_id", 0,   query->getInstancesCount()-1, 1, 0));
         outputDimensions.push_back(DimensionDesc("chunk_no",    0,   CoordinateBounds::getMax(),   1, 0));
-        outputDimensions.push_back(DimensionDesc("value_no",    0,   CoordinateBounds::getMax(),   5, 0));
+        Attributes outputAttributes;
+        Settings settings(_parameters, true, query);
+        if(settings.getFormat() == TSV)
+        {
+            outputAttributes.push_back( AttributeDesc(0, "response",   TID_STRING,    0, 0));
+        }
+        else
+        {
+            vector<DFDataType> types = settings.getTypes();
+            for(AttributeID i =0; i<types.size(); ++i)
+            {
+                ostringstream attName;
+                attName<<"a"<<i;
+                TypeId attType;
+                if(types[i]==STRING)
+                {
+                    attType=TID_STRING;
+                }
+                else if(types[i] == DOUBLE)
+                {
+                    attType=TID_DOUBLE;
+                }
+                else if(types[i] == INTEGER)
+                {
+                    attType=TID_INT32;
+                }
+                else
+                {
+                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "something's up";
+                }
+                outputAttributes.push_back( AttributeDesc(i, attName.str(),  attType,    0, 0));
+            }
+            outputDimensions.push_back(DimensionDesc("value_no",    0,   CoordinateBounds::getMax(),   settings.getChunkSize(), 0));
+        }
+        outputAttributes = addEmptyTagAttribute(outputAttributes);
         return ArrayDesc(inputSchema.getName(), outputAttributes, outputDimensions, defaultPartitioning(), query->getDefaultArrayResidency());
     }
 };
