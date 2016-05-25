@@ -12,7 +12,7 @@ while( TRUE )
     res = list()
     writeBin(serialize(res, NULL, xdr=FALSE), con_out)
     flush(con_out)
-    break;
+    break
   }
   nrow = length(input_list[[1]])
   #Example modification: double the first column
