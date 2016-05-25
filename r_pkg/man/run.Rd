@@ -4,14 +4,16 @@
 \alias{run}
 \title{Process SciDB streaming data frame chunks}
 \usage{
-run(f, convert_factor = as.integer)
+run(f, convertFactor = as.integer, stringsAsFactors = FALSE)
 }
 \arguments{
 \item{f}{a function of a single data frame input argument that returns a data frame
 output. The output data frame column types must match the SciDB stream operator
 'types' argument.}
 
-\item{convert_factor}{a function for conversion of R factor values into a supported type: one of double, integer, or character.}
+\item{convertFactor}{a function for conversion of R factor values into a supported type: one of double, integer, or character.}
+
+\item{stringsAsFactors}{convert input strings to data frame factor values (\code{TRUE)} or not.}
 }
 \description{
 The SciDB streaming API works with R functions that map a data frame input value
@@ -19,7 +21,7 @@ to a data frame output value. The output data frame column types must match the
 }
 \note{
 Factor and logical values are converted by default into integer values. Set
-\code{convert_factor=as.character} to convert factor values to character strings instead.
+\code{convertFactor=as.character} to convert factor values to character strings instead.
 }
 \examples{
 \dontrun{
