@@ -119,10 +119,20 @@ public:
 class ChildProcess
 {
 private:
-    bool _alive;
-    int _pollTimeoutMillis;
+    bool  _alive;
+    int const _pollTimeoutMillis;
     shared_ptr<Query> _query;
-    slave _childContext;
+    pid_t _childPid;
+    int   _childInFd;
+    int   _childOutFd;
+
+    struct ChildLimits
+    {
+      rlim_t DATA;     // Max program memory space in bytes
+      rlim_t STACK;    // Max program stack space in bytes
+      rlim_t CPU;      // Max CPU time in seconds
+      rlim_t NOFILE;   // Max number of open files + 1 (forced to be at least 8)
+    };
 
 public:
     /**
@@ -136,24 +146,90 @@ public:
         _query(query)
     {
         LOG4CXX_DEBUG(logger, "Executing "<<commandLine);
-        _childContext = run (commandLine.c_str(), NULL, NULL);
-        if (_childContext.pid < 0)
+        launch(commandLine.c_str(), NULL, NULL);
+        if (_childPid < 0)
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "fork failed, bummer";
         }
-        int flags = fcntl(_childContext.out, F_GETFL, 0);
-        if(fcntl(_childContext.out, F_SETFL, flags | O_NONBLOCK) < 0 )
+        int flags = fcntl(_childOutFd, F_GETFL, 0);
+        if(fcntl(_childOutFd, F_SETFL, flags | O_NONBLOCK) < 0 )
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "fcntl failed, bummer";
         }
-        flags = fcntl(_childContext.in, F_GETFL, 0);
-        if(fcntl(_childContext.in, F_SETFL, flags | O_NONBLOCK) < 0 )
+        flags = fcntl(_childInFd, F_GETFL, 0);
+        if(fcntl(_childInFd, F_SETFL, flags | O_NONBLOCK) < 0 )
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "fcntl failed, bummer";
         }
         _alive = true;
     }
 
+private:
+    void launch (char const *command, char *const envp[], ChildLimits * lim)
+    {
+        int j;
+        unsigned long i;
+        int parent_child[2];          // pipe descriptors parent writes to child
+        int child_parent[2];          // pipe descriptors child writes to parent
+        pipe (parent_child);
+        pipe (child_parent);
+        switch (_childPid = fork ())
+        {
+        case -1:
+            _childPid = -1;
+            break;
+        case 0:                    // child
+            close (1);
+            dup (child_parent[1]);    // stdout writes to parent
+            close (0);
+            dup (parent_child[0]);    // parent writes to stdin
+            close (parent_child[1]);
+            close (child_parent[0]);
+            //child needs to close all open FDs - just in case its parent is listening on a port (ahem)
+            //we wouldn't want the child to clog up said port for no reason
+            struct rlimit limit;
+            getrlimit(RLIMIT_NOFILE, &limit);
+            unsigned long i;
+            for(i = 3; i<limit.rlim_max; i = i+1)
+            {
+                close(i);
+            }
+            if (lim != NULL)
+            {
+                // first validate the limits
+                if (lim->NOFILE < 8)
+                    lim->NOFILE = 8;
+                // now try to set them
+                j = 0;
+                limit.rlim_cur = lim->DATA;
+                limit.rlim_max = lim->DATA;
+                j = j || (setrlimit (RLIMIT_DATA, &limit) < 0);
+                limit.rlim_cur = lim->STACK;
+                limit.rlim_max = lim->STACK;
+                j = j || (setrlimit (RLIMIT_STACK, &limit) < 0);
+                limit.rlim_cur = lim->CPU;
+                limit.rlim_max = lim->CPU;
+                j = j || (setrlimit (RLIMIT_CPU, &limit) < 0);
+                limit.rlim_cur = lim->NOFILE;
+                limit.rlim_max = lim->NOFILE;
+                j = j || (setrlimit (RLIMIT_NOFILE, &limit) < 0);
+                if (j)                // something went wrong setting the limits!
+                {
+                    abort ();
+                }
+            }
+            execle ("/bin/bash", "/bin/bash", "-c", command, NULL, envp);
+            abort ();                 //if execle returns, it means we're in trouble. bail asap.
+            break;
+        default:                   // parent
+            close (parent_child[0]);
+            close (child_parent[1]);
+            _childInFd  = parent_child[1];
+            _childOutFd = child_parent[0];
+        }
+    }
+
+public:
     ~ChildProcess()
     {
         terminate();
@@ -167,22 +243,22 @@ public:
         if(_alive)
         {
             _alive = false;
-            close (_childContext.in);
-            close (_childContext.out);
-            kill (_childContext.pid, SIGTERM);
+            close (_childInFd);
+            close (_childOutFd);
+            kill (_childPid, SIGTERM);
             pid_t res = 0;
             size_t retries = 0;
             while( res == 0 && retries < 50) // allow up to ~0.5 seconds for child to stop
             {
                 usleep(10000);
-                res = waitpid (_childContext.pid, NULL, WNOHANG);
+                res = waitpid (_childPid, NULL, WNOHANG);
                 ++retries;
             }
             if( res == 0 )
             {
                 LOG4CXX_WARN(logger, "child did not exit in time, sending sigkill and waiting indefinitely");
-                kill (_childContext.pid, SIGKILL);
-                waitpid (_childContext.pid, NULL, 0);
+                kill (_childPid, SIGKILL);
+                waitpid (_childPid, NULL, 0);
             }
             LOG4CXX_DEBUG(logger, "child killed");
         }
@@ -218,7 +294,7 @@ public:
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "internal error: attempt to read froom dead child";
         }
         struct pollfd pollstat [1];
-        pollstat[0].fd = _childContext.out;
+        pollstat[0].fd = _childOutFd;
         pollstat[0].events = POLLIN;
         int ret = 0;
         while( ret == 0 )
@@ -234,7 +310,7 @@ public:
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "poll failed";
         }
         errno = 0;
-        ssize_t nRead = read(_childContext.out, outputBuf, maxBytes);
+        ssize_t nRead = read(_childOutFd, outputBuf, maxBytes);
         if(nRead <= 0)
         {
             LOG4CXX_WARN(logger, "STREAM: child terminated early: read returned "<<nRead <<" errno "<<errno);
@@ -277,14 +353,14 @@ public:
         while(bytesWritten != bytes)
         {
             struct pollfd pollstat [1];
-            pollstat[0].fd = _childContext.in;
+            pollstat[0].fd = _childInFd;
             pollstat[0].events = POLLOUT;
             int ret = 0;
             while( ret == 0 )
             {
                 Query::validateQueryPtr(_query); //are we still OK to execute the query?
                 int status;
-                if(waitpid (_childContext.pid, &status, WNOHANG) == _childContext.pid) //that child still there?
+                if(waitpid (_childPid, &status, WNOHANG) == _childPid) //that child still there?
                 {
                     terminate();
                     LOG4CXX_WARN(logger, "Child terminated while writing; status "<<status);
@@ -303,7 +379,7 @@ public:
                 throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "poll failed";
             }
             errno = 0;
-            size_t writeRet = write(_childContext.in, ((char const *)buf) + bytesWritten, bytes - bytesWritten);
+            size_t writeRet = write(_childInFd, ((char const *)buf) + bytesWritten, bytes - bytesWritten);
             if(writeRet <= 0)
             {
                 LOG4CXX_WARN(logger, "STREAM: child terminated early: write returned "<<writeRet <<" errno "<<errno);
@@ -444,6 +520,16 @@ public:
             memcpy((&(_data[0]) + _liveSize), data, size);
             _liveSize += size;
         }
+
+        void reserve(size_t newSize)
+        {
+            if(newSize < (_data.size() - _liveSize))
+            {
+                return;
+            }
+            _data.resize(_liveSize + newSize);
+        }
+
         /**
          * Result of this call is invalidated after next addData call
          */

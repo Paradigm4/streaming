@@ -28,7 +28,7 @@ INC=-I. -DPROJECT_ROOT="\"$(SCIDB)\"" -I"$(SCIDB_THIRDPARTY_PREFIX)/3rdparty/boo
 LIBS=-shared -Wl,-soname,libstream.so -L. -L"$(SCIDB_THIRDPARTY_PREFIX)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -Wl,-rpath,$(SCIDB)/lib:$(RPATH) -lm
 CFLAGS+=-std=c++11 -DCPP11
 
-SRCS=plugin.cpp LogicalStream.cpp PhysicalStream.cpp ../lib/serial.c ../lib/slave.c
+SRCS=plugin.cpp LogicalStream.cpp PhysicalStream.cpp
 # Compiler settings for SciDB version >= 15.7
 ifneq ("$(wildcard /usr/bin/g++-4.9)","")
   CC := "/usr/bin/gcc-4.9"

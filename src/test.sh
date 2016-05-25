@@ -34,8 +34,10 @@ sleep 5
 #After 5 seconds, better be cleared up
 iquery -aq "op_count(filter(list('queries'), inst=0))" >> $MYDIR/test.out 2>&1
 
-which R >> $MYDIR/test.out 2>&1
 iquery -ocsv -aq "stream(build(<val:string> [i=1:10,5,0], i), 'Rscript $MYDIR/tsv_R_client.R')" >> $MYDIR/test.out 2>&1
 iquery -aq "op_count(stream(foo, 'Rscript $MYDIR/tsv_R_client.R'))" >> $MYDIR/test.out 2>&1
 
+iquery -aq "stream(build(<val:double> [i=1:5,5,0], i), 'Rscript $MYDIR/R_client.R', 'format=df', 'types=double,int32')" >> $MYDIR/test.out 2>&1
+
 diff test.expected test.out
+
