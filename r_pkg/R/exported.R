@@ -28,10 +28,11 @@ schema <- function(f, input)
   paste(out, collapse=",")
 }
 
-#' Process SciDB streaming data frame chunks
+#' Map an R function across SciDB streaming data frame chunks
 #'
-#' The SciDB streaming API works with R functions that map a data frame input value
-#' to a data frame output value. The output data frame column types must match the
+#' The SciDB streaming API works with R functions that take a data frame input value
+#' and produce a data frame output value. The output data frame column types must match the
+#' types declared in the SciDB stream operator.
 #' 
 #' @param f a function of a single data frame input argument that returns a data frame
 #' output. The output data frame column types must match the SciDB stream operator
@@ -41,20 +42,21 @@ schema <- function(f, input)
 #' @note Factor and logical values are converted by default into integer values. Set
 #' \code{convertFactor=as.character} to convert factor values to character strings instead.
 #'
-#' @seealso \code{\link{schema}}
+#' @seealso \code{\link{schema}} \code{\link{map}}
 #' @examples
 #' \dontrun{
 #' # Identity function:
-#' # iquery -aq "stream(build(<val:double> [i=1:5,5,0], i), 'R --slave -e \"library(scidbstrm); run(I)\"', 'format=df', 'types=double')"
+#' # iquery -aq "stream(build(<val:double> [i=1:5,5,0], i), 'R --slave -e \"library(scidbstrm); map(I)\"', 'format=df', 'types=double')"
 #'
 #' # Return R process ids (up to 10, depending on number of SciDB instances)
-#' # iquery -aq "stream(build(<val:double> [i=1:10,1,0], i), 'R --no-save --slave -e \"library(scidbstrm); f=function(x) data.frame(pid=Sys.getpid()); run(f)\"', 'format=df', 'types=int32')"
+#' # iquery -aq "stream(build(<val:double> [i=1:10,1,0], i), 'R --no-save --slave -e \"library(scidbstrm); f=function(x) data.frame(pid=Sys.getpid()); map(f)\"', 'format=df', 'types=int32')"
 #' }
 #' @export
-run <- function(f, convertFactor = as.integer, stringsAsFactors=FALSE)
+map <- function(f, convertFactor=as.integer, stringsAsFactors=FALSE)
 {
   con_in <- file("stdin", "rb") # replace with zero-copy to data frame version XXX TODO
   con_out <- pipe("cat", "wb")  # replace with direct to stdout version XXX TODO
+  tryCatch( # fast exit on error
   while( TRUE )
   {
     input_list <- unserialize(con_in)
@@ -62,19 +64,74 @@ run <- function(f, convertFactor = as.integer, stringsAsFactors=FALSE)
     if(ncol == 0) # this is the last message
     {
       writeBin(serialize(list(), NULL, xdr=FALSE), con_out)
+      q(save="no")
+    }
+  out <- asTypedList(f(data.frame(input_list, stringsAsFactors=stringsAsFactors)))
+  writeBin(serialize(out, NULL, xdr=FALSE), con_out)
+  flush(con_out)
+  }, error=function(e) {cat(as.character(e), "\n", file=stderr()); q()})
+  close(con_in)
+  close(con_out)
+}
+
+
+#' Successively combine an R function across SciDB streaming data frame chunks
+#'
+#' This function is similar to the \code{Reduce} function, but applied to data frame chunks supplied
+#' by SciDB. The SciDB streaming API works with R functions that take a data frame input value
+#' and produce a data frame output value. The output data frame column types must match the
+#' types declared in the SciDB stream operator.
+#' 
+#' @param f a binary function that takes two data frames as input argumenst and
+#' produces a single output data frame.  The output data frame column types must
+#' match the SciDB stream operator 'types' argument.
+#' @param accumulate a logical indicating whether the successive reduce
+#'        combinations should be accumulated.  By default, only the
+#'        final combination is used.
+#' @param init optional initial data frame value to kick off the aggregation, must have the same form as the output of f.
+#' @param convertFactor a function for conversion of R factor values into a supported type: one of double, integer, or character.
+#' @param stringsAsFactors convert input strings to data frame factor values (\code{TRUE)} or not.
+#' @note Factor and logical values are converted by default into integer values. Set
+#' \code{convertFactor=as.character} to convert factor values to character strings instead.
+#'
+#' Beware that data frame chunks are aggregated on a per-SciDB instance basis, and not
+#' globally across all the input data.
+#'
+#' @seealso \code{\link{schema}} \code{\link{map}}
+#' @examples
+#' \dontrun{
+#' }
+#' @export
+reduce <- function(f, init, accumulate=FALSE, convertFactor=as.integer, stringsAsFactors=FALSE)
+{
+  state <- NULL
+  if(!missing(init)) state <- init
+  con_in <- file("stdin", "rb") # replace with zero-copy to data frame version XXX TODO
+  con_out <- pipe("cat", "wb")  # replace with direct to stdout version XXX TODO
+  tryCatch( # fast exit on error
+  while(TRUE)
+  {
+    input_list <- data.frame(unserialize(con_in), stringsAsFactors=stringsAsFactors)
+    ncol <- length(input_list)
+    if(ncol == 0) # this is the last message, return aggregated result
+    {
+      writeBin(serialize(asTypedList(state), NULL, xdr=FALSE), con_out)
       flush(con_out)
       q(save="no")
     }
-  out <- as.list(f(data.frame(input_list, stringsAsFactors=stringsAsFactors)))
-  # limit types to double, int, logical
-  types <- vapply(out, class, "")
-  i <- types %in% "logical"
-  if(any(i)) out[i] <- lapply(out[i], as.integer)
-  i <- types %in% "factor"
-  if(any(i)) out[i] <- lapply(out[i], convertFactor)
-  writeBin(serialize(out, NULL, xdr=FALSE), con_out)
-  flush(con_out)
-  }
+    if(is.null(state))
+    {
+      state <- input_list
+    } else state <- f(state, input_list)
+    if(accumulate)
+    {
+      writeBin(serialize(asTypedList(state), NULL, xdr=FALSE), con_out)
+      flush(con_out)
+      next
+    }
+    writeBin(serialize(list(), NULL, xdr=FALSE), con_out)
+    flush(con_out)
+  }, error=function(e) {cat(as.character(e), file=stderr()); q()})
   close(con_in)
   close(con_out)
 }
