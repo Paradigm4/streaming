@@ -1,7 +1,8 @@
-con_in <-file("stdin")
-con_out <- pipe("cat", "wb")
+# invoke with, for example:
+# iquery -aq "stream(build(<val:double> [i=1:5,5,0], i), 'Rscript /home/blewis/streaming/src/R_script.R', 'format=df', 'types=double,int32')"
 
-open(con_in, open="rb")
+con_in = file("stdin", "rb")
+con_out = pipe("cat", "wb")
 while( TRUE )
 {
   input_list = unserialize(con_in)
@@ -15,8 +16,8 @@ while( TRUE )
   }
   nrow = length(input_list[[1]])
   #Example modification: double the first column
-  input_list[[1]] = input_list[[1]]*2
-  input_list[[2]] = as.integer(input_list[[1]]*4)
+  input_list[[1]] = input_list[[1]] * 2
+  input_list[[2]] = as.integer(input_list[[1]] * 4)
   writeBin(serialize(input_list, NULL, xdr=FALSE), con_out)
   flush(con_out)
 }
