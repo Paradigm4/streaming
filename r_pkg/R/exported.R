@@ -59,7 +59,7 @@ run <- function(f, convert_factor = as.integer)
     {
       writeBin(serialize(list(), NULL, xdr=FALSE), con_out)
       flush(con_out)
-      break
+      q(save="no")
     }
   out <- as.list(f(data.frame(input_list)))
   # limit types to double, int, logical
