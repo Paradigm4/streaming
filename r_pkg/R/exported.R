@@ -43,8 +43,11 @@ schema <- function(f, input)
 #' @seealso \code{\link{schema}}
 #' @examples
 #' \dontrun{
-#' #  Run from a command-line
+#' # Identity function:
 #' # iquery -aq "stream(build(<val:double> [i=1:5,5,0], i), 'R --slave -e \"library(scidbstrm); run(I)\"', 'format=df', 'types=double')"
+#'
+#' # Return R process ids (up to 10, depending on number of SciDB instances)
+#' # iquery -aq "stream(build(<val:double> [i=1:10,1,0], i), 'R --no-save --slave -e \"library(scidbstrm); f=function(x) data.frame(pid=Sys.getpid()); run(f)\"', 'format=df', 'types=int32')"
 #' }
 #' @export
 run <- function(f, convert_factor = as.integer)
