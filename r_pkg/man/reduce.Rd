@@ -4,8 +4,7 @@
 \alias{reduce}
 \title{Successively combine an R function across SciDB streaming data frame chunks}
 \usage{
-reduce(f, init, accumulate = FALSE, final = I, convertFactor = as.integer,
-  stringsAsFactors = FALSE)
+reduce(f, init, accumulate = FALSE, final = I, convertFactor = as.integer)
 }
 \arguments{
 \item{f}{a binary function that takes two data frames as input argumenst and
@@ -21,9 +20,7 @@ final combination is used.}
 \item{final}{optional function applied to final result before returning. If supplied, final must be a function of a
 single data frame that returns a data frame compatible with the expected types.}
 
-\item{convertFactor}{a function for conversion of R factor values into a supported type: one of double, integer, or character.}
-
-\item{stringsAsFactors}{convert input strings to data frame factor values (\code{TRUE)} or not.}
+\item{convertFactor}{a function for conversion of R factor values into a SciDB-supported type: one of double, integer, or character.}
 }
 \description{
 This function is similar to the \code{Reduce} function, but applied to data frame chunks supplied
