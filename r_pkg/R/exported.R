@@ -89,10 +89,14 @@ map <- function(f, convertFactor=as.integer, stringsAsFactors=FALSE)
 #'        combinations should be accumulated.  By default, only the
 #'        final combination is used.
 #' @param init optional initial data frame value to kick off the aggregation, must have the same form as the output of f.
+#' @param final optional function applied to final result before returning. If supplied, final must be a function of a
+#' single data frame that returns a data frame compatible with the expected types.
 #' @param convertFactor a function for conversion of R factor values into a supported type: one of double, integer, or character.
 #' @param stringsAsFactors convert input strings to data frame factor values (\code{TRUE)} or not.
 #' @note Factor and logical values are converted by default into integer values. Set
 #' \code{convertFactor=as.character} to convert factor values to character strings instead.
+#' The \code{final} function does not apply to cumulative results when \code{accumulate=TRUE}, but only to the last returned
+#' result.
 #'
 #' Beware that data frame chunks are aggregated on a per-SciDB instance basis, and not
 #' globally across all the input data.
@@ -102,7 +106,7 @@ map <- function(f, convertFactor=as.integer, stringsAsFactors=FALSE)
 #' \dontrun{
 #' }
 #' @export
-reduce <- function(f, init, accumulate=FALSE, convertFactor=as.integer, stringsAsFactors=FALSE)
+reduce <- function(f, init, accumulate=FALSE, final=I, convertFactor=as.integer, stringsAsFactors=FALSE)
 {
   state <- NULL
   if(!missing(init)) state <- init
@@ -115,7 +119,7 @@ reduce <- function(f, init, accumulate=FALSE, convertFactor=as.integer, stringsA
     ncol <- length(input_list)
     if(ncol == 0) # this is the last message, return aggregated result
     {
-      writeBin(serialize(asTypedList(state), NULL, xdr=FALSE), con_out)
+      writeBin(serialize(asTypedList(final(state)), NULL, xdr=FALSE), con_out)
       flush(con_out)
       q(save="no")
     }
