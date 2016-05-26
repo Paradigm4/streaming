@@ -14,3 +14,11 @@ asTypedList <- function(out)
   if(any(i)) out[i] <- lapply(out[i], convertFactor)
   out
 }
+
+
+# re-direct usual R output to stderr to avoid accidental
+# interference with SciDB communication. See the `reduce` function.
+.onAttach = function(libname,pkgname)
+{
+  sink(stderr())
+}

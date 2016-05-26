@@ -111,7 +111,7 @@ reduce <- function(f, init, accumulate=FALSE, final=I, convertFactor=as.integer,
   state <- NULL
   if(!missing(init)) state <- init
   con_in <- file("stdin", "rb") # replace with zero-copy to data frame version XXX TODO
-  con_out <- pipe("cat", "wb")  # replace with direct to stdout version XXX TODO
+  con_out <- pipe("cat", "wb")
   tryCatch( # fast exit on error
   while(TRUE)
   {
