@@ -65,6 +65,7 @@ class Settings
 private:
     TransferFormat      _transferFormat;
     vector<DFDataType>  _dfTypes;
+    vector<string>      _dfNames;
     ssize_t             _outputChunkSize;
     string              _command;
 
@@ -147,6 +148,45 @@ private:
         }
     }
 
+    void setParamDfNames(string trimmedContent)
+    {
+        trim_left_if(trimmedContent, is_any_of("("));
+        trim_right_if(trimmedContent, is_any_of(")"));
+        vector<string> tokens;
+        split(tokens, trimmedContent, is_any_of(","));
+        if(tokens.size() == 0)
+        {
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse names";
+        }
+        for(size_t i =0; i<tokens.size(); ++i)
+        {
+            string const& t = tokens[i];
+            if(t.size()==0)
+            {
+                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse names";
+            }
+            for(size_t j=0; j<i; ++j)
+            {
+                if(t==tokens[j])
+                {
+                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "duplicate names not allowed";
+                }
+            }
+            for(size_t j=0; j<t.size(); ++j)
+            {
+                char ch = t[j];
+                if( !( (j == 0 && ((ch>='a' && ch<='z') || (ch>='A' && ch<='Z') || ch == '_')) ||
+                       (j > 0  && ((ch>='a' && ch<='z') || (ch>='A' && ch<='Z') || (ch>='0' && ch <= '9') || ch == '_' ))))
+                {
+                    ostringstream error;
+                    error<<"invalid name '"<<t<<"'";
+                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << error.str();;
+                }
+            }
+            _dfNames.push_back(t);
+        }
+    }
+
     void setParam (string const& parameterString, bool& alreadySet, string const& header, void (Settings::* innersetter)(string) )
     {
         string paramContent = parameterString.substr(header.size());
@@ -168,14 +208,16 @@ public:
              shared_ptr<Query>& query):
                  _transferFormat(TSV),
                  _dfTypes(0),
-                 _outputChunkSize(10000000)
+                 _outputChunkSize(1024*1024*1024)
      {
         string const formatHeader                  = "format=";
         string const chunkSizeHeader               = "chunk_size=";
         string const typesHeader                   = "types=";
+        string const namesHeader                   = "names=";
         bool formatSet    = false;
         bool typesSet     = false;
         bool chunkSizeSet = false;
+        bool namesSet     = false;
         size_t const nParams = operatorParameters.size();
         if (nParams > MAX_PARAMETERS)
         {   //assert-like exception. Caller should have taken care of this!
@@ -197,6 +239,10 @@ public:
             {
                 setParam(parameterString, typesSet, typesHeader, &Settings::setParamDfTypes);
             }
+            else if (starts_with(parameterString, namesHeader))
+            {
+                setParam(parameterString, namesSet, namesHeader, &Settings::setParamDfNames);
+            }
             else
             {
                 ostringstream error;
@@ -204,9 +250,25 @@ public:
                 throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << error.str().c_str();
             }
         }
-        if(_transferFormat == DF && _dfTypes.size() == 0)
+        if(_transferFormat == DF)
         {
-            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "when using the df format, types= must be specified";
+            if(typesSet == false)
+            {
+                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "when using the df format, types= must be specified";
+            }
+            if(namesSet == false)
+            {
+                for(size_t i =0; i<_dfTypes.size(); ++i)
+                {
+                    ostringstream name;
+                    name<<"a"<<i;
+                    _dfNames.push_back(name.str());
+                }
+            }
+            else if(_dfNames.size() != _dfTypes.size())
+            {
+                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "received inconsistent names and types";
+            }
         }
     }
 
@@ -220,6 +282,11 @@ public:
         return _dfTypes;
     }
 
+    vector<string> const& getNames() const
+    {
+        return _dfNames;
+    }
+
     size_t getChunkSize() const
     {
         return _outputChunkSize;
@@ -229,6 +296,7 @@ public:
     {
         return _command;
     }
+
 };
 
 } }

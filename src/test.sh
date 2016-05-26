@@ -39,5 +39,23 @@ iquery -aq "op_count(stream(foo, 'Rscript $MYDIR/tsv_R_client.R'))" >> $MYDIR/te
 
 iquery -aq "stream(build(<val:double> [i=1:5,5,0], i), 'Rscript $MYDIR/R_client.R', 'format=df', 'types=double,int32')" >> $MYDIR/test.out 2>&1
 
+iquery -aq "
+ stream(
+  _sg(
+   stream(
+    build(<val:double> [i=1:50,10,0], i), 
+    'Rscript $MYDIR/R_sum.R', 
+    'format=df', 
+    'types=double', 
+    'names=sum'
+   ), 
+   2, 0
+  ), 
+  'Rscript $MYDIR/R_sum.R', 
+  'format=df', 
+  'types=double', 
+  'names=sum'
+ )" >> $MYDIR/test.out 2>&1
+
 diff test.expected test.out
 

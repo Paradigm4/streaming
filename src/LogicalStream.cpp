@@ -77,11 +77,10 @@ public:
         }
         else
         {
+            vector<string> attNames  = settings.getNames();
             vector<DFDataType> types = settings.getTypes();
             for(AttributeID i =0; i<types.size(); ++i)
             {
-                ostringstream attName;
-                attName<<"a"<<i;
                 TypeId attType;
                 if(types[i]==STRING)
                 {
@@ -99,7 +98,7 @@ public:
                 {
                     throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "something's up";
                 }
-                outputAttributes.push_back( AttributeDesc(i, attName.str(),  attType,    0, 0));
+                outputAttributes.push_back( AttributeDesc(i,  attNames[i],  attType, AttributeDesc::IS_NULLABLE, 0));
             }
             outputDimensions.push_back(DimensionDesc("value_no",    0,   CoordinateBounds::getMax(),   settings.getChunkSize(), 0));
         }
