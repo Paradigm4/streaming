@@ -139,7 +139,6 @@ private:
             else if(t == "string")
             {
                 _dfTypes.push_back(STRING);
-                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "strings not supported yet";
             }
             else
             {

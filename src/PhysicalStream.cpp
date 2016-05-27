@@ -113,6 +113,55 @@ public:
     }
 };
 
+class EasyBuffer
+{
+private:
+    vector<char> _data;
+    size_t       _start;
+    size_t       _end;
+public:
+    EasyBuffer(size_t initialSize = 0):
+        _data(1024*1024,0)
+    {
+        reset(initialSize);
+    }
+
+    void pushData(void const* data, size_t size)
+    {
+        if(_end + size > _data.size())
+        {
+            _data.resize(_end + size);
+        }
+        memcpy((&(_data[_end])), data, size);
+        _end += size;
+    }
+
+    void reset(size_t newSize = 0)
+    {
+        _start = 0;
+        _end   = newSize;
+        if(newSize > _data.size())
+        {
+            _data.resize(newSize);
+        }
+    }
+
+    /**
+     * Result of this call is invalidated after next pushData call
+     */
+    void* data()
+    {
+        return (&_data[_start]);
+    }
+
+    size_t size()
+    {
+        return (_end - _start);
+    }
+};
+
+
+
 /**
  * An abstraction over the slave process forked by SciDB.
  */
@@ -292,6 +341,10 @@ public:
         if(!isAlive())
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "internal error: attempt to read froom dead child";
+        }
+        if(maxBytes == 0)
+        {
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "improper softRead call";
         }
         struct pollfd pollstat [1];
         pollstat[0].fd = _childOutFd;
@@ -502,48 +555,6 @@ public:
     const unsigned char R_TAIL_HDR[21]  = { 0x02, 0x04, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x09, 0x00, 0x04, 0x00, 0x05, 0x00, 0x00, 0x00, 0x6e, 0x61, 0x6d, 0x65, 0x73 };
     const unsigned char R_TAIL[4]       = { 0xfe, 0x00, 0x00, 0x00 };
 
-    class EasyBuf
-    {
-    private:
-        vector<char> _data;
-        size_t       _liveSize;
-    public:
-        EasyBuf():
-            _data(4096,0), _liveSize(0)
-        {}
-        void addData(void const* data, size_t size)
-        {
-            while(_liveSize + size > _data.size())
-            {
-                _data.resize(_data.size()*2);
-            }
-            memcpy((&(_data[0]) + _liveSize), data, size);
-            _liveSize += size;
-        }
-
-        void reserve(size_t newSize)
-        {
-            if(newSize < (_data.size() - _liveSize))
-            {
-                return;
-            }
-            _data.resize(_liveSize + newSize);
-        }
-
-        /**
-         * Result of this call is invalidated after next addData call
-         */
-        void* getData()
-        {
-            return (&_data[0]);
-        }
-
-        size_t getSize()
-        {
-            return _liveSize;
-        }
-    };
-
     /**
      * Do not accept nulls yet
      */
@@ -560,6 +571,7 @@ public:
         hardWrite(R_HEADER, sizeof(R_HEADER));
         hardWrite(R_VECSXP, sizeof(R_VECSXP));
         hardWrite(&numColumns, sizeof(int32_t));
+        EasyBuffer buffer;
         for(int32_t i =0; i<numColumns; ++i)
         {
             switch(types[i])
@@ -571,7 +583,7 @@ public:
             }
             hardWrite(&numRows, sizeof(int32_t));
             shared_ptr<ConstChunkIterator> citer = chunks[i]->getConstIterator(ConstChunkIterator::IGNORE_OVERLAPS | ConstChunkIterator::IGNORE_EMPTY_CELLS);
-            EasyBuf buffer;
+            buffer.reset();
             while((!citer->end()))
             {
                 Value const& v = citer->getItem();
@@ -583,25 +595,29 @@ public:
                 {
                 case STRING:
                 {
-                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "internal error: strings not yet supported";
+                    buffer.pushData(&R_CHARSXP, sizeof(R_CHARSXP));
+                    int32_t size = v.size() - 1;
+                    buffer.pushData(&size, sizeof(int32_t));
+                    buffer.pushData(v.getString(), size);
+                    break;
                 }
                 case DOUBLE:
                 {
                     double  datum = v.getDouble();
-                    buffer.addData(&datum, sizeof(double));
+                    buffer.pushData(&datum, sizeof(double));
                     break;
                 }
                 case INTEGER:
                 {
                     int32_t datum = v.getInt32();
-                    buffer.addData(&datum, sizeof(int32_t));
+                    buffer.pushData(&datum, sizeof(int32_t));
                     break;
                 }
                 default: throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "internal error: unsupported type";
                 }
                 ++(*citer);
             }
-            hardWrite(buffer.getData(), buffer.getSize());
+            hardWrite(buffer.data(), buffer.size());
         }
         hardWrite(R_TAIL_HDR, sizeof(R_TAIL_HDR));
         hardWrite(R_STRSXP, sizeof(R_STRSXP));
@@ -678,7 +694,11 @@ public:
             }
             switch(types[i])
             {
-            case STRING:     throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "strings not supported yet";
+            case STRING:
+            {
+                // all below
+                break;
+            }
             case DOUBLE:
             {
                 size_t readSize = sizeof(double) * numRows;
@@ -710,7 +730,28 @@ public:
                 ociter->setPosition(valPos);
                 switch(types[i])
                 {
-                case STRING:     throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "strings not supported yet";
+                case STRING:
+                {
+                    hardRead(&(buffer[0]), sizeof(R_CHARSXP) + sizeof(int32_t));
+                    if(memcmp(R_CHARSXP, &buffer[0], sizeof(R_CHARSXP))!=0)
+                    {
+                        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "error reading string header";
+                    }
+                    int32_t size = *((int32_t*) (&(buffer[0]) + sizeof(R_CHARSXP)));
+                    if(size<0)
+                    {
+                        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "error reading string size";
+                    }
+                    if( (size_t) size+1 > buffer.size())
+                    {
+                        buffer.resize(size+1);
+                    }
+                    hardRead(&(buffer[0]), size);
+                    buffer[size] = 0;
+                    valBuf.setData( &(buffer[0]), size+1);
+                    ociter->writeItem(valBuf);
+                    break;
+                }
                 case DOUBLE:
                 {
                     double v = ((double*)(&(buffer[0])))[j];

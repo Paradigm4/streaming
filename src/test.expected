@@ -36,3 +36,16 @@ Query was executed successfully
 {0,0,4} 10,40
 {instance_id,chunk_no,value_no} sum
 {0,0,0} 1275
+{instance_id,chunk_no,value_no} s
+{0,0,0} 'Hello, !'
+{0,0,1} 'Hello, 2!'
+{0,0,2} 'Hello, 3!'
+{0,0,3} 'Hello, 4!'
+{0,0,4} 'Hello, 5!'
+{0,0,5} 'Hello, 6!'
+{0,0,6} 'Hello, 7!'
+{0,0,7} 'Hello, 8!'
+{0,0,8} 'Hello, 9!'
+{0,0,9} 'Hello, 10!'
+{0,0,10} ''
+{0,0,11} 'Thx!'

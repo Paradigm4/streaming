@@ -57,5 +57,7 @@ iquery -aq "
   'names=sum'
  )" >> $MYDIR/test.out 2>&1
 
+iquery -aq "stream(build(<val:string> [i=1:10,10,0], iif(i=1,'', string(i))), 'Rscript $MYDIR/R_strings.R', 'format=df', 'types=string', 'names=s')" >> $MYDIR/test.out 2>&1
+
 diff test.expected test.out
 
