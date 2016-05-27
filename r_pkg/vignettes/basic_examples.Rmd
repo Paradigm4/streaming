@@ -19,7 +19,8 @@ The SciDB streaming API lets you
 2. Send data from SciDB to standard input of each child process
 3. Read data from child process standard output into SciDB.
 
-The API manages process and query cancellation for you and defines simple
+It's patterned after the Hadoop streaming API.
+SciDB manages process and query cancellation for you and defines simple
 binary columnar (R data frame) and TSV text message formats. The binary
 columnar data frame format uses R's native data frame encoding right now but
 will move to the feather format in the future.
