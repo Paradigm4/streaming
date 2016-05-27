@@ -59,5 +59,15 @@ iquery -aq "
 
 iquery -aq "stream(build(<val:string> [i=1:10,10,0], iif(i=1,'', string(i))), 'Rscript $MYDIR/R_strings.R', 'format=df', 'types=string', 'names=s')" >> $MYDIR/test.out 2>&1
 
+iquery -aq "stream(
+ apply(
+  build(<a:int32>[i=1:3,3,0], i), 
+  dub, double(iif(a=1, null, iif(a=2, 0,  1))),  
+  i32, int32( iif(a=1, null, iif(a=2, 0,  1))), 
+  str,        iif(a=1, null, iif(a=2, '', 'abc'))
+ ), 
+ 'Rscript $MYDIR/R_identity.R', 'format=df', 'types=int32,double,int32,string', 'names=a,b,c,d'
+)" >> $MYDIR/test.out 2>&1
+
 diff test.expected test.out
 

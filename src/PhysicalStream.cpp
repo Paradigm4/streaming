@@ -174,6 +174,8 @@ private:
     pid_t _childPid;
     int   _childInFd;
     int   _childOutFd;
+    double _rNanDouble;
+    int32_t _rNanInt32;
 
     struct ChildLimits
     {
@@ -211,6 +213,10 @@ public:
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "fcntl failed, bummer";
         }
         _alive = true;
+        unsigned char nanDouble[8] = { 0xa2, 0x07, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x7f };
+        _rNanDouble = *((double*) (&nanDouble));
+        _rNanInt32  = std::numeric_limits<int32_t>::min();
+        LOG4CXX_DEBUG(logger, "nan boule "<<_rNanDouble);
     }
 
 private:
@@ -587,30 +593,48 @@ public:
             while((!citer->end()))
             {
                 Value const& v = citer->getItem();
-                if(v.isNull())
-                {
-                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "internal error: NULLs not yet supported";
-                }
                 switch(types[i])
                 {
                 case STRING:
                 {
                     buffer.pushData(&R_CHARSXP, sizeof(R_CHARSXP));
-                    int32_t size = v.size() - 1;
-                    buffer.pushData(&size, sizeof(int32_t));
-                    buffer.pushData(v.getString(), size);
+                    if(v.isNull())
+                    {
+                        int32_t size = -1;
+                        buffer.pushData(&size, sizeof(int32_t));
+                    }
+                    else
+                    {
+                        int32_t size = v.size() - 1;
+                        buffer.pushData(&size, sizeof(int32_t));
+                        buffer.pushData(v.getString(), size);
+                    }
                     break;
                 }
                 case DOUBLE:
                 {
-                    double  datum = v.getDouble();
-                    buffer.pushData(&datum, sizeof(double));
+                    if(v.isNull())
+                    {
+                        buffer.pushData(&_rNanDouble, sizeof(double));
+                    }
+                    else
+                    {
+                        double  datum = v.getDouble();
+                        buffer.pushData(&datum, sizeof(double));
+                    }
                     break;
                 }
                 case INTEGER:
                 {
-                    int32_t datum = v.getInt32();
-                    buffer.pushData(&datum, sizeof(int32_t));
+                    if(v.isNull())
+                    {
+                        buffer.pushData(&_rNanInt32, sizeof(int32_t));
+                    }
+                    else
+                    {
+                        int32_t datum = v.getInt32();
+                        buffer.pushData(&datum, sizeof(int32_t));
+                    }
                     break;
                 }
                 default: throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "internal error: unsupported type";
@@ -725,6 +749,8 @@ public:
                     i == 0 ? ChunkIterator::SEQUENTIAL_WRITE : ChunkIterator::SEQUENTIAL_WRITE  | ChunkIterator::NO_EMPTY_CHECK );
             Coordinates valPos = chunkPos;
             Value valBuf;
+            Value valNull;
+            valNull.setNull();
             for(int32_t j = 0; j<numRows; ++j)
             {
                 ociter->setPosition(valPos);
@@ -733,37 +759,54 @@ public:
                 case STRING:
                 {
                     hardRead(&(buffer[0]), sizeof(R_CHARSXP) + sizeof(int32_t));
-                    if(memcmp(R_CHARSXP, &buffer[0], sizeof(R_CHARSXP))!=0)
-                    {
-                        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "error reading string header";
-                    }
                     int32_t size = *((int32_t*) (&(buffer[0]) + sizeof(R_CHARSXP)));
-                    if(size<0)
+                    if(size<-1)
                     {
                         throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "error reading string size";
                     }
-                    if( (size_t) size+1 > buffer.size())
+                    if(size == -1)
                     {
-                        buffer.resize(size+1);
+                        ociter->writeItem(valNull);
                     }
-                    hardRead(&(buffer[0]), size);
-                    buffer[size] = 0;
-                    valBuf.setData( &(buffer[0]), size+1);
-                    ociter->writeItem(valBuf);
+                    else
+                    {
+                        if( (size_t) size+1 > buffer.size())
+                        {
+                            buffer.resize(size+1);
+                        }
+                        hardRead(&(buffer[0]), size);
+                        buffer[size] = 0;
+                        valBuf.setData( &(buffer[0]), size+1);
+                        ociter->writeItem(valBuf);
+                    }
                     break;
                 }
                 case DOUBLE:
                 {
                     double v = ((double*)(&(buffer[0])))[j];
-                    valBuf.setDouble(v);
-                    ociter->writeItem(valBuf);
+                    if( memcmp(&v, &_rNanDouble, sizeof(double))==0)
+                    {
+                        ociter->writeItem(valNull);
+                    }
+                    else
+                    {
+                        valBuf.setDouble(v);
+                        ociter->writeItem(valBuf);
+                    }
                     break;
                 }
                 case INTEGER:
                 {
                     int32_t v = ((int32_t*)(&(buffer[0])))[j];
-                    valBuf.setInt32(v);
-                    ociter->writeItem(valBuf);
+                    if (v == _rNanInt32)
+                    {
+                        ociter->writeItem(valNull);
+                    }
+                    else
+                    {
+                        valBuf.setInt32(v);
+                        ociter->writeItem(valBuf);
+                    }
                     break;
                 }
                 default:         throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "internal error: unknown type";
