@@ -45,8 +45,10 @@ where,
 - `final()` optional function applied to last output value before returning. If supplied, `final()` must be a function of a single data frame that returns a data frame compatible with the expected types (just like `f()`).
 - `convertFactor()` a function for conversion of R factor values into one of double, integer, or character for return to SciDB.
 
-The function `f()` is called once per SciDB chunk. One R process runs per SciDB
-instance process.  Nothing is returned to SciDB when then function `f()`
+The function `f()` is called once per SciDB chunk, running under one R process per SciDB
+instance process per query. The child R process terminates after all the chunks have been
+streamed through the `f()` function.
+Nothing is returned to SciDB when then function `f()`
 returns `NULL`.  Use this in combination with the `final`() function to perform
 aggregation across chunks (see the examples).
 
