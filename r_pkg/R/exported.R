@@ -37,9 +37,9 @@ schema <- function(f, input)
 #' @param f a function of a single data frame input argument that returns a data frame
 #' output. The output data frame column types must match the SciDB stream operator
 #' 'types' argument.
-#' @param convertFactor a function for conversion of R factor values into one of double, integer, or character for return to SciDB.
 #' @param final optional function applied to last output value before returning. If supplied, \code{final} must be a function of a
 #' single data frame that returns a data frame compatible with the expected types (just like \code{f}).
+#' @param convertFactor a function for conversion of R factor values into one of double, integer, or character for return to SciDB.
 #' @note Factor and logical values are converted by default into integer values. Set
 #' \code{convertFactor=as.character} to convert factor values to character strings instead.
 #' 
@@ -47,15 +47,13 @@ schema <- function(f, input)
 #' with the \code{final} function to perform aggregation across chunks (see the examples).
 #' @seealso \code{\link{schema}}
 #' @examples
-#' \dontrun{
-#' # Identity function:
+#' # Identity function (run from command line):
 #' # iquery -aq "stream(build(<val:double> [i=1:5,5,0], i), 'R --slave -e \"library(scidbstrm); map(I)\"', 'format=df', 'types=double')"
 #'
-#' # Return R process ids (up to 10, depending on number of SciDB instances)
-#' # iquery -aq "stream(build(<val:double> [i=1:10,1,0], i), 'R --no-save --slave -e \"library(scidbstrm); f=function(x) data.frame(pid=Sys.getpid()); map(f)\"', 'format=df', 'types=int32')"
-#' }
+#' # See more examples in the following directory:
+#' system.file('examples', package='scidbstrm')
 #' @export
-map <- function(f, convertFactor=as.integer, final)
+map <- function(f, final, convertFactor=as.integer)
 {
   con_in <- file("stdin", "rb")
   con_out <- pipe("cat", "wb")
@@ -67,13 +65,13 @@ map <- function(f, convertFactor=as.integer, final)
       if(nrow(input) == 0) # this is the last message
       {
         if(!missing(final))
-          writeBin(serialize(asTypedList(final(output)), NULL, xdr=FALSE), con_out)
+          writeBin(serialize(asTypedList(final(output), convertFactor), NULL, xdr=FALSE), con_out)
         else
           writeBin(serialize(list(), NULL, xdr=FALSE), con_out)
         q(save="no")
       }
     output <- f(input)
-    writeBin(serialize(asTypedList(output), NULL, xdr=FALSE), con_out)
+    writeBin(serialize(asTypedList(output, convertFactor), NULL, xdr=FALSE), con_out)
     flush(con_out)
     }, error=function(e) {cat(as.character(e), "\n", file=stderr()); q()})
   close(con_in)
