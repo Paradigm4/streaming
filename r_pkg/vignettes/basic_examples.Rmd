@@ -42,7 +42,7 @@ The function takes one required and two optional arguments, all of them function
 where,
 
 - `f()` is a function of a single data frame input argument that returns a data frame output. The output data frame column types must match the SciDB stream operator 'types' argument.
-- `final()` optional function applied to last output value before returning. If supplied, \code{final} must be a function of a single data frame that returns a data frame compatible with the expected types (just like \code{f}).
+- `final()` optional function applied to last output value before returning. If supplied, `final()` must be a function of a single data frame that returns a data frame compatible with the expected types (just like `f()`).
 - `convertFactor()` a function for conversion of R factor values into one of double, integer, or character for return to SciDB.
 
 The function `f()` is called once per SciDB chunk. One R process runs per SciDB
