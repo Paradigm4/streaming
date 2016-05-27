@@ -1,7 +1,7 @@
 # Internal utility function
 # @param out a data frame
 # @return a list suitable for writing to SciDB
-asTypedList <- function(out)
+asTypedList <- function(out, convertFactor)
 {
   if(is.null(out)) return(list())
   stopifnot(is.data.frame(out))
@@ -16,8 +16,8 @@ asTypedList <- function(out)
 }
 
 
-# re-direct usual R output to stderr to avoid accidental
-# interference with SciDB communication. See the `reduce` function.
+# re-direct usual R output to stderr to avoid accidental interference with
+# SciDB communication. This is important, but results in R CMD check errors.
 .onAttach = function(libname,pkgname)
 {
   sink(stderr())

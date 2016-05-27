@@ -2,18 +2,19 @@
 % Please edit documentation in R/exported.R
 \name{map}
 \alias{map}
-\title{Map an R function across SciDB streaming data frame chunks}
+\title{Map an R function across SciDB streaming data frame chunks.}
 \usage{
-map(f, convertFactor = as.integer, stringsAsFactors = FALSE)
+map(f, final, convertFactor = as.integer)
 }
 \arguments{
 \item{f}{a function of a single data frame input argument that returns a data frame
 output. The output data frame column types must match the SciDB stream operator
 'types' argument.}
 
-\item{convertFactor}{a function for conversion of R factor values into a supported type: one of double, integer, or character.}
+\item{final}{optional function applied to last output value before returning. If supplied, \code{final} must be a function of a
+single data frame that returns a data frame compatible with the expected types (just like \code{f}).}
 
-\item{stringsAsFactors}{convert input strings to data frame factor values (\code{TRUE)} or not.}
+\item{convertFactor}{a function for conversion of R factor values into one of double, integer, or character for return to SciDB.}
 }
 \description{
 The SciDB streaming API works with R functions that take a data frame input value
@@ -23,17 +24,18 @@ types declared in the SciDB stream operator.
 \note{
 Factor and logical values are converted by default into integer values. Set
 \code{convertFactor=as.character} to convert factor values to character strings instead.
+
+Nothing is returned to SciDB when then function \code{f} returns \code{NULL}. Use this in combination
+with the \code{final} function to perform aggregation across chunks (see the examples).
 }
 \examples{
-\dontrun{
-# Identity function:
+# Identity function (run from command line):
 # iquery -aq "stream(build(<val:double> [i=1:5,5,0], i), 'R --slave -e \\"library(scidbstrm); map(I)\\"', 'format=df', 'types=double')"
 
-# Return R process ids (up to 10, depending on number of SciDB instances)
-# iquery -aq "stream(build(<val:double> [i=1:10,1,0], i), 'R --no-save --slave -e \\"library(scidbstrm); f=function(x) data.frame(pid=Sys.getpid()); map(f)\\"', 'format=df', 'types=int32')"
-}
+# See more examples in the following directory:
+system.file('examples', package='scidbstrm')
 }
 \seealso{
-\code{\link{schema}} \code{\link{map}}
+\code{\link{schema}}
 }
 
