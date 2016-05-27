@@ -1052,7 +1052,7 @@ public:
             PhysicalOperator(logicalName, physicalName, parameters, schema)
 {}
 
-shared_ptr<Array> runTSV(shared_ptr<Array> &inputArray,  string const& command, shared_ptr<Query>& query)
+shared_ptr<Array> runTSV(shared_ptr<Array> &inputArray, string const& command, shared_ptr<Query>& query)
 {
     ArrayDesc const& inputSchema = inputArray ->getArrayDesc();
     size_t const nAttrs = inputSchema.getAttributes(true).size();
@@ -1108,8 +1108,66 @@ shared_ptr<Array> runTSV(shared_ptr<Array> &inputArray,  string const& command, 
 }
 
 
-shared_ptr<Array> runDF(shared_ptr<Array> &inputArray, string const& command, vector<DFDataType> outputTypes, shared_ptr<Query>& query)
+shared_ptr<Array> runDF(shared_ptr<Array> &inputArray, shared_ptr<Array>& preArray, string const& command, vector<DFDataType> outputTypes, shared_ptr<Query>& query)
 {
+    shared_ptr<Array> output(new MemArray(_schema, query));
+    size_t const nOutputAttrs = _schema.getAttributes(true).size();
+    ChildProcess child(command, query);
+    Coordinates outPos(3,0);
+    outPos[0] = query->getInstanceID();
+    vector <shared_ptr<ArrayIterator> >      oiters (nOutputAttrs);
+    for(size_t i = 0; i<nOutputAttrs; ++i)
+    {
+        oiters[i] = output->getIterator(i);
+    }
+    if(preArray.get())
+    {
+        ArrayDesc const& preSchema = preArray->getArrayDesc();
+        size_t const nPreAttrs = preSchema.getAttributes(true).size();
+        vector<string> preInputNames;
+        vector<DFDataType> preInputTypes;
+        for(size_t i =0; i<nPreAttrs; ++i)
+        {
+           AttributeDesc const& preInputAttr = preSchema.getAttributes()[i];
+           preInputNames.push_back(preInputAttr.getName());
+           TypeId preInputType = preInputAttr.getType();
+           if(preInputType == TID_STRING)
+           {
+               preInputTypes.push_back(STRING);
+           }
+           else if (preInputType == TID_DOUBLE)
+           {
+               preInputTypes.push_back(DOUBLE);
+           }
+           else if (preInputType == TID_INT32)
+           {
+               preInputTypes.push_back(INTEGER);
+           }
+           else
+           {
+               throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "unsupported input attribute type";
+           }
+        }
+        vector <shared_ptr<ConstArrayIterator> > preAiters (nPreAttrs);
+        for(size_t i =0; i<nPreAttrs; ++i)
+        {
+            preAiters[i] = preArray->getConstIterator(i);
+        }
+        while(!preAiters[0]->end())
+        {
+            vector<ConstChunk const*> chunks;
+            for(size_t i =0; i<nPreAttrs; ++i)
+            {
+                chunks.push_back(&(preAiters[i]->getChunk()));
+            }
+            child.writeDF(preInputTypes, preInputNames, chunks);
+            child.readDF(outputTypes, oiters, outPos, query);
+            for(size_t i =0; i<nPreAttrs; ++i)
+            {
+                ++(*preAiters[i]);
+            }
+        }
+    }
     ArrayDesc const& inputSchema = inputArray ->getArrayDesc();
     size_t const nAttrs = inputSchema.getAttributes(true).size();
     vector<string> inputNames;
@@ -1136,21 +1194,11 @@ shared_ptr<Array> runDF(shared_ptr<Array> &inputArray, string const& command, ve
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "unsupported input attribute type";
         }
     }
-    shared_ptr<Array> output(new MemArray(_schema, query));
-    size_t const nOutputAttrs = _schema.getAttributes(true).size();
-    vector <shared_ptr<ConstArrayIterator> > aiters (nOutputAttrs);
-    vector <shared_ptr<ArrayIterator> >      oiters (nOutputAttrs);
+    vector <shared_ptr<ConstArrayIterator> > aiters (nAttrs);
     for(size_t i =0; i<nAttrs; ++i)
     {
         aiters[i] = inputArray->getConstIterator(i);
     }
-    for(size_t i = 0; i<nOutputAttrs; ++i)
-    {
-        oiters[i] = output->getIterator(i);
-    }
-    ChildProcess child(command, query);
-    Coordinates outPos(3,0);
-    outPos[0] = query->getInstanceID();
     while(!aiters[0]->end())
     {
         vector<ConstChunk const*> chunks;
@@ -1182,7 +1230,12 @@ shared_ptr< Array> execute(std::vector< shared_ptr< Array> >& inputArrays, std::
     else
     {
         vector<DFDataType> types = settings.getTypes();
-        return runDF(inputArray, command, types, query);
+        shared_ptr<Array> preArray;
+        if(inputArrays.size() > 1)
+        {
+            preArray = inputArrays[1];
+        }
+        return runDF(inputArray, preArray, command, types, query);
     }
 }
 };

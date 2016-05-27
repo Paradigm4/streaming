@@ -58,6 +58,7 @@ public:
         res.push_back(END_OF_VARIES_PARAMS());
         if (_parameters.size() < Settings::MAX_PARAMETERS)
         {
+            res.push_back(PARAM_INPUT());
             res.push_back(PARAM_CONSTANT("string"));
         }
         return res;
@@ -65,6 +66,10 @@ public:
 
     ArrayDesc inferSchema(std::vector<ArrayDesc> schemas, shared_ptr<Query> query)
     {
+        if(schemas.size() > 2)
+        {
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "can't support more than two input arrays";
+        }
         ArrayDesc const& inputSchema = schemas[0];
         Dimensions outputDimensions;
         outputDimensions.push_back(DimensionDesc("instance_id", 0,   query->getInstancesCount()-1, 1, 0));
