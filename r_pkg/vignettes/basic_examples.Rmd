@@ -1,0 +1,274 @@
+---
+title: "The SciDB Streaming Interface and R"
+date: "`r Sys.Date()`"
+author: B. W. Lewis, Copyright (C) 2016 by Paradigm4, Inc.
+output:
+  html_document:
+    theme: flatly
+    highlight: tango
+    mathjax: null
+vignette: >
+  \VignetteIndexEntry{scidbstrm}
+  \VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+The SciDB streaming API lets you
+
+1. Fork a child process of each SciDB instance process (per query)
+2. Send data from SciDB to standard input of each child process
+3. Read data from child process standard output into SciDB.
+
+It's patterned after the Hadoop streaming API.
+SciDB manages process and query cancellation for you and defines simple
+binary columnar (R data frame) and TSV text message formats. The binary
+columnar data frame format uses R's native data frame encoding right now but
+will move to the feather format in the future.
+
+You can directly use R with the SciDB streaming API without any extras as shown
+in the examples in https://github.com/Paradigm4/streaming/tree/master/src.
+
+Alternatively, the scidbstrm R package provides simple high-level interface to
+the SciDB streaming API with a single function called `map()`. The `map()`
+function maps a user-supplied R function across SciDB streaming data frame
+chunks, optionally running a `final()` function at the end.
+
+## Usage
+
+The function takes one required and two optional arguments, all of them functions:
+
+> `map(f, final, convertFactor=as.integer)`,
+
+where,
+
+- `f()` is a function of a single data frame input argument that returns a data frame output. The output data frame column types must match the SciDB stream operator 'types' argument.
+- `final()` optional function applied to last output value before returning. If supplied, `final()` must be a function of a single data frame that returns a data frame compatible with the expected types (just like `f()`).
+- `convertFactor()` a function for conversion of R factor values into one of double, integer, or character for return to SciDB.
+
+The function `f()` is called once per SciDB chunk, running under one R process per SciDB
+instance process per query. The child R process terminates after all the chunks have been
+streamed through the `f()` function.
+Nothing is returned to SciDB when then function `f()`
+returns `NULL`.  Use this in combination with the `final`() function to perform
+aggregation across chunks (see the examples).
+
+Note that the names of your output dataframe variables are ignored by SciDB.
+See the 'names=...' option of the SciDB stream operator to set those. However,
+the column types of your output data frame must match those specified in the
+query.
+
+# Examples
+
+## Identity function
+
+This example passes an array of 5 double values in a single chunk to R, which
+simply runs it through the identity function `I`, returning the same values
+back to SciDB.
+
+```
+cat << END | iquery -af /dev/stdin
+
+stream(build(<val:double> [i=1:5,5,0], i),
+       'R --slave -e "library(scidbstrm); map(I)"',
+       'format=df', 'types=double')
+
+END
+```
+```bash
+{instance_id,chunk_no,value_no} a0
+{0,0,0} 1
+{0,0,1} 2
+{0,0,2} 3
+{0,0,3} 4
+{0,0,4} 5
+```
+
+
+## Missing values and supported types
+
+Three supported types so far are double, string, int32.  NAs work for all of
+them and are translated to SciDB NULL. The following example obtains a
+data frame from SciDB with double, string (R character), and int32 (R integer)
+types, and returns a copy of it with the 3rd row values set to NA (missing).
+
+```
+cat << END | iquery -af /dev/stdin
+
+stream(apply(build(<x:double> [i=1:5,5,0], i), y, 'cazart', z, int32(x)),
+       'R --slave -e "library(scidbstrm); map(function(x) { x[3,] = NA ; x })"',
+       'format=df', 'types=double,string,int32')
+
+END
+```
+```
+{instance_id,chunk_no,value_no} a0,a1,a2
+{0,0,0} 1,'cazart',1
+{0,0,1} 2,'cazart',2
+{0,0,2} null,null,null
+{0,0,3} 4,'cazart',4
+{0,0,4} 5,'cazart',5
+```
+
+## Grand aggregate per instance
+
+Compute the average of values per instance using R. Unlike the previous examples we
+use the `Rscript` command with a saved R program file. This example illustrates the
+use of a `final()` function.
+
+First, save the R program to a file name `/tmp/example1.R`:
+
+```
+cat << END > /tmp/example1.R
+
+library(scidbstrm)
+rowcount <- 0
+state   <- NULL
+
+f <- function(x)
+{
+  # Update global rowcount value and state data frame
+  rowcount <<- rowcount + nrow(x)
+  state <<- data.frame(lapply(rbind(state, x), sum))
+  NULL  # no output to SciDB
+}
+
+final <- function(x) data.frame(lapply(state, function(y) y / rowcount))
+map(f, final=final)
+END
+```
+Run this with:
+
+```
+iquery -aq "stream(build(<v:double> [i=1:16,1,0], i),
+            'Rscript /tmp/example1.R','format=df', 'types=double')"
+```
+Your output will vary depending on the number of SciDB instances.
+An 8-instance cluster produces output like:
+```
+{instance_id,chunk_no,value_no} a0
+{0,0,0} 5
+{1,0,0} 6
+{2,0,0} 7
+{3,0,0} 8
+{4,0,0} 9
+{5,0,0} 10
+{6,0,0} 11
+{7,0,0} 12
+```
+
+
+You can run the same example on input data with any number of columns.
+
+```
+iquery -aq "stream(apply(build(<v:double> [i=1:16,1,0], i), w, int32(2 * v)),
+            'Rscript /tmp/example1.R','format=df', 'types=double,double')"
+```
+(output for an 8-instance SciDB cluster shown)
+```
+{instance_id,chunk_no,value_no} a0,a1
+{0,0,0} 5,10
+{1,0,0} 6,12
+{2,0,0} 7,14
+{3,0,0} 8,16
+{4,0,0} 9,18
+{5,0,0} 10,20
+{6,0,0} 11,22
+{7,0,0} 12,24
+```
+
+## Overall grand aggregation
+
+We can modify the last example to use two phases with an intermediate SciDB
+data redistribution to compute an overall grand aggregate. This example
+sums the data.
+
+First, create an R program named `/tmp/example2.R`:
+```
+cat << END > /tmp/example2.R
+
+library(scidbstrm)
+rowcount <- 0
+state   <- NULL
+
+f <- function(x)
+{
+  # Update global rowcount value and state data frame
+  rowcount <<- rowcount + nrow(x)
+  state <<- data.frame(lapply(rbind(state, x), sum))
+  NULL  # no output to SciDB
+}
+
+final <- function(x) state
+map(f, final=final)
+END
+```
+
+Run the R program twice in the following query: first on the chunk by chunk
+data, and then on the chunk-aggregated sums.
+```
+iquery -aq "stream(_sg(
+                   stream(build(<v:double> [i=1:16,1,0], i),
+                     'Rscript /tmp/example2.R','format=df', 'types=double'),
+                    2, 0),
+             'Rscript /tmp/example2.R','format=df', 'types=double')"
+```
+
+## Moving window aggregation (per instance)
+
+Compute the rolling average of values per instance across a three-value window.
+The interesting thing about this example is that the mapped function `f()` does
+not return values to SciDB until it has accumulated enough data points for the
+window.
+
+```
+cat << END > /tmp/example3.R
+
+library(scidbstrm)
+state   <- NULL
+
+# Define a rolling average function for data frame columns.
+# There are of course many other ways to do this! We stick with base R stats.
+# Note the precaution of making sure that the returned types match the query specification!
+roll <- function(x, bandwidth)
+{
+  kernel <- rep(1 / bandwidth, bandwidth)
+  data.frame(lapply(x, function(y) as.double(na.omit(filter(y, kernel)))))
+}
+
+f <- function(x)
+{
+  state <<- rbind(state, x)
+  if(nrow(state) < 3) return(NULL)  # no output to SciDB (not enough data yet)
+  ans <- roll(state, 3)             # compute rolling average over our data frame columns
+  state <<- tail(state, 2)          # only need to keep last two values
+  ans
+}
+map(f)
+
+END
+```
+
+Run with, for example (results shown for 8-instance SciDB cluster):
+```
+iquery -aq "stream(apply(build(<v:double> [i=1:32,1,0], i), w, 2*v),
+            'Rscript /tmp/example3.R','format=df', 'types=double,double')"
+```
+```
+{instance_id,chunk_no,value_no} a0,a1
+{0,0,0} 9,18
+{0,1,0} 17,34
+{1,0,0} 10,20
+{1,1,0} 18,36
+{2,0,0} 11,22
+{2,1,0} 19,38
+{3,0,0} 12,24
+{3,1,0} 20,40
+{4,0,0} 13,26
+{4,1,0} 21,42
+{5,0,0} 14,28
+{5,1,0} 22,44
+{6,0,0} 15,30
+{6,1,0} 23,46
+{7,0,0} 16,32
+{7,1,0} 24,48
+```
