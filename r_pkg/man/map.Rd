@@ -2,18 +2,19 @@
 % Please edit documentation in R/exported.R
 \name{map}
 \alias{map}
-\title{Map an R function across SciDB streaming data frame chunks}
+\title{Map an R function across SciDB streaming data frame chunks.}
 \usage{
-map(f, convertFactor = as.integer, stringsAsFactors = FALSE)
+map(f, convertFactor = as.integer, final)
 }
 \arguments{
 \item{f}{a function of a single data frame input argument that returns a data frame
 output. The output data frame column types must match the SciDB stream operator
 'types' argument.}
 
-\item{convertFactor}{a function for conversion of R factor values into a supported type: one of double, integer, or character.}
+\item{convertFactor}{a function for conversion of R factor values into one of double, integer, or character for return to SciDB.}
 
-\item{stringsAsFactors}{convert input strings to data frame factor values (\code{TRUE)} or not.}
+\item{final}{optional function applied to last output value before returning. If supplied, \code{final} must be a function of a
+single data frame that returns a data frame compatible with the expected types (just like \code{f}).}
 }
 \description{
 The SciDB streaming API works with R functions that take a data frame input value
@@ -23,6 +24,9 @@ types declared in the SciDB stream operator.
 \note{
 Factor and logical values are converted by default into integer values. Set
 \code{convertFactor=as.character} to convert factor values to character strings instead.
+
+Nothing is returned to SciDB when then function \code{f} returns \code{NULL}. Use this in combination
+with the \code{final} function to perform aggregation across chunks (see the examples).
 }
 \examples{
 \dontrun{
@@ -34,6 +38,6 @@ Factor and logical values are converted by default into integer values. Set
 }
 }
 \seealso{
-\code{\link{schema}} \code{\link{map}}
+\code{\link{schema}}
 }
 
