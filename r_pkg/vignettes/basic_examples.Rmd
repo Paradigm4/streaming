@@ -15,9 +15,9 @@ vignette: >
 
 The SciDB streaming API lets you
 
-1. Fork a child process of each SciDB instance process per query
+1. Fork a child process of each SciDB instance process (per query)
 2. Send data from SciDB to standard input of each child process
-3. Read data from child proess standard output into SciDB.
+3. Read data from child process standard output into SciDB.
 
 The API manages process and query cancellation for you and defines simple
 binary columnar (R data frame) and TSV text message formats. The binary
