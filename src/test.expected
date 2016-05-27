@@ -34,3 +34,5 @@ Query was executed successfully
 {0,0,2} 6,24
 {0,0,3} 8,32
 {0,0,4} 10,40
+{instance_id,chunk_no,value_no} sum
+{0,0,0} 1275
