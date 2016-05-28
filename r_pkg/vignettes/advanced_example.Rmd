@@ -25,6 +25,7 @@ vignette: >
 You need SciDB and R of course, and the following add ons for each:
 
 ### SciDB
+- `accelerated_io_tools`
 - `grouped_aggregate`
 - `superfunpack`
 - `stream`
