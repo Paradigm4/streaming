@@ -60,25 +60,56 @@ schema <- function(f, input)
 #' @export
 map <- function(f, final, convertFactor=as.integer)
 {
-  con_in <- file("stdin", "rb")
-  con_out <- pipe("cat", "wb")
+  # Check for already opened connections, closed at end of this function
+  if(!exists("con_in", envir=.scidbstream.env)) .scidbstream.env$con_in <- file("stdin", "rb")
+  if(!exists("con_out", envir=.scidbstream.env)) .scidbstream.env$con_out <- pipe("cat", "wb")
   output <- NULL
   tryCatch( # fast exit on error
     while(TRUE)
     {
-      input <- data.frame(unserialize(con_in), stringsAsFactors=FALSE)
+      input <- data.frame(unserialize(.scidbstream.env$con_in), stringsAsFactors=FALSE)
       if(nrow(input) == 0) # this is the last message
       {
         if(!missing(final))
-          writeBin(serialize(asTypedList(final(output), convertFactor), NULL, xdr=FALSE), con_out)
+          writeBin(serialize(asTypedList(final(output), convertFactor), NULL, xdr=FALSE), .scidbstream.env$con_out)
         else
-          writeBin(serialize(list(), NULL, xdr=FALSE), con_out)
+          writeBin(serialize(list(), NULL, xdr=FALSE), .scidbstream.env$con_out)
         q(save="no")
       }
     output <- f(input)
-    writeBin(serialize(asTypedList(output, convertFactor), NULL, xdr=FALSE), con_out)
-    flush(con_out)
+    writeBin(serialize(asTypedList(output, convertFactor), NULL, xdr=FALSE), .scidbstream.env$con_out)
+    flush(.scidbstream.env$con_out)
     }, error=function(e) {cat(as.character(e), "\n", file=stderr()); q()})
-  close(con_in)
-  close(con_out)
+  closeStreams()
+}
+
+#' Obtain a single chunk from SciDB, returning \code{output}.
+#'
+#' A low-level, chunk-by-chunk interface to the SciDB streaming API.
+#' Use this with the optional extra array argument in the SciDB stream
+#' operator to read data before running \code{map}.
+#' @param output A list with chunk output to return to SciDB.
+#' @return an R list of values representing one SciDB chunk
+#' @seealso \code{\link{map}} \code{\link{closeStream}}
+#' @export
+getChunk <- function(output = list())
+{
+  if(!exists("con_in", envir=.scidbstream.env)) .scidbstream.env$con_in <- file("stdin", "rb")
+  if(!exists("con_out", envir=.scidbstream.env)) .scidbstream.env$con_out <- pipe("cat", "wb")
+  ans <- unserialize(.scidbstream.env$con_in)
+  writeBin(serialize(output, NULL, xdr=FALSE), .scidbstream.env$con_out)
+  ans
+}
+
+#' Explicitly close SciDB streams
+#'
+#' You should almost never need to call this in practice. The \code{\link{map}}
+#' function automatically closes SciDB streams when done.
+#' @return \code{NULL}
+#' @export
+closeStreams <- function()
+{
+  if(exists("con_in", envir=.scidbstream.env)) close(.scidbstream.env$con_in)
+  if(exists("con_out", envir=.scidbstream.env)) close(.scidbstream.env$con_out)
+  invisible(NULL)
 }

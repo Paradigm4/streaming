@@ -22,3 +22,6 @@ asTypedList <- function(out, convertFactor)
 {
   sink(stderr())
 }
+
+# Glogbal state, if needed, can go here
+.scidbstream.env <- new.env()
