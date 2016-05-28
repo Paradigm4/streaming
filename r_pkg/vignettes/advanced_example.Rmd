@@ -235,7 +235,7 @@ levels <- c("sitting", "sittingdown", "standing", "standingup", "walking")
 f <- function(x)
 {
   x$class <- factor(x$class, levels=levels)
-  mdl <- lb(x[, -18], x[[18]], 82816, 10, 2)
+  mdl <- lb(x[, -18], x[[18]], 82816, 10, 10)
   data.frame(x=base64encode(serialize(mdl, NULL)), stringsAsFactors=FALSE)
 }
 
@@ -246,6 +246,8 @@ map(f)
 
 The following simple R program combines the results of many Random Forest
 models into a single model. Save the program as the file `/tmp/combine.R`.
+When run on an 8-instance SciDB cluster with the above `bootstrap.R`
+program, this results in a model of 800 trees.
 
 ```{r}
 # Combine a bunch of Random Forest models into a single model
