@@ -21,4 +21,4 @@ where,
 
 See the package vignettes and source code in this sofware repository for more details.
 
-- https://github.com/paradigm4/streaming/r_pkg/vignettes/basic_examples.Rmd
+- https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/basic_examples.Rmd
