@@ -172,3 +172,100 @@ iquery -aq "stream(apply(build(<v:double> [i=1:16,1,0], i), w, int32(2 * v)),
 {6,0,0} 11,22
 {7,0,0} 12,24
 ```
+
+## Overall grand aggregation
+
+We can modify the last example to use two phases with an intermediate SciDB
+data redistribution to compute an overall grand aggregate. This example
+sums the data.
+
+First, create an R program named `/tmp/example2.R`:
+```
+cat << END > /tmp/example2.R
+
+library(scidbstrm)
+rowcount <- 0
+state   <- NULL
+
+f <- function(x)
+{
+  # Update global rowcount value and state data frame
+  rowcount <<- rowcount + nrow(x)
+  state <<- data.frame(lapply(rbind(state, x), sum))
+  NULL  # no output to SciDB
+}
+
+final <- function(x) state
+map(f, final=final)
+END
+```
+
+Run the R program twice in the following query: first on the chunk by chunk
+data, and then on the chunk-aggregated sums.
+```
+iquery -aq "stream(_sg(
+                   stream(build(<v:double> [i=1:16,1,0], i),
+                     'Rscript /tmp/example2.R','format=df', 'types=double'),
+                    2, 0),
+             'Rscript /tmp/example2.R','format=df', 'types=double')"
+```
+
+## Moving window aggregation (per instance)
+
+Compute the rolling average of values per instance across a three-value window.
+The interesting thing about this example is that the mapped function `f()` does
+not return values to SciDB until it has accumulated enough data points for the
+window.
+
+```
+cat << END > /tmp/example3.R
+
+library(scidbstrm)
+state   <- NULL
+
+# Define a rolling average function for data frame columns.
+# There are of course many other ways to do this! We stick with base R stats.
+# Note the precaution of making sure that the returned types match the query specification!
+roll <- function(x, bandwidth)
+{
+  kernel <- rep(1 / bandwidth, bandwidth)
+  data.frame(lapply(x, function(y) as.double(na.omit(filter(y, kernel)))))
+}
+
+f <- function(x)
+{
+  state <<- rbind(state, x)
+  if(nrow(state) < 3) return(NULL)  # no output to SciDB (not enough data yet)
+  ans <- roll(state, 3)             # compute rolling average over our data frame columns
+  state <<- tail(state, 2)          # only need to keep last two values
+  ans
+}
+map(f)
+
+END
+```
+
+Run with, for example (results shown for 8-instance SciDB cluster):
+```
+iquery -aq "stream(apply(build(<v:double> [i=1:32,1,0], i), w, 2*v),
+            'Rscript /tmp/example3.R','format=df', 'types=double,double')"
+```
+```
+{instance_id,chunk_no,value_no} a0,a1
+{0,0,0} 9,18
+{0,1,0} 17,34
+{1,0,0} 10,20
+{1,1,0} 18,36
+{2,0,0} 11,22
+{2,1,0} 19,38
+{3,0,0} 12,24
+{3,1,0} 20,40
+{4,0,0} 13,26
+{4,1,0} 21,42
+{5,0,0} 14,28
+{5,1,0} 22,44
+{6,0,0} 15,30
+{6,1,0} 23,46
+{7,0,0} 16,32
+{7,1,0} 24,48
+```
