@@ -1,0 +1,119 @@
+---
+title: "Building a Random Forest Predictive Model with the SciDB Streaming Interface and R"
+date: "`r Sys.Date()`"
+author: B. W. Lewis, Copyright (C) 2016 by Paradigm4, Inc.
+output:
+  html_document:
+    theme: flatly
+    highlight: tango
+    mathjax: null
+vignette: >
+  \VignetteIndexEntry{scidbstrm_predict}
+  \VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+This vignette walks through, from start to finish, building a supervised
+predictive model using R and data in SciDB. Model training is conducted in
+parallel and managed through the new SciDB streaming API.
+
+We use a wearables data set from
+http://groupware.les.inf.puc-rio.br/har#dataset.  The data consist of
+descriptive statistics and processed data from three accelerometer device
+measurements attached to various people performing five prescribed activities
+coded as "class" and look like:
+```
+gender age how_tall_in_meters weight body_mass_index x1  y1   z1   x2   y2   z2  x3  y3   z3   x4   y4   z4       class
+Woman  46               1.62     75            28.6  -3  95  -70   11   16  -61  28  76  -83 -187  -91 -153  standingup
+Woman  46               1.62     75            28.6 -10  94  -98    0   74 -121  15 103  -89 -162 -104 -157    standing
+Woman  28               1.58     55            22.0  11 106 -116 -493 -516 -616  12 128 -119 -176  -82 -183     walking
+  Man  31               1.71     83            28.4   2  66  -64  -20    6  -27  66  59 -104  -97 -123 -170     sitting
+  Man  31               1.71     83            28.4 -43  49 -132  -17   97 -135 -47 168 -103 -210 -100 -153     walking
+Woman  28               1.58     55            22.0 -11 104 -120 -493 -516 -616  38  34 -114 -187  -73 -159     walking
+  Man  75               1.67     67            24.0 -11  97 -135   -2  -39  -23 -11 119  -94 -195 -115 -102 sittingdown
+```
+Our obective is, given these data, develop a model that predicts "class." This
+example is representative of many supervised classification
+problems.
+
+We model the data using a variation of the Random Forest algorithm developed
+by Leo Breiman and Adele Cutler, see for example
+https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf
+and http://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm
+and the references therein, and the R package implementation by Andy
+Liaw (https://cran.r-project.org/web/packages/randomForest).
+
+We modify the default Random Forest algorithm implementation to enhance
+parallel scalability for large data set sizes using the Big Data Bootstrap
+approach  of Kleiner et. al.  (A. Kleiner, A. Talwalkar, P. Sarkar, and M.
+Jordan, “A scalable bootstrap for massive data,” Journal of the Royal
+Statistical Society: Series B (Statistical Methodology), vol. 76, no. 4, pp.
+795–816, 2014) following a proposed implementation by Genuer, Poggi,
+Tuleau-Malot and Villa-Vialaneix (http://arxiv.org/pdf/1511.08327v1.pdf).
+Parallelization of the Random Forest model training is managed using the SciDB
+streaming API and R.
+
+## Obtaining and loading data
+
+Download and uncompress the data with:
+```
+cd /tmp
+wget http://groupware.les.inf.puc-rio.br/static/har/dataset-har-PUC-Rio-ugulino.zip
+unzip dataset-har-PUC-Rio-ugulino.zip
+```
+producing a file named `dataset-har-PUC-Rio-ugulino.csv`. Despite its name, the
+input file is delimited by the semicolon ";" character.
+
+The data arrive requiring some very minor adaptation including filtering out one
+bad value in the z4 variable, and are loaded into a 165,632 row SciDB array named HAR below:
+```
+iquery -naq "
+store(
+filter(
+project(
+unpack(
+apply(
+  aio_input('/tmp/dataset-har-PUC-Rio-ugulino.csv', 'num_attributes=19', 'attribute_delimiter=;', 'header=1'),
+    gender, dcast(rsub(rsub(a1, 's/W.*/0/'), 's/M.*/1/'), int32(null)),
+    age, dcast(a2, double(null)),
+    height, dcast(rsub(a3, 's/,/\./'), double(null)),
+    weight, dcast(a4, double(null)),
+    bmi, dcast(rsub(a5, 's/,/\./'), double(null)),
+    x1, dcast(a6, int32(null)),
+    y1, dcast(a7, int32(null)),
+    z1, dcast(a8, int32(null)),
+    x2, dcast(a9, int32(null)),
+    y2, dcast(a10, int32(null)),
+    z2, dcast(a11, int32(null)),
+    x3, dcast(a12, int32(null)),
+    y3, dcast(a13, int32(null)),
+    z3, dcast(a14, int32(null)),
+    x4, dcast(a15, int32(null)),
+    y4, dcast(a16, int32(null)),
+    z4, dcast(a17, int32(null)),
+    class, a18),
+  i),
+  gender, age, height, weight, bmi,
+  x1, y1, z1,
+  x2, y2, z2,
+  x3, y3, z3,
+  x4, y4, z4, class),
+not is_null(z4)),
+HAR)"
+``` 
+
+The five possible classes are shown below. Importantly, we will manually code
+these as contrast-encoded factors for our Random Forest model. (Alternatively,
+and more efficiently, we could have just encoded these as integers in SciDB.)
+```
+iquery -aq "grouped_aggregate(HAR, class, max(class))"
+```
+```
+walking
+sitting
+standing
+standingup
+sittingdown
+```
+
+
