@@ -1,0 +1,19 @@
+---
+title: "The SciDB Streaming Interface and R"
+date: "`r Sys.Date()`"
+author: B. W. Lewis, Copyright (C) 2016 by Paradigm4, Inc.
+output:
+  html_document:
+    theme: flatly
+    highlight: tango
+    toc: true
+    toc_depth: 4
+    mathjax: null
+    css: style.css
+vignette: >
+  \VignetteIndexEntry{scidbstrm}
+  \VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+Basic examples.

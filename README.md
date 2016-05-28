@@ -4,24 +4,16 @@ Prototype Hadoop streaming-like SciDB API
 The operator sends SciDB array data into the stdin of the process and reads its
 stdout (hence 'streaming').
 
-This needs an operator something like:
+## Usage
 ```
-stream(array, command, args, format, ...)
+stream(ARRAY, PROGRAM, 'format=...', 'types=...')
 ```
-- `...` are maybe some process ulimit settings,
-- `command` program to run
-- `args` command-line arguments
-- `format` save format
+where,
 
-I envision only two save formats: columnar binary form eventually feather, but
-now native R form, and row-wise TSV. I think for simplicity we should assume
-symmetry of format on input and output.
+* ARRAY is a SciDB array expression
+* PROGRAM is a full command line to the program to stream data through
+* format is either `'format=df'` for R binary data frame format or `'format=tsv'` for tab-delimited text (the R binary format is provisional and will eventually be replaced by feather)
+* types is a comma-separated list of expected returned column SciDB types.
 
-## notes
+## Examples
 
-Perhaps the best approach might be for each instance to fork a slave process,
-and then stream one chunk at a time through it and consume the output. This
-requires a process that coorperates with that approach (pretty easy for
-row-wise TSV I/O, less so maybe for columnar I/O).
-
-What do you think?
