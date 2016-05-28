@@ -57,8 +57,8 @@ We modify the default Random Forest algorithm implementation to enhance
 parallel scalability for large data set sizes using the Big Data Bootstrap
 approach  of Kleiner et. al.  (A. Kleiner, A. Talwalkar, P. Sarkar, and M.
 Jordan, “A scalable bootstrap for massive data,” Journal of the Royal
-Statistical Society: Series B (Statistical Methodology), vol. 76, no. 4, pp.
-795–816, 2014) following a proposed implementation by Genuer, Poggi,
+Statistical Society: Series B, vol. 76, no. 4, pp.  795–816, 2014)
+following a recently proposed implementation by Genuer, Poggi,
 Tuleau-Malot and Villa-Vialaneix (http://arxiv.org/pdf/1511.08327v1.pdf).
 Parallelization of the Random Forest model training is managed using the SciDB
 streaming API and R.
