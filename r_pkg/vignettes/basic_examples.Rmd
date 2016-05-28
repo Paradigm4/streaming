@@ -40,14 +40,19 @@ The function takes one required and two optional arguments, all of them function
 
 where,
 
-* `f()` is a function of a single data frame input argument that returns a data frame output. The output data frame column types must match the SciDB stream operator 'types' argument.
-* `final()` optional function applied to last output value before returning. If supplied, \code{final} must be a function of a single data frame that returns a data frame compatible with the expected types (just like \code{f}).
-* `convertFactor()` a function for conversion of R factor values into one of double, integer, or character for return to SciDB.
+- `f()` is a function of a single data frame input argument that returns a data frame output. The output data frame column types must match the SciDB stream operator 'types' argument.
+- `final()` optional function applied to last output value before returning. If supplied, \code{final} must be a function of a single data frame that returns a data frame compatible with the expected types (just like \code{f}).
+- `convertFactor()` a function for conversion of R factor values into one of double, integer, or character for return to SciDB.
 
 The function `f()` is called once per SciDB chunk. One R process runs per SciDB
 instance process.  Nothing is returned to SciDB when then function `f()`
 returns `NULL`.  Use this in combination with the `final`() function to perform
 aggregation across chunks (see the examples).
+
+Note that the names of your output dataframe variables are ignored by SciDB.
+See the 'names=...' option of the SciDB stream operator to set those. However,
+the column types of your output data frame must match those specified in the
+query.
 
 # Examples
 
@@ -58,7 +63,13 @@ simply runs it through the identity function `I`, returning the same values
 back to SciDB.
 
 ```
-iquery -aq "stream(build(<val:double> [i=1:5,5,0], i), 'R --slave -e \"library(scidbstrm); map(I)\"', 'format=df', 'types=double')"
+cat << END | iquery -af /dev/stdin
+
+stream(build(<val:double> [i=1:5,5,0], i),
+       'R --slave -e "library(scidbstrm); map(I)"',
+       'format=df', 'types=double')
+
+END
 ```
 ```bash
 {instance_id,chunk_no,value_no} a0
@@ -73,10 +84,18 @@ iquery -aq "stream(build(<val:double> [i=1:5,5,0], i), 'R --slave -e \"library(s
 ## Missing values and supported types
 
 Three supported types so far are double, string, int32.  NAs work for all of
-them and are translated to SciDB NULL.
+them and are translated to SciDB NULL. The following example obtains a
+data frame from SciDB with double, string (R character), and int32 (R integer)
+types, and returns a copy of it with the 3rd row values set to NA (missing).
 
 ```
-iquery -aq "stream(apply(build(<x:double> [i=1:5,5,0], i), y, 'cazart', z, int32(x)), 'R --slave -e \"library(scidbstrm); map(function(x) {x[3,] = NA;x})\"', 'format=df', 'types=double,string,int32')"
+cat << END | iquery -af /dev/stdin
+
+stream(apply(build(<x:double> [i=1:5,5,0], i), y, 'cazart', z, int32(x)),
+       'R --slave -e "library(scidbstrm); map(function(x) {x[3,] = NA;x})"',
+       'format=df', 'types=double,string,int32')
+
+END
 ```
 ```
 {instance_id,chunk_no,value_no} a0,a1,a2
