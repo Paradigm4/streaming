@@ -13,9 +13,19 @@ vignette: >
   \usepackage[utf8]{inputenc}
 ---
 
+# Topics
+
+- SciDB streaming API and R
+- Predictive modeling
+- Parallel computing
+- Storing generic R model output in SciDB
+
+# Introduction
+
 This vignette walks through, from start to finish, building a supervised
 predictive model using R and data in SciDB. Model training is conducted in
 parallel and managed through the new SciDB streaming API.
+
 
 We use a wearables data set from
 http://groupware.les.inf.puc-rio.br/har#dataset.  The data consist of
@@ -115,5 +125,21 @@ standing
 standingup
 sittingdown
 ```
+
+This query expression, assigned to the shell variable P, partitions the data
+into 8 SciDB chunks in random order.
+```
+P="redimension(sort(apply(HAR, p, random() % 8), p), <gender:int32,age:double,height:double,weight:double,bmi:double,x1:int32,y1:int32,z1:int32,x2:int32,y2:int32,z2:int32,x3:int32,y3:int32,z3:int32,x4:int32,y4:int32,z4:int32,class:string> [n=0:*,20704,0])"
+
+cat << END | iquery -a -f /dev/stdin
+stream($P, 'R --slave -e "library(scidbstrm); map(function(x) data.frame(n=as.character(nrow(x)), stringsAsFactors=FALSE))"',
+       'format=df', 'types=string')
+END
+```
+
+
+
+
+
 
 
