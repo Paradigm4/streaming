@@ -98,6 +98,7 @@ getChunk <- function(output = list())
   if(!exists("con_out", envir=.scidbstream.env)) .scidbstream.env$con_out <- pipe("cat", "wb")
   ans <- unserialize(.scidbstream.env$con_in)
   writeBin(serialize(output, NULL, xdr=FALSE), .scidbstream.env$con_out)
+  flush(.scidbstream.env$con_out)
   ans
 }
 
