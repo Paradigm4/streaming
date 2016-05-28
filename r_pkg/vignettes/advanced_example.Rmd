@@ -20,6 +20,27 @@ vignette: >
 - Parallel computing
 - Storing generic R model output in SciDB
 
+## Prerequisites
+
+You need SciDB and R of course, and the following add ons for each:
+
+### SciDB
+- `grouped_aggregate`
+- `superfunpack`
+- `stream`
+
+### R
+- `randomForests`
+- `base64enc`
+- `scidbstrm`
+
+The scidbstrm package for R is available from https://github.com/paradigm4/streaming/r_pkg. You can
+install it with:
+```
+sudo R --slave -e  "devtools::install_github('paradigm4/streaming', subdir='r_pkg')"
+```
+Be sure to install all packages so that they are available to all R users!
+
 # Introduction
 
 This vignette walks through, from start to finish, building a supervised
