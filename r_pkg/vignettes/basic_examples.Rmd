@@ -13,6 +13,23 @@ vignette: >
   \usepackage[utf8]{inputenc}
 ---
 
+The SciDB streaming API lets you
+
+1. Fork a child process of each SciDB instance process per query
+2. Send data from SciDB to standard input of each child process
+3. Read data from child proess standard output into SciDB.
+
+The API manages process and query cancellation for you and defines simple
+binary columnar (R data frame) and TSV text message formats. The binary
+columnar data frame format uses R's native data frame encoding right now but
+will move to the feather format in the future.
+
+You can directly use R with the SciDB streaming API without needing any add-on
+R packages  as shown in the examples in
+https://github.com/Paradigm4/streaming/tree/master/src.
+
+The scidbstrm R package defines a very simple high-level interface to the SciDB
+streaming API with a single function called `map()`. The `map()`
 
 Run all the examples from a command line.
 
@@ -43,3 +60,13 @@ them and are translated to SciDB NULL.
 ```
 iquery -aq "stream(apply(build(<x:double> [i=1:5,5,0], i), y, 'cazart', z, int32(x)), 'R --slave -e \"library(scidbstrm); map(function(x) {x[3,] = NA;x})\"', 'format=df', 'types=double,string,int32')"
 ```
+```
+{instance_id,chunk_no,value_no} a0,a1,a2
+{0,0,0} 1,'cazart',1
+{0,0,1} 2,'cazart',2
+{0,0,2} null,null,null
+{0,0,3} 4,'cazart',4
+{0,0,4} 5,'cazart',5
+```
+
+
