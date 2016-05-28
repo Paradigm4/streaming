@@ -47,8 +47,13 @@ schema <- function(f, input)
 #' with the \code{final} function to perform aggregation across chunks (see the examples).
 #' @seealso \code{\link{schema}}
 #' @examples
-#' # Identity function (run from command line):
+#' # (Run all the examples from a command line)
+#' # Identity function:
 #' # iquery -aq "stream(build(<val:double> [i=1:5,5,0], i), 'R --slave -e \"library(scidbstrm); map(I)\"', 'format=df', 'types=double')"
+#'
+#' # Three supported types so far are double, string, int32.
+#' # NAs work for all of them and are translated to SciDB NULL.
+#' # iquery -aq "stream(apply(build(<x:double> [i=1:5,5,0], i), y, 'cazart', z, int32(x)), 'R --slave -e \"library(scidbstrm); map(function(x) {x[3,] = NA;x})\"', 'format=df', 'types=double,string,int32')"
 #'
 #' # See more examples in the following directory:
 #' system.file('examples', package='scidbstrm')
