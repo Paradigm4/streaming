@@ -23,7 +23,7 @@ vignette: >
 # Introduction
 
 This vignette walks through, from start to finish, building a supervised
-predictive model using R and data in SciDB. Model training is conducted in
+predictive model using R and SciDB. Model training is conducted in
 parallel and managed through the new SciDB streaming API.
 
 
