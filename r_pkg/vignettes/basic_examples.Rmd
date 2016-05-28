@@ -24,14 +24,29 @@ binary columnar (R data frame) and TSV text message formats. The binary
 columnar data frame format uses R's native data frame encoding right now but
 will move to the feather format in the future.
 
-You can directly use R with the SciDB streaming API without needing any add-on
-R packages  as shown in the examples in
-https://github.com/Paradigm4/streaming/tree/master/src.
+You can directly use R with the SciDB streaming API without any extras as shown
+in the examples in https://github.com/Paradigm4/streaming/tree/master/src.
 
-The scidbstrm R package defines a very simple high-level interface to the SciDB
-streaming API with a single function called `map()`. The `map()`
+Alternatively, the scidbstrm R package provides simple high-level interface to
+the SciDB streaming API with a single function called `map()`. The `map()`
+function maps a user-supplied R function across SciDB streaming data frame
+chunks, optionally running a `final()` function at the end.
 
-Run all the examples from a command line.
+## Usage
+
+The function takes one required and two optional arguments, all of them functions:
+`map(f, final, convertFactor=as.integer)`,  where,
+
+* `f()` is a function of a single data frame input argument that returns a data frame output. The output data frame column types must match the SciDB stream operator 'types' argument.
+* `final()` optional function applied to last output value before returning. If supplied, \code{final} must be a function of a single data frame that returns a data frame compatible with the expected types (just like \code{f}).
+* `convertFactor()` a function for conversion of R factor values into one of double, integer, or character for return to SciDB.
+
+The function `f()` is called once per SciDB chunk. One R process runs per SciDB
+instance process.  Nothing is returned to SciDB when then function `f()`
+returns `NULL`.  Use this in combination with the `final`() function to perform
+aggregation across chunks (see the examples).
+
+# Examples
 
 ## Identity function
 
