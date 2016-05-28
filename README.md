@@ -16,5 +16,9 @@ where,
 * types is a comma-separated list of expected returned column SciDB types.
 * names is an optional set of comma-separated output column names and must be the same length as `types` (default names are a0, a1, ...)
 
-## Examples
 
+## R package
+
+See the package vignettes and source code in this sofware repository for more details.
+
+- https://github.com/paradigm4/streaming/r_pkg/vignettes/basic_examples.Rmd

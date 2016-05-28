@@ -35,7 +35,10 @@ chunks, optionally running a `final()` function at the end.
 ## Usage
 
 The function takes one required and two optional arguments, all of them functions:
-`map(f, final, convertFactor=as.integer)`,  where,
+
+> `map(f, final, convertFactor=as.integer)`,
+
+where,
 
 * `f()` is a function of a single data frame input argument that returns a data frame output. The output data frame column types must match the SciDB stream operator 'types' argument.
 * `final()` optional function applied to last output value before returning. If supplied, \code{final} must be a function of a single data frame that returns a data frame compatible with the expected types (just like \code{f}).
