@@ -42,7 +42,7 @@ Woman  28               1.58     55            22.0  11 106 -116 -493 -516 -616 
 Woman  28               1.58     55            22.0 -11 104 -120 -493 -516 -616  38  34 -114 -187  -73 -159     walking
   Man  75               1.67     67            24.0 -11  97 -135   -2  -39  -23 -11 119  -94 -195 -115 -102 sittingdown
 ```
-Our obective is, given these data, develop a model that predicts "class." This
+Our objective is, given these data, develop a model that predicts "class." This
 example is representative of many supervised classification
 problems.
 
@@ -165,7 +165,7 @@ END
 # Training a model
 
 The following R program computes the *little bootstrap* phase of the big data
-bootstram process. It runs in parallel on each of the 8 data partitions defined
+bootstrap process. It runs in parallel on each of the 8 data partitions defined
 above. The output of the program is a set of 8 serialized R randomForest
 model objects. We'll combine those into a single model later. Save this
 program in the file `/tmp/bootstrap.R`.
