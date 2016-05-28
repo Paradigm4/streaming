@@ -25,6 +25,15 @@ back to SciDB.
 ```
 iquery -aq "stream(build(<val:double> [i=1:5,5,0], i), 'R --slave -e \"library(scidbstrm); map(I)\"', 'format=df', 'types=double')"
 ```
+```bash
+{instance_id,chunk_no,value_no} a0
+{0,0,0} 1
+{0,0,1} 2
+{0,0,2} 3
+{0,0,3} 4
+{0,0,4} 5
+```
+
 
 ## Missing values and supported types
 
