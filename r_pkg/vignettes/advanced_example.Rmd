@@ -31,7 +31,7 @@ You need SciDB and R of course, and the following add ons for each:
 - `stream`
 
 ### R
-- `randomForests`
+- `randomForest`
 - `base64enc`
 - `scidbstrm`
 
