@@ -268,7 +268,11 @@ f <- function(x)
 
 final <- function(x)
 {
-  data.frame(x=base64encode(serialize(result, NULL)), stringsAsFactors=FALSE)
+  if(!is.null(result))
+  {
+    return(data.frame(x=base64encode(serialize(result, NULL)), stringsAsFactors=FALSE))
+  }
+  return(NULL)
 }
 
 map(f, final=final)
@@ -281,7 +285,7 @@ training data and combines the results in a single query, storing the output to
 a SciDB array named "model".
 
 ```
-iquery -naq "store(project(unpack(stream( _sg(redimension(unpack(stream($TRAIN, 'Rscript /tmp/bootstrap.R', 'format=df', 'types=string'),i), <a0:string>[i=0:*,1,0]),2,0), 'Rscript /tmp/combine.R', 'format=df', 'types=string'), i), a0), model)"
+iquery -naq "store( stream( _sg( stream($TRAIN, 'Rscript /tmp/bootstrap.R', 'format=df', 'types=string'), 2,0 ), 'Rscript /tmp/combine.R', 'format=df', 'types=string'), model)"
 ```
 
 ** ALEX ** Can you help clean this query up a bit? It's pretty complex. Can it
@@ -324,7 +328,7 @@ through it.
 The following query runs the held-out test data through our model, saving the
 results into a SciDB array named "predictions":
 ```
-iquery -aq "store(stream($TEST, 'Rscript /tmp/predict.R', 'format=df', 'types=string,string', _sg(model,0,0)), predictions)"
+iquery -anq "store(stream($TEST, 'Rscript /tmp/predict.R', 'format=df', 'types=string,string', _sg(model,0,0)), predictions)"
 ```
 
 We can get a better feel for how well our model works by making a cross
