@@ -279,9 +279,12 @@ training data and combines the results in a single query, storing the output to
 a SciDB array named "model".
 
 ```
-iquery -naq "store(stream(stream($TRAIN, 'Rscript /tmp/bootstrap.R', 'format=df', 'types=string'),
-                     'Rscript /tmp/combine.R', 'format=df', 'types=string'), model)"
+iquery -naq "store(project(unpack(stream( _sg(redimension(unpack(stream($TRAIN, 'Rscript /tmp/bootstrap.R', 'format=df', 'types=string'),i), <a0:string>[i=0:*,1,0]),2,0), 'Rscript /tmp/combine.R', 'format=df', 'types=string'), i), a0), model)"
 ```
+
+** ALEX ** Can you help clean this query up a bit? It's pretty complex. Can it
+be simplified? Note: we ideally pass the model objects in one chunk pieces to R.
+The sg puts them all on one instance for combining.
 
 
 # Model Prediction
