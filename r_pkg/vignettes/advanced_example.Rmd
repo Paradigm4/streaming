@@ -339,10 +339,13 @@ table(p)
 ```
              predicted
 observed      sitting sittingdown standing standingup walking
-  sitting       25273           6        0         34       2
-  sittingdown      44        5537       63        181      89
-  standing          0           3    23494         23     166
-  standingup       47         189      148       5704     119
-  walking           0          30      144         33   21487
+  sitting       25263           2        0         50       0
+  sittingdown      27        5682       58         91      56
+  standing          0           1    23532         15     138
+  standingup       47         157      137       5808      58
+  walking           0          16      112         17   21549
 ```
+Your output will vary due to the random sampling of the test and
+training sets.
+
 Our model predictions closely track the observations, not bad!
