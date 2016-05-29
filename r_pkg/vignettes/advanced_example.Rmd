@@ -74,8 +74,9 @@ unzip dataset-har-PUC-Rio-ugulino.zip
 producing a file named `dataset-har-PUC-Rio-ugulino.csv`. Despite its name, the
 input file is delimited by the semicolon ";" character.
 
-The data arrive requiring some very minor adaptation including filtering out one
-bad value in the z4 variable, and are loaded into a 165,632 row SciDB array named HAR below:
+The data arrive requiring some very minor cleanup including filtering out one
+bad value in the z4 variable and removing trailing carriage return characters
+in the class variable. Data are loaded into a 165,632 row SciDB array named HAR.
 ```
 iquery -naq "
 store(
@@ -101,7 +102,7 @@ apply(
     x4, dcast(a15, int32(null)),
     y4, dcast(a16, int32(null)),
     z4, dcast(a17, int32(null)),
-    class, a18),
+    class, rsub(a18, 's/\r//')),
   i),
   gender, age, height, weight, bmi,
   x1, y1, z1,
@@ -126,20 +127,135 @@ standingup
 sittingdown
 ```
 
-This query expression, assigned to the shell variable P, partitions the data
-into 8 SciDB chunks in random order.
+The following SciDB query partitions the data into 8 SciDB chunks, randomizing
+all the data across the chunks, and then splits the data roughly into two
+halves. We plan to use the 1st half of the data as a training set on which to
+build a model, and then we'll test the model on the remainder.
 ```
-P="redimension(sort(apply(HAR, p, random() % 8), p), <gender:int32,age:double,height:double,weight:double,bmi:double,x1:int32,y1:int32,z1:int32,x2:int32,y2:int32,z2:int32,x3:int32,y3:int32,z3:int32,x4:int32,y4:int32,z4:int32,class:string> [n=0:*,20704,0])"
+vars="gender, age, height, weight, bmi, x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4, class"
+iquery -naq "store(apply(redimension(sort(apply(HAR, p, random() % 8), p), <gender:int32,age:double,height:double,weight:double,bmi:double,x1:int32,y1:int32,z1:int32,x2:int32,y2:int32,z2:int32,x3:int32,y3:int32,z3:int32,x4:int32,y4:int32,z4:int32,class:string> [n=0:*,20704,0]), train, bool(n % 2)), HART)"
+TRAIN="project(filter(HART, train), $vars)"  # Training data
+TEST="project(filter(HART, not train), $vars)"  # Test data
+```
+We choose to split the problem up into 8 chunks because we're running on an
+8-instance SciDB cluster. For larger data we could, for example, split the
+problem up into any number of chunks that meet a desired sub-problem size.
 
+Note the sizes of the split data sets for future reference below:
+```
+iquery -aq "op_count($TRAIN)"
+{i} count
+{0} 82816
+
+iquery -aq "op_count($TEST)"
+{i} count
+{0} 82816
+```
+
+<!--
+```
 cat << END | iquery -a -f /dev/stdin
 stream($P, 'R --slave -e "library(scidbstrm); map(function(x) data.frame(n=as.character(nrow(x)), stringsAsFactors=FALSE))"',
        'format=df', 'types=string')
 END
 ```
+-->
 
+# Training a model
 
+The following R program computes the *little bootstrap* phase of the big data
+bootstram process. It runs in parallel on each of the 8 data partitions defined
+above. The output of the program is a set of 8 serialized R randomForest
+model objects. We'll combine those into a single model later. Save this
+program in the file `/tmp/bootstrap.R`.
 
+```{r}
+library(scidbstrm)
+library(base64enc)
+library(randomForest)
 
+#' little bootstrap function
+#' Combine resample data {x, y} rep times and combine randomForest(x,y,ntree) models
+#' @param x y Random Forest input data and training vector
+#' @param N full data number of rows
+#' @param ntree number of Random Forest trees
+#' @param rep number of bootstrap repetitions
+lb <- function(x, y, N, ntree, rep)
+{ 
+  n <- nrow(x)
+  Reduce(combine, Map(function(dummy) {
+    i <- sample(n, n, replace=TRUE)
+    r <- randomForest(x[i, ], y[i], ntree=ntree, norm.votes=FALSE)
+    # Sum replicated rows from the bootstrap and then reassign in order
+    # (Note: can speed up this step with, for example, data.table!)
+    d <- data.frame(r$votes, row.names=c())
+    d <- aggregate(d, by=list(row=as.integer(rownames(r$votes))), FUN=sum)
+    # Omit oob.times vector (cheap, we could order it and fill in like the vote matrix instead)
+    r$oob.times <- 0
+    i <- which((names(d) %in% colnames(r$votes)))
+    # Assign summed votes back in to the model object 'votes' matrix
+    V <- matrix(0, nrow=N, ncol=ncol(r$votes))
+    V[d$row, ] = as.matrix(d[, i])
+    r$votes <- V
+    r
+  }, 1:rep))
+}
 
+# Our SciDB streaming function explicitly applies consistent factor levels
+# to the "class" variable, presented to us as character values from SciDB.
+# We return the little bootstrapped Random Forest model as a serialized
+# R object, encoded in a character string since the SciDB streaming API
+# does not yet support binary blobs.
 
+levels <- c("sitting", "sittingdown", "standing", "standingup", "walking")
 
+f <- function(x)
+{
+  x$class <- factor(x$class, levels=levels)
+  mdl <- lb(x[, -18], x[[18]], 82816, 10, 2)
+  data.frame(x=base64encode(serialize(mdl, NULL)), stringsAsFactors=FALSE)
+}
+
+map(f)
+```
+
+## Combining models
+
+The following simple R program combines the results of many Random Forest
+models into a single model. Save the program as the file `/tmp/combine.R`.
+
+```{r}
+# Combine a bunch of Random Forest models into a single model
+
+library(scidbstrm)
+library(base64enc)
+library(randomForest)
+
+result <- NULL
+
+f <- function(x)
+{
+  model <- unserialize(base64decode(x[,1]))
+  if(is.null(result)) result <<- model 
+  else result <<- combine(result, model)
+  NULL
+}
+
+final <- function(x)
+{
+  data.frame(x=base64encode(serialize(result, NULL)), stringsAsFactors=FALSE)
+}
+
+map(f, final=final)
+```
+
+## Running everything in parallel from SciDB
+
+The following command runs the little bootstrap code in parallel on the
+training data and combines the results in a single query, storing the output to
+a SciDB array named "model".
+
+```
+iquery -naq "store(stream(stream($TRAIN, 'Rscript /tmp/bootstrap.R', 'format=df', 'types=string'),
+                     'Rscript /tmp/combine.R', 'format=df', 'types=string'), model)"
+```
