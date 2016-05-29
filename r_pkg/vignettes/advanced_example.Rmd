@@ -118,13 +118,13 @@ these as contrast-encoded factors for our Random Forest model. (Alternatively,
 and more efficiently, we could have just encoded these as integers in SciDB.)
 ```
 iquery -aq "grouped_aggregate(HAR, class, max(class))"
-```
-```
-walking
-sitting
-standing
-standingup
-sittingdown
+
+{instance_id,value_no} class,class_max
+{0,0} 'sitting','sitting'
+{2,0} 'sittingdown','sittingdown'
+{4,0} 'standingup','standingup'
+{4,1} 'walking','walking'
+{6,0} 'standing','standing'
 ```
 
 The following SciDB query partitions the data into 8 SciDB chunks, randomizing
@@ -139,7 +139,8 @@ TEST="project(filter(HART, not train), $vars)"  # Test data
 ```
 We choose to split the problem up into 8 chunks because we're running on an
 8-instance SciDB cluster. For larger data we could, for example, split the
-problem up into any number of chunks that meet a desired sub-problem size.
+problem up into any number of chunks that meet a desired sub-problem size
+(this approach should scale well for large data).
 
 Note the sizes of the split data sets for future reference below:
 ```
@@ -259,3 +260,64 @@ a SciDB array named "model".
 iquery -naq "store(stream(stream($TRAIN, 'Rscript /tmp/bootstrap.R', 'format=df', 'types=string'),
                      'Rscript /tmp/combine.R', 'format=df', 'types=string'), model)"
 ```
+
+
+# Model Prediction
+
+Now that we've trained and stored a model in SciDB let's run the test data
+through it and make predictions. The following simple R program does that,
+returning two columns of observed (true) values and our model-predicted
+values for comparison:
+
+```{r}
+library(scidbstrm)
+library(base64enc)
+library(randomForest)
+
+# Obtain the model from SciDB
+model <- unserialize(base64decode(getChunk()[[1]]))
+
+# Predict and return two columns: observed (true) data and our prediction
+f <- function(x)
+{
+  p <- predict(model, newdata=x)
+  data.frame(observed=x[[18]],  predicted=as.character(p), stringsAsFactors=FALSE)
+}
+
+# Stream SciDB data through our model prediction function
+map(f)
+```
+
+Save that program to the file `/tmp/predict.R` for use in the next query.  We
+use an advanced technique in the streaming API for supplying more than one
+input to our child processes together with the low-level `getChunk()` function
+in the scidbstrm R package. That obtains the model first, and then streams data
+through it.
+
+The following query runs the held-out test data through our model, saving the
+results into a SciDB array named "predictions":
+```
+iquery -aq "save(stream($TEST, 'Rscript /tmp/predict.R', 'format=df', 'types=string,string', model), predictions)"
+```
+
+We can get a better feel for how well our model works by making a cross
+tabulation of the results in R (interactive R code follows), sometimes
+called a confusion matrix.
+```{r}
+library(scidb)
+scidbconnect()
+p = scidb("predictions")[]
+p = p[,4:5]
+names(p) = c("observed", "predicted")
+table(p)
+```
+```
+             predicted
+observed      sitting sittingdown standing standingup walking
+  sitting       25273           6        0         34       2
+  sittingdown      44        5537       63        181      89
+  standing          0           3    23494         23     166
+  standingup       47         189      148       5704     119
+  walking           0          30      144         33   21487
+```
+Our model predictions closely track the observations, not bad!
