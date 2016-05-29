@@ -350,3 +350,16 @@ Your output will vary due to the random sampling of the test and
 training sets.
 
 Our model predictions closely track the observations, not bad!
+
+Please bear in mind that this example is mostly designed to show you
+how to use the new SciDB streaming API to help with sophisticated
+modeling. The model approach used here is open to criticism. In particular
+the data represent only a very small number of people. The model approach
+here can't be expected to perform nearly as well when measurements
+from a new unknown person are thrown into the mix, unless that persons
+measurements are relatively similar to the observations used to build
+the model. For example, try the above steps but first throw out completely
+one of the users before building a model. Then try to predict that user
+class. You will see the above approach doesn't work as well as shown
+above. The good news is with more observations, even this simple model
+approach will do better at prediction in general.
