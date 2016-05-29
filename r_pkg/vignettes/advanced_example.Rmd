@@ -288,11 +288,6 @@ a SciDB array named "model".
 iquery -naq "store( stream( _sg( stream($TRAIN, 'Rscript /tmp/bootstrap.R', 'format=df', 'types=string'), 2,0 ), 'Rscript /tmp/combine.R', 'format=df', 'types=string'), model)"
 ```
 
-** ALEX ** Can you help clean this query up a bit? It's pretty complex. Can it
-be simplified? Note: we ideally pass the model objects in one chunk pieces to R.
-The sg puts them all on one instance for combining.
-
-
 # Model Prediction
 
 Now that we've trained and stored a model in SciDB let's run the test data
@@ -328,7 +323,7 @@ through it.
 The following query runs the held-out test data through our model, saving the
 results into a SciDB array named "predictions":
 ```
-iquery -anq "store(stream($TEST, 'Rscript /tmp/predict.R', 'format=df', 'types=string,string', _sg(model,0,0)), predictions)"
+iquery -anq "store(stream($TEST, 'Rscript /tmp/predict.R', 'format=df', 'types=string,string', _sg(model,0)), predictions)"
 ```
 
 We can get a better feel for how well our model works by making a cross
