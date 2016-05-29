@@ -1218,6 +1218,18 @@ shared_ptr<Array> runDF(shared_ptr<Array> &inputArray, shared_ptr<Array>& preArr
     return output;
 }
 
+virtual bool changesDistribution(std::vector<ArrayDesc> const&) const
+{
+    return true;
+}
+
+virtual RedistributeContext getOutputDistribution(
+           std::vector<RedistributeContext> const& inputDistributions,
+           std::vector< ArrayDesc> const& inputSchemas) const
+{
+    return RedistributeContext(createDistribution(psUndefined), _schema.getResidency() );
+}
+
 shared_ptr< Array> execute(std::vector< shared_ptr< Array> >& inputArrays, std::shared_ptr<Query> query)
 {
     Settings settings(_parameters, false, query);
