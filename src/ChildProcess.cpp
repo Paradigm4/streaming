@@ -44,10 +44,13 @@ namespace scidb { namespace stream
 
 static log4cxx::LoggerPtr logger(log4cxx::Logger::getLogger("scidb.operators.stream.childprocess"));
 
-ChildProcess::ChildProcess(string const& commandLine, shared_ptr<Query>& query):
+ChildProcess::ChildProcess(string const& commandLine, shared_ptr<Query>& query, size_t const readBufSize):
         _alive(false),
         _pollTimeoutMillis(100),
-        _query(query)
+        _query(query),
+        _readBuf(readBufSize),
+        _readBufIdx(0),
+        _readBufEnd(0)
 {
     LOG4CXX_DEBUG(logger, "Executing "<<commandLine);
     int parent_child[2];          // pipe descriptors parent writes to child
@@ -122,16 +125,14 @@ void ChildProcess::terminate()
     }
 }
 
-size_t ChildProcess::softRead(void* outputBuf, size_t const maxBytes, bool throwIfChildDead)
+void ChildProcess::readIntoBuf(bool throwIfChildDead)
 {
-    LOG4CXX_TRACE(logger, "softRead from child");
+    _readBufIdx = 0;
+    _readBufEnd = 0;
+    LOG4CXX_TRACE(logger, "read into buf from child");
     if(!isAlive())
     {
         throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "internal error: attempt to read froom dead child";
-    }
-    if(maxBytes == 0)
-    {
-        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "improper softRead call";
     }
     struct pollfd pollstat [1];
     pollstat[0].fd = _childOutFd;
@@ -160,7 +161,7 @@ size_t ChildProcess::softRead(void* outputBuf, size_t const maxBytes, bool throw
         throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "poll failed";
     }
     errno = 0;
-    ssize_t nRead = read(_childOutFd, outputBuf, maxBytes);
+    ssize_t nRead = read(_childOutFd, &_readBuf[0], _readBuf.size());
     if(nRead <= 0)
     {
         LOG4CXX_WARN(logger, "STREAM: child terminated early: read returned "<<nRead <<" errno "<<errno);
@@ -168,7 +169,7 @@ size_t ChildProcess::softRead(void* outputBuf, size_t const maxBytes, bool throw
         throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "error reading from child";
     }
     LOG4CXX_TRACE(logger, "Read "<<nRead<<" bytes from child");
-    return nRead;
+    _readBufEnd = nRead;
 }
 
 void ChildProcess::hardWrite(void const* buf, size_t const bytes)

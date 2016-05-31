@@ -35,6 +35,20 @@ namespace scidb { namespace stream
 class Settings;
 class ChildProcess;
 
+/**
+ * Interface for streaming data in R data.frame format (abbreviated DF below).Converts SciDB data to DF and
+ * communicates with the child process. To be precise the data is transferred as an R list of named vectors, whose
+ * lengths must match. For example, a three-attribute message looks like this:
+ *
+ * list( a0=c(1.234, 5.678, 9.012), a1=as.integer(c(3,4,5)), a2=c('alex', 'bob', 'clark'))
+ *
+ * An empty message contains 0 columns, created like this:
+ *
+ * list()
+ *
+ * Only 3 datatypes are supported: string, double, int32. All SciDB null codes convert to R NA values for
+ * these types. In reverse, R NA values are converted to SciDB null (code 0).
+ */
 class DFInterface
 {
 public:
@@ -56,7 +70,6 @@ public:
      * @param query the query context
      */
     DFInterface(Settings const& settings, ArrayDesc const& outputSchema, std::shared_ptr<Query> const& query);
-    ~DFInterface() {}
 
     /**
      * Set the interface to stream chunks from a given array. Must be called before streamData, when first

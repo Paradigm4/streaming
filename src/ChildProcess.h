@@ -42,8 +42,9 @@ public:
      * Fork a new process.
      * @param commandLine the bash command to execute
      * @param query the query context
+     * @param readBufSize the size of the buffer used for reading
      */
-    ChildProcess(std::string const& commandLine, std::shared_ptr<Query>& query);
+    ChildProcess(std::string const& commandLine, std::shared_ptr<Query>& query, size_t const readBufSize = 1024*1024);
     ~ChildProcess()
     {
         terminate();
@@ -66,7 +67,7 @@ public:
     /**
      * Read up to maxBytes of data from child. The function returns only when there was *some* nonzero
      * amount of data read successfully. The amount of data read may be less than maxBytes if the child
-     * is not ready to provide more.
+     * is not ready to provide more. The reads are buffered so this may be alled frequently.
      * @param outputBuf the destination to write data to
      * @param maxBytes the maximum number of bytes to read (must not exceed the size of outputBuf)
      * @param throwIfChildDead check that the child process is running and throw if it is not running.
@@ -74,10 +75,22 @@ public:
      * @return the number of actual bytes read, always > 0
      * @throw if the query was cancelled while reading, or child has exited, or there was a read error
      */
-    size_t softRead(void* outputBuf, size_t const maxBytes, bool throwIfChildDead = true);
+    size_t softRead(void* outputBuf, size_t const maxBytes, bool throwIfChildDead = true)
+    {
+        if(_readBufIdx == _readBufEnd)
+        {
+            readIntoBuf(throwIfChildDead);
+        }
+        size_t bytesToReturn = _readBufEnd - _readBufIdx;
+        bytesToReturn = maxBytes < bytesToReturn ? maxBytes : bytesToReturn;
+        memcpy(outputBuf, &_readBuf[_readBufIdx], bytesToReturn);
+        _readBufIdx += bytesToReturn;
+        return bytesToReturn;
+    }
 
     /**
      * Read exactly [bytes] of data from child into outputBuf. Returns only after successful read.
+     * The reads are buffered so this may be alled frequently.
      * @param outputBuf the destination to write data to
      * @param bytes the number of bytes to read (must not exceed the size of outputBuf)
      * @param throwIfChildDead check that the child process is running and throw if it is not running.
@@ -94,7 +107,8 @@ public:
     }
 
     /**
-     * Write exactly [bytes] of data from buf to child. Returns only after successful write.
+     * Write exactly [bytes] of data from buf to child. Returns only after successful write. The writes
+     * are *NOT* buffered - so the caller should coalesce data into large chunks before writing.
      * @param inputBuf the data to write
      * @param bytes the amount of data to write
      * @throw if the query was cancelled while writing, or child has exited or there was a write error
@@ -105,9 +119,14 @@ private:
     bool  _alive;
     int const _pollTimeoutMillis;
     std::shared_ptr<Query> _query;
+    std::vector <char> _readBuf;
+    size_t _readBufIdx;
+    size_t _readBufEnd;
     pid_t _childPid;
     int   _childInFd;
     int   _childOutFd;
+
+    void readIntoBuf(bool throwIfChildDead);
 };
 
 } } //namespace

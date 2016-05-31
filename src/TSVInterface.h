@@ -75,7 +75,6 @@ public:
      * @param query the query context
      */
     TSVInterface(Settings const& settings, ArrayDesc const& outputSchema, std::shared_ptr<Query> const& query);
-    ~TSVInterface() {}
 
     /**
      * Set the interface to stream chunks from a given array. Must be called before streamData, when first

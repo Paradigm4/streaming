@@ -150,14 +150,13 @@ class EasyBuffer
 {
 private:
     vector<char> _data;
-    size_t       _start;
     size_t       _end;
+
 public:
-    EasyBuffer(size_t initialSize = 0):
-        _data(1024*1024,0)
-    {
-        reset(initialSize);
-    }
+    EasyBuffer(size_t initialCapacity = 1024*1024):
+        _data(initialCapacity),
+        _end(0)
+    {}
 
     void pushData(void const* data, size_t size)
     {
@@ -169,14 +168,9 @@ public:
         _end += size;
     }
 
-    void reset(size_t newSize = 0)
+    void reset()
     {
-        _start = 0;
-        _end   = newSize;
-        if(newSize > _data.size())
-        {
-            _data.resize(newSize);
-        }
+        _end   = 0;
     }
 
     /**
@@ -184,12 +178,12 @@ public:
      */
     void* data()
     {
-        return (&_data[_start]);
+        return (&_data[0]);
     }
 
     size_t size()
     {
-        return (_end - _start);
+        return _end;
     }
 };
 
@@ -218,7 +212,7 @@ void DFInterface::writeDF(vector<ConstChunk const*> const& chunks, ChildProcess&
         {
         case TE_STRING:     child.hardWrite (R_STRSXP,  sizeof (R_STRSXP));  break;
         case TE_DOUBLE:     child.hardWrite (R_REALSXP, sizeof (R_REALSXP)); break;
-        case TE_INT32:    child.hardWrite (R_INTSXP,  sizeof (R_INTSXP));  break;
+        case TE_INT32:      child.hardWrite (R_INTSXP,  sizeof (R_INTSXP));  break;
         default:         throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "internal error: unknown type";
         }
         child.hardWrite(&numRows, sizeof(int32_t));
@@ -300,7 +294,7 @@ void DFInterface::writeFinalDF(ChildProcess& child)
 
 void DFInterface::readDF(ChildProcess& child, bool lastMessage)
 {
-    vector<char> buffer(8*1024*1024,0);
+    vector<char> buffer(1024*1024,0);
     child.hardRead(&(buffer[0]), sizeof(R_HEADER) + sizeof(R_VECSXP), !lastMessage);
     int32_t intBuf;
     int32_t numColumns = -1;
@@ -345,11 +339,6 @@ void DFInterface::readDF(ChildProcess& child, bool lastMessage)
         }
         switch(_outputTypes[i])
         {
-        case TE_STRING:
-        {
-            // all below
-            break;
-        }
         case TE_DOUBLE:
         {
             size_t readSize = sizeof(double) * numRows;
@@ -369,6 +358,10 @@ void DFInterface::readDF(ChildProcess& child, bool lastMessage)
             }
             child.hardRead (&(buffer[0]), readSize, !lastMessage);
             break;
+        }
+        case TE_STRING:
+        {
+            break; // all below
         }
         default:         throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "internal error: unknown type";
         }
@@ -441,10 +434,10 @@ void DFInterface::readDF(ChildProcess& child, bool lastMessage)
             ++valPos[2];
         }
         ociter->flush();
-        if(i == numColumns-1)
-        {
-            _outPos[1]++;
-        }
+    }
+    if(numRows != 0)
+    {
+        _outPos[1]++;
     }
     child.hardRead(&(buffer[0]), sizeof(R_TAIL_HDR) + sizeof(R_STRSXP) + sizeof(int32_t), !lastMessage);
     for(int32_t i =0; i<numColumns; ++i)
