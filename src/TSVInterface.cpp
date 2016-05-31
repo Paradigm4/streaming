@@ -161,7 +161,7 @@ shared_ptr<Array> TSVInterface::finalize(ChildProcess& child)
 
 void TSVInterface::convertChunks(vector< shared_ptr<ConstChunkIterator> > citers, size_t &nCells, string& output)
 {
-    static Value stringBuf;
+    Value stringVal;
     nCells = 0;
     ostringstream outputBuf;
     outputBuf.precision(_precision);
@@ -272,8 +272,8 @@ void TSVInterface::convertChunks(vector< shared_ptr<ConstChunkIterator> > citers
                 default:
                     {
                         Value const * vv = &v;
-                        (*_inputConverters[i])(&vv, &stringBuf, NULL);
-                        outputBuf<<stringBuf.getString();
+                        (*_inputConverters[i])(&vv, &stringVal, NULL);
+                        outputBuf<<stringVal.getString();
                     }
                 }
             }
@@ -358,11 +358,10 @@ void TSVInterface::readTSV (std::string& output, ChildProcess& child, bool last)
 
 void TSVInterface::addChunkToArray(string const& output)
 {
-    static Value stringBuf;
     shared_ptr<ChunkIterator> citer = _aiter->newChunk(_outPos).getIterator(_query, ChunkIterator::SEQUENTIAL_WRITE);
     citer->setPosition(_outPos);
-    stringBuf.setString(output);
-    citer->writeItem(stringBuf);
+    _stringBuf.setString(output);
+    citer->writeItem(_stringBuf);
     citer->flush();
     _outPos[1]++;
 }

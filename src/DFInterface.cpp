@@ -98,13 +98,16 @@ DFInterface::DFInterface(Settings const& settings, ArrayDesc const& outputSchema
     _outputChunkSize(settings.getChunkSize()),
     _nOutputAttrs( (int32_t) outputSchema.getAttributes(true).size()),
     _oaiters(_nOutputAttrs),
-    _outputTypes(_nOutputAttrs)
+    _outputTypes(_nOutputAttrs),
+    _readBuf(1024*1024),
+    _writeBuf(1024*1024)
 {
     for(int32_t i =0; i<_nOutputAttrs; ++i)
     {
         _oaiters[i] = _result->getIterator(i);
         _outputTypes[i] = settings.getTypes()[i];
     }
+    _nullVal.setNull();
     unsigned char nanDouble[8] = { 0xa2, 0x07, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x7f };
     _rNanDouble = *((double*) (&nanDouble));
     _rNanInt32  = std::numeric_limits<int32_t>::min();
@@ -129,15 +132,20 @@ void DFInterface::streamData(std::vector<ConstChunk const*> const& inputChunks, 
     {
         throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "inconsistent input chunks given";
     }
-    if(inputChunks[0]->count() == 0)
+    size_t nRows = inputChunks[0]->count();
+    if(nRows == 0)
     {
         throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "received chunk with count 0, not supported";
+    }
+    if(nRows > (size_t) std::numeric_limits<int32_t>::max())
+    {
+        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "received chunk with count exceeding the R vector limit";
     }
     if(!child.isAlive())
     {
         throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child exited early";
     }
-    writeDF(inputChunks, child);
+    writeDF(inputChunks, nRows, child);
     readDF(child);
 }
 
@@ -148,47 +156,6 @@ shared_ptr<Array> DFInterface::finalize(ChildProcess& child)
     _oaiters.clear();
     return _result;
 }
-
-class EasyBuffer
-{
-private:
-    vector<char> _data;
-    size_t       _end;
-
-public:
-    EasyBuffer(size_t initialCapacity = 1024*1024):
-        _data(initialCapacity),
-        _end(0)
-    {}
-
-    void pushData(void const* data, size_t size)
-    {
-        if(_end + size > _data.size())
-        {
-            _data.resize(_end + size);
-        }
-        memcpy((&(_data[_end])), data, size);
-        _end += size;
-    }
-
-    void reset()
-    {
-        _end   = 0;
-    }
-
-    /**
-     * Result of this call is invalidated after next pushData call
-     */
-    void* data()
-    {
-        return (&_data[0]);
-    }
-
-    size_t size()
-    {
-        return _end;
-    }
-};
 
 static const unsigned char R_HEADER[14]    = { 0x42, 0x0a, 0x02, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0x00, 0x00, 0x03, 0x02, 0x00 };
 static const unsigned char R_EVECSXP[4]    = { 0x13, 0x00, 0x00, 0x00 };     // R list without attributes
@@ -201,14 +168,12 @@ static const unsigned char R_LISTSXP[4]    = { 0x02, 0x04, 0x00, 0x00 };    // i
 static const unsigned char R_TAIL_HDR[21]  = { 0x02, 0x04, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x09, 0x00, 0x04, 0x00, 0x05, 0x00, 0x00, 0x00, 0x6e, 0x61, 0x6d, 0x65, 0x73 };
 static const unsigned char R_TAIL[4]       = { 0xfe, 0x00, 0x00, 0x00 };
 
-void DFInterface::writeDF(vector<ConstChunk const*> const& chunks, ChildProcess& child)
+void DFInterface::writeDF(vector<ConstChunk const*> const& chunks, int32_t const numRows, ChildProcess& child)
 {
-    int32_t numRows = chunks[0]->count();
     child.hardWrite(R_HEADER, sizeof(R_HEADER));
     child.hardWrite(R_VECSXP, sizeof(R_VECSXP));
     int32_t numColumns = chunks.size();
     child.hardWrite(&numColumns, sizeof(int32_t));
-    EasyBuffer buffer;
     for(size_t i =0; i<_inputTypes.size(); ++i)
     {
         switch(_inputTypes[i])
@@ -220,7 +185,7 @@ void DFInterface::writeDF(vector<ConstChunk const*> const& chunks, ChildProcess&
         }
         child.hardWrite(&numRows, sizeof(int32_t));
         shared_ptr<ConstChunkIterator> citer = chunks[i]->getConstIterator(ConstChunkIterator::IGNORE_OVERLAPS | ConstChunkIterator::IGNORE_EMPTY_CELLS);
-        buffer.reset();
+        _writeBuf.reset();
         while((!citer->end()))
         {
             Value const& v = citer->getItem();
@@ -228,17 +193,17 @@ void DFInterface::writeDF(vector<ConstChunk const*> const& chunks, ChildProcess&
             {
             case TE_STRING:
             {
-                buffer.pushData(&R_CHARSXP, sizeof(R_CHARSXP));
+                _writeBuf.pushData(&R_CHARSXP, sizeof(R_CHARSXP));
                 if(v.isNull())
                 {
                     int32_t size = -1;
-                    buffer.pushData(&size, sizeof(int32_t));
+                    _writeBuf.pushData(&size, sizeof(int32_t));
                 }
                 else
                 {
                     int32_t size = v.size() - 1;
-                    buffer.pushData(&size, sizeof(int32_t));
-                    buffer.pushData(v.getString(), size);
+                    _writeBuf.pushData(&size, sizeof(int32_t));
+                    _writeBuf.pushData(v.getString(), size);
                 }
                 break;
             }
@@ -246,12 +211,12 @@ void DFInterface::writeDF(vector<ConstChunk const*> const& chunks, ChildProcess&
             {
                 if(v.isNull())
                 {
-                    buffer.pushData(&_rNanDouble, sizeof(double));
+                    _writeBuf.pushData(&_rNanDouble, sizeof(double));
                 }
                 else
                 {
                     double  datum = v.getDouble();
-                    buffer.pushData(&datum, sizeof(double));
+                    _writeBuf.pushData(&datum, sizeof(double));
                 }
                 break;
             }
@@ -259,12 +224,12 @@ void DFInterface::writeDF(vector<ConstChunk const*> const& chunks, ChildProcess&
             {
                 if(v.isNull())
                 {
-                    buffer.pushData(&_rNanInt32, sizeof(int32_t));
+                    _writeBuf.pushData(&_rNanInt32, sizeof(int32_t));
                 }
                 else
                 {
                     int32_t datum = v.getInt32();
-                    buffer.pushData(&datum, sizeof(int32_t));
+                    _writeBuf.pushData(&datum, sizeof(int32_t));
                 }
                 break;
             }
@@ -272,7 +237,7 @@ void DFInterface::writeDF(vector<ConstChunk const*> const& chunks, ChildProcess&
             }
             ++(*citer);
         }
-        child.hardWrite(buffer.data(), buffer.size());
+        child.hardWrite(_writeBuf.data(), _writeBuf.size());
     }
     child.hardWrite(R_TAIL_HDR, sizeof(R_TAIL_HDR));
     child.hardWrite(R_STRSXP, sizeof(R_STRSXP));
@@ -297,8 +262,7 @@ void DFInterface::writeFinalDF(ChildProcess& child)
 
 void DFInterface::readDF(ChildProcess& child, bool lastMessage)
 {
-    vector<char> buffer(1024*1024,0);
-    child.hardRead(&(buffer[0]), sizeof(R_HEADER) + sizeof(R_VECSXP), !lastMessage);
+    child.hardRead(&(_readBuf[0]), sizeof(R_HEADER) + sizeof(R_VECSXP), !lastMessage);
     int32_t intBuf;
     int32_t numColumns = -1;
     child.hardRead(&numColumns, sizeof(int32_t), !lastMessage);
@@ -315,9 +279,9 @@ void DFInterface::readDF(ChildProcess& child, bool lastMessage)
     {
         switch(_outputTypes[i])
         {
-        case TE_STRING:     child.hardRead (&(buffer[0]),  sizeof (R_STRSXP),  !lastMessage);  break;
-        case TE_DOUBLE:     child.hardRead (&(buffer[0]),  sizeof (R_REALSXP), !lastMessage);  break;
-        case TE_INT32:      child.hardRead (&(buffer[0]),  sizeof (R_INTSXP),  !lastMessage);  break;
+        case TE_STRING:     child.hardRead (&(_readBuf[0]),  sizeof (R_STRSXP),  !lastMessage);  break;
+        case TE_DOUBLE:     child.hardRead (&(_readBuf[0]),  sizeof (R_REALSXP), !lastMessage);  break;
+        case TE_INT32:      child.hardRead (&(_readBuf[0]),  sizeof (R_INTSXP),  !lastMessage);  break;
         default:         throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "internal error: unknown type";
         }
         if( i == 0)
@@ -345,21 +309,21 @@ void DFInterface::readDF(ChildProcess& child, bool lastMessage)
         case TE_DOUBLE:
         {
             size_t readSize = sizeof(double) * numRows;
-            if(readSize > buffer.size())
+            if(readSize > _readBuf.size())
             {
-                buffer.resize(readSize);
+                _readBuf.resize(readSize);
             }
-            child.hardRead (&(buffer[0]), readSize, !lastMessage);
+            child.hardRead (&(_readBuf[0]), readSize, !lastMessage);
             break;
         }
         case TE_INT32:
         {
             size_t readSize = sizeof(int32_t) * numRows;
-            if(readSize > buffer.size())
+            if(readSize > _readBuf.size())
             {
-                buffer.resize(readSize);
+                _readBuf.resize(readSize);
             }
-            child.hardRead (&(buffer[0]), readSize, !lastMessage);
+            child.hardRead (&(_readBuf[0]), readSize, !lastMessage);
             break;
         }
         case TE_STRING:
@@ -371,9 +335,6 @@ void DFInterface::readDF(ChildProcess& child, bool lastMessage)
         shared_ptr<ChunkIterator> ociter = _oaiters[i]->newChunk(_outPos).getIterator(_query,
                 i == 0 ? ChunkIterator::SEQUENTIAL_WRITE : ChunkIterator::SEQUENTIAL_WRITE  | ChunkIterator::NO_EMPTY_CHECK );
         Coordinates valPos = _outPos;
-        Value valBuf;
-        Value valNull;
-        valNull.setNull();
         for(int32_t j = 0; j<numRows; ++j)
         {
             ociter->setPosition(valPos);
@@ -381,54 +342,54 @@ void DFInterface::readDF(ChildProcess& child, bool lastMessage)
             {
             case TE_STRING:
             {
-                child.hardRead(&(buffer[0]), sizeof(R_CHARSXP) + sizeof(int32_t), !lastMessage);
-                int32_t size = *((int32_t*) (&(buffer[0]) + sizeof(R_CHARSXP)));
+                child.hardRead(&(_readBuf[0]), sizeof(R_CHARSXP) + sizeof(int32_t), !lastMessage);
+                int32_t size = *((int32_t*) (&(_readBuf[0]) + sizeof(R_CHARSXP)));
                 if(size<-1)
                 {
                     throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "error reading string size";
                 }
                 if(size == -1)
                 {
-                    ociter->writeItem(valNull);
+                    ociter->writeItem(_nullVal);
                 }
                 else
                 {
-                    if( (size_t) size+1 > buffer.size())
+                    if( (size_t) size+1 > _readBuf.size())
                     {
-                        buffer.resize(size+1);
+                        _readBuf.resize(size+1);
                     }
-                    child.hardRead(&(buffer[0]), size, !lastMessage);
-                    buffer[size] = 0;
-                    valBuf.setData( &(buffer[0]), size+1);
-                    ociter->writeItem(valBuf);
+                    child.hardRead(&(_readBuf[0]), size, !lastMessage);
+                    _readBuf[size] = 0;
+                    _val.setData( &(_readBuf[0]), size+1);
+                    ociter->writeItem(_val);
                 }
                 break;
             }
             case TE_DOUBLE:
             {
-                double v = ((double*)(&(buffer[0])))[j];
+                double v = ((double*)(&(_readBuf[0])))[j];
                 if( memcmp(&v, &_rNanDouble, sizeof(double))==0)
                 {
-                    ociter->writeItem(valNull);
+                    ociter->writeItem(_nullVal);
                 }
                 else
                 {
-                    valBuf.setDouble(v);
-                    ociter->writeItem(valBuf);
+                    _val.setDouble(v);
+                    ociter->writeItem(_val);
                 }
                 break;
             }
             case TE_INT32:
             {
-                int32_t v = ((int32_t*)(&(buffer[0])))[j];
+                int32_t v = ((int32_t*)(&(_readBuf[0])))[j];
                 if (v == _rNanInt32)
                 {
-                    ociter->writeItem(valNull);
+                    ociter->writeItem(_nullVal);
                 }
                 else
                 {
-                    valBuf.setInt32(v);
-                    ociter->writeItem(valBuf);
+                    _val.setInt32(v);
+                    ociter->writeItem(_val);
                 }
                 break;
             }
@@ -442,14 +403,14 @@ void DFInterface::readDF(ChildProcess& child, bool lastMessage)
     {
         _outPos[1]++;
     }
-    child.hardRead(&(buffer[0]), sizeof(R_TAIL_HDR) + sizeof(R_STRSXP) + sizeof(int32_t), !lastMessage);
+    child.hardRead(&(_readBuf[0]), sizeof(R_TAIL_HDR) + sizeof(R_STRSXP) + sizeof(int32_t), !lastMessage);
     for(int32_t i =0; i<numColumns; ++i)
     {
-        child.hardRead(&(buffer[0]), sizeof(R_CHARSXP), !lastMessage);
+        child.hardRead(&(_readBuf[0]), sizeof(R_CHARSXP), !lastMessage);
         child.hardRead(&intBuf, sizeof(int32_t), !lastMessage);
-        child.hardRead(&(buffer[0]), intBuf, !lastMessage);
+        child.hardRead(&(_readBuf[0]), intBuf, !lastMessage);
     }
-    child.hardRead(&(buffer[0]), sizeof(R_TAIL), !lastMessage);
+    child.hardRead(&(_readBuf[0]), sizeof(R_TAIL), !lastMessage);
 }
 
 }}

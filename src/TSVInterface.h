@@ -115,6 +115,7 @@ private:
     Coordinates                    _outPos;
     std::vector <TypeEnum>         _inputTypes;
     std::vector<FunctionPointer>   _inputConverters;
+    Value                          _stringBuf;
 
     void convertChunks(std::vector< std::shared_ptr<ConstChunkIterator> > citers, size_t &nCells, std::string& output);
     void writeTSV(size_t const nLines, std::string const& inputData, ChildProcess& child);

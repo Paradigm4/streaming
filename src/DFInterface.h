@@ -95,6 +95,47 @@ public:
     std::shared_ptr<Array> finalize(ChildProcess& child);
 
 private:
+    class EasyBuffer
+    {
+    private:
+        std::vector<char> _data;
+        size_t       _end;
+
+    public:
+        EasyBuffer(size_t initialCapacity = 1024*1024):
+            _data(initialCapacity),
+            _end(0)
+        {}
+
+        void pushData(void const* data, size_t size)
+        {
+            if(_end + size > _data.size())
+            {
+                _data.resize(_end + size);
+            }
+            memcpy((&(_data[_end])), data, size);
+            _end += size;
+        }
+
+        void reset()
+        {
+            _end   = 0;
+        }
+
+        /**
+         * Result of this call is invalidated after next pushData call
+         */
+        void* data()
+        {
+            return (&_data[0]);
+        }
+
+        size_t size()
+        {
+            return _end;
+        }
+    };
+
     std::shared_ptr<Query>                         _query;
     std::shared_ptr<Array>                         _result;
     Coordinates                                    _outPos;
@@ -102,12 +143,16 @@ private:
     int32_t                                        _nOutputAttrs;
     std::vector< std::shared_ptr<ArrayIterator> >  _oaiters;
     std::vector <TypeEnum>                         _outputTypes;
+    std::vector<char>                              _readBuf;
+    EasyBuffer                                     _writeBuf;
+    Value                                          _val;
+    Value                                          _nullVal;
     std::vector <TypeEnum>                         _inputTypes;
     std::vector <std::string>                      _inputNames;
     int32_t                                        _rNanInt32;
     double                                         _rNanDouble;
 
-    void writeDF(std::vector<ConstChunk const*> const& chunks, ChildProcess& child);
+    void writeDF(std::vector<ConstChunk const*> const& chunks, int32_t const numRows, ChildProcess& child);
     void writeFinalDF(ChildProcess& child);
     void readDF(ChildProcess& child, bool lastMessage = false);
 };
