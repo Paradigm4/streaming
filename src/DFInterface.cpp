@@ -105,6 +105,9 @@ DFInterface::DFInterface(Settings const& settings, ArrayDesc const& outputSchema
         _oaiters[i] = _result->getIterator(i);
         _outputTypes[i] = settings.getTypes()[i];
     }
+    unsigned char nanDouble[8] = { 0xa2, 0x07, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x7f };
+    _rNanDouble = *((double*) (&nanDouble));
+    _rNanInt32  = std::numeric_limits<int32_t>::min();
 }
 
 void DFInterface::setInputSchema(ArrayDesc const& inputSchema)
