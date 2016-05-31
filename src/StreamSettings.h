@@ -64,9 +64,10 @@ class Settings
 {
 private:
     TransferFormat      _transferFormat;
-    vector<DFDataType>  _dfTypes;
-    vector<string>      _dfNames;
+    vector<TypeEnum>    _types;
+    vector<string>      _names;
     ssize_t             _outputChunkSize;
+    bool                _outputChunkSizeSet;
     string              _command;
 
 public:
@@ -130,15 +131,15 @@ private:
             string const& t = tokens[i];
             if(t == "int32")
             {
-                _dfTypes.push_back(INTEGER);
+                _types.push_back(TE_INT32);
             }
             else if(t == "double")
             {
-                _dfTypes.push_back(DOUBLE);
+                _types.push_back(TE_DOUBLE);
             }
             else if(t == "string")
             {
-                _dfTypes.push_back(STRING);
+                _types.push_back(TE_STRING);
             }
             else
             {
@@ -182,7 +183,7 @@ private:
                     throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << error.str();;
                 }
             }
-            _dfNames.push_back(t);
+            _names.push_back(t);
         }
     }
 
@@ -206,8 +207,9 @@ public:
              bool logical,
              shared_ptr<Query>& query):
                  _transferFormat(TSV),
-                 _dfTypes(0),
-                 _outputChunkSize(1024*1024*1024)
+                 _types(0),
+                 _outputChunkSize(1024*1024*1024),
+                 _outputChunkSizeSet(false)
      {
         string const formatHeader                  = "format=";
         string const chunkSizeHeader               = "chunk_size=";
@@ -215,7 +217,6 @@ public:
         string const namesHeader                   = "names=";
         bool formatSet    = false;
         bool typesSet     = false;
-        bool chunkSizeSet = false;
         bool namesSet     = false;
         size_t const nParams = operatorParameters.size();
         if (nParams > MAX_PARAMETERS)
@@ -228,7 +229,7 @@ public:
             string parameterString = paramToString(operatorParameters[i], query, logical);
             if (starts_with(parameterString, chunkSizeHeader))
             {
-                setParam(parameterString, chunkSizeSet, chunkSizeHeader, &Settings::setParamChunkSize);
+                setParam(parameterString, _outputChunkSizeSet, chunkSizeHeader, &Settings::setParamChunkSize);
             }
             else if (starts_with(parameterString, formatHeader))
             {
@@ -249,26 +250,6 @@ public:
                 throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << error.str().c_str();
             }
         }
-        if(_transferFormat == DF)
-        {
-            if(typesSet == false)
-            {
-                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "when using the df format, types= must be specified";
-            }
-            if(namesSet == false)
-            {
-                for(size_t i =0; i<_dfTypes.size(); ++i)
-                {
-                    ostringstream name;
-                    name<<"a"<<i;
-                    _dfNames.push_back(name.str());
-                }
-            }
-            else if(_dfNames.size() != _dfTypes.size())
-            {
-                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "received inconsistent names and types";
-            }
-        }
     }
 
     TransferFormat getFormat() const
@@ -276,19 +257,24 @@ public:
         return _transferFormat;
     }
 
-    vector<DFDataType> const& getTypes() const
+    vector<TypeEnum> const& getTypes() const
     {
-        return _dfTypes;
+        return _types;
     }
 
     vector<string> const& getNames() const
     {
-        return _dfNames;
+        return _names;
     }
 
     size_t getChunkSize() const
     {
         return _outputChunkSize;
+    }
+
+    bool isChunkSizeSet() const
+    {
+        return _outputChunkSizeSet;
     }
 
     string const& getCommand() const

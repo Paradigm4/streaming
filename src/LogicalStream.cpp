@@ -27,6 +27,8 @@
 #include <boost/lexical_cast.hpp>
 #include <query/Operator.h>
 #include "StreamSettings.h"
+#include "TSVInterface.h"
+#include "DFInterface.h"
 
 using std::shared_ptr;
 
@@ -70,45 +72,15 @@ public:
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "can't support more than two input arrays";
         }
-        ArrayDesc const& inputSchema = schemas[0];
-        Dimensions outputDimensions;
-        outputDimensions.push_back(DimensionDesc("instance_id", 0,   query->getInstancesCount()-1, 1, 0));
-        outputDimensions.push_back(DimensionDesc("chunk_no",    0,   CoordinateBounds::getMax(),   1, 0));
-        Attributes outputAttributes;
         Settings settings(_parameters, true, query);
         if(settings.getFormat() == TSV)
         {
-            outputAttributes.push_back( AttributeDesc(0, "response",   TID_STRING,    0, 0));
+            return TSVInterface::getOutputSchema(schemas, settings, query);
         }
         else
         {
-            vector<string> attNames  = settings.getNames();
-            vector<DFDataType> types = settings.getTypes();
-            for(AttributeID i =0; i<types.size(); ++i)
-            {
-                TypeId attType;
-                if(types[i]==STRING)
-                {
-                    attType=TID_STRING;
-                }
-                else if(types[i] == DOUBLE)
-                {
-                    attType=TID_DOUBLE;
-                }
-                else if(types[i] == INTEGER)
-                {
-                    attType=TID_INT32;
-                }
-                else
-                {
-                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "something's up";
-                }
-                outputAttributes.push_back( AttributeDesc(i,  attNames[i],  attType, AttributeDesc::IS_NULLABLE, 0));
-            }
-            outputDimensions.push_back(DimensionDesc("value_no",    0,   CoordinateBounds::getMax(),   settings.getChunkSize(), 0));
+            return DFInterface::getOutputSchema(schemas, settings, query);
         }
-        outputAttributes = addEmptyTagAttribute(outputAttributes);
-        return ArrayDesc(inputSchema.getName(), outputAttributes, outputDimensions, defaultPartitioning(), query->getDefaultArrayResidency());
     }
 };
 
