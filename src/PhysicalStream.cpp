@@ -38,8 +38,6 @@
 
 #include "StreamSettings.h"
 #include "ChildProcess.h"
-#include "../lib/slave.h"
-#include "../lib/serial.h"
 #include "TSVInterface.h"
 #include "DFInterface.h"
 

@@ -40,10 +40,7 @@ else
   endif
 endif
 
-all: stream_test_client libstream.so
-
-stream_test_client: client.cpp
-	$(CXX) client.cpp -ggdb -o stream_test_client
+all: libstream.so
 	
 libstream.so: $(SRCS) StreamSettings.h ChildProcess.h TSVInterface.h DFInterface.h
 	@if test ! -d "$(SCIDB)"; then echo  "Error. Try:\n\nmake SCIDB=<PATH TO SCIDB INSTALL PATH>"; exit 1; fi

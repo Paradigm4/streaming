@@ -47,13 +47,6 @@ using std::ostringstream;
 namespace scidb { namespace stream
 {
 
-enum DFDataType
-{
-    STRING  = 0,
-    DOUBLE  = 1,
-    INTEGER = 2
-};
-
 enum TransferFormat
 {
     TSV,   //text tsv

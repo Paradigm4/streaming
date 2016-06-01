@@ -97,7 +97,7 @@ DFInterface::DFInterface(Settings const& settings, ArrayDesc const& outputSchema
     _outPos{ ((Coordinate) query->getInstanceID()), 0, 0 },
     _outputChunkSize(settings.getChunkSize()),
     _nOutputAttrs( (int32_t) outputSchema.getAttributes(true).size()),
-    _oaiters(_nOutputAttrs),
+    _oaiters(_nOutputAttrs+1),
     _outputTypes(_nOutputAttrs),
     _readBuf(1024*1024),
     _writeBuf(1024*1024)
@@ -107,6 +107,7 @@ DFInterface::DFInterface(Settings const& settings, ArrayDesc const& outputSchema
         _oaiters[i] = _result->getIterator(i);
         _outputTypes[i] = settings.getTypes()[i];
     }
+    _oaiters[_nOutputAttrs] = _result->getIterator(_nOutputAttrs);
     _nullVal.setNull();
     unsigned char nanDouble[8] = { 0xa2, 0x07, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x7f };
     _rNanDouble = *((double*) (&nanDouble));
@@ -332,8 +333,7 @@ void DFInterface::readDF(ChildProcess& child, bool lastMessage)
         }
         default:         throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "internal error: unknown type";
         }
-        shared_ptr<ChunkIterator> ociter = _oaiters[i]->newChunk(_outPos).getIterator(_query,
-                i == 0 ? ChunkIterator::SEQUENTIAL_WRITE : ChunkIterator::SEQUENTIAL_WRITE  | ChunkIterator::NO_EMPTY_CHECK );
+        shared_ptr<ChunkIterator> ociter = _oaiters[i]->newChunk(_outPos).getIterator(_query, ChunkIterator::SEQUENTIAL_WRITE  | ChunkIterator::NO_EMPTY_CHECK );
         Coordinates valPos = _outPos;
         for(int32_t j = 0; j<numRows; ++j)
         {
@@ -401,6 +401,17 @@ void DFInterface::readDF(ChildProcess& child, bool lastMessage)
     }
     if(numRows != 0)
     {
+        Value bmVal;
+        bmVal.setBool(true);                //populate the empty tag
+        shared_ptr<ChunkIterator> bmCiter = _oaiters[_nOutputAttrs]->newChunk(_outPos).getIterator(_query, ChunkIterator::SEQUENTIAL_WRITE  | ChunkIterator::NO_EMPTY_CHECK );
+        Coordinates valPos = _outPos;
+        for(int32_t j =0; j<numRows; ++j)
+        {
+            bmCiter->setPosition(valPos);
+            bmCiter->writeItem(bmVal);
+            ++valPos[2];
+        }
+        bmCiter->flush();
         _outPos[1]++;
     }
     child.hardRead(&(_readBuf[0]), sizeof(R_TAIL_HDR) + sizeof(R_STRSXP) + sizeof(int32_t), !lastMessage);
