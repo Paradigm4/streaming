@@ -17,8 +17,7 @@ x <- scidbeval(repart(as.scidb(repl), chunk=n), name='gss82')
 
 # Run the experiment using the SciDB streaming API and the companion example program
 # to this one, examples/polca_example.R
-#example <- system.file('examples/ex1.R', package='scidbstrm')
-example <- "/home/blewis/streaming/r_pkg/inst/examples/polca_example.R"
+example <- system.file('examples/ex1.R', package='scidbstrm')
 query <- sprintf("stream(gss82, 'Rscript %s','format=df', 'types=double,string', 'names=llik,model')", example)
 result <- iquery(query, return=TRUE)
 
