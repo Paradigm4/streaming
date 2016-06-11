@@ -15,7 +15,8 @@ Depends:
     R (>= 3.0.0)
 Suggests:
     poLCA (>= 1.4.1),
-    base64enc (>= 0.1-3)
+    base64enc (>= 0.1-3),
+    scidb (>= 2.0.0)
 License: AGPL-3
 LazyLoad: yes
 RoxygenNote: 5.0.1
