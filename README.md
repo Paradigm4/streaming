@@ -75,6 +75,12 @@ See the package vignettes and source code in this sofware repository for more de
 - https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/basic_examples.Rmd
 - https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/advanced_example.Rmd
 
+## Stability and Security
+
+SciDB shall terminate all the child processes and cancel the query if any of the child processes deviate from the exchange protocol or exit early. SciDB shall aslo kill all the child processes if the query is cancelled for any reason.
+
+Beyond that, the user assumes risks inherent in running arbitrary code next to a database: one should make sure the memory is adequate, child processes shouldn't fork other processes, ensure the security model is not compromised and so on.
+
 ## Installation
 
 The easiest way is to first set up dev_tools (https://github.com/paradigm4/dev_tools).
