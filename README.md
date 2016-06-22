@@ -12,10 +12,10 @@ where,
 
 * ARRAY is a SciDB array expression
 * PROGRAM is a full command line to the child program to stream data through
-* format is either `'format=df'` for R binary data frame format or `'format=tsv'` for tab-delimited text (the R binary format is provisional and will eventually be replaced by feather); tsv is default
-* types is a comma-separated list of expected returned column SciDB types - used only with `'format=df'`).
-* names is an optional set of comma-separated output column names and must be the same length as `types` - used only with `'format=df'`. Default column names are a0,a1,...
-* ARRAY2 is an optional second array. If used, data from this array will be streamed to the child first. 
+* format is either `'format=tsv'` for the TSV interface or `'format=df'` for the R binary data.frame interface (see below); tsv is default
+* types is a comma-separated list of expected returned column SciDB types - used only with `'format=df'`
+* names is an optional set of comma-separated output column names and must be the same length as `types` - used only with `'format=df'`; default column names are a0,a1,...
+* ARRAY2 is an optional second array; if used, data from this array will be streamed to the child first
 
 ## TSV Interface for Flexibility
 
