@@ -23,3 +23,26 @@ See the package vignettes and source code in this sofware repository for more de
 
 - https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/basic_examples.Rmd
 - https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/advanced_example.Rmd
+
+## Installation
+
+The easiest way is to first set up dev_tools (https://github.com/paradigm4/dev_tools).
+Then it goes something like this:
+```
+$ iquery -aq "load_library('dev_tools')"
+Query was executed successfully
+
+$ iquery -aq "install_github('paradigm4/streaming')"
+{i} success
+{0} true
+
+$ iquery -aq "load_library('stream')"
+Query was executed successfully
+
+$ iquery -aq "stream(filter(build(<val:double>[i=0:0,1,0],0),false), 'printf \"1\nWhat is up?\n\"')"
+{instance_id,chunk_no} response
+{0,0} 'What is up?'
+{1,0} 'What is up?'
+{2,0} 'What is up?'
+{3,0} 'What is up?'
+```
