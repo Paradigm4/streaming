@@ -69,5 +69,8 @@ iquery -aq "stream(
  'Rscript $MYDIR/examples/R_identity.R', 'format=df', 'types=int32,double,int32,string', 'names=a,b,c,d'
 )" >> $MYDIR/test.out 2>&1
 
+#Conversion from client->scidb and then scidb->iquery adds extra backslashes; bear with us!
+iquery -otsv -aq "stream(apply(build(<a:string> [i=0:0,1,0], '\n \r \t \ '), b, string(null)), '$MYDIR/examples/stream_test_client')" >> $MYDIR/test.out 2>&1
+
 diff test.expected test.out
 

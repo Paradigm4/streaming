@@ -104,7 +104,6 @@ public:
 private:
     char const                     _attDelim;
     char const                     _lineDelim;
-    bool const                     _quoteStrings;
     bool const                     _printCoords;
     size_t const                   _precision;
     std::string                    _nanRepresentation;

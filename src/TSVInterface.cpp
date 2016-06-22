@@ -67,11 +67,10 @@ ArrayDesc TSVInterface::getOutputSchema(vector<ArrayDesc> const& inputSchemas, S
 TSVInterface::TSVInterface(Settings const& settings, ArrayDesc const& outputSchema, std::shared_ptr<Query> const& query):
     _attDelim(  '\t'),
     _lineDelim( '\n'),
-    _quoteStrings(false),
     _printCoords(false),
     _precision(10),
     _nanRepresentation("nan"),
-    _nullRepresentation("null"),
+    _nullRepresentation("\\N"),
     _query(query),
     _result(new MemArray(outputSchema, query)),
     _aiter(_result->getIterator(0)),
@@ -195,15 +194,21 @@ void TSVInterface::convertChunks(vector< shared_ptr<ConstChunkIterator> > citers
                 switch(_inputTypes[i])
                 {
                 case TE_STRING:
-                    if(_quoteStrings)
                     {
                         char const* s = v.getString();
-                        outputBuf << '\'';
                         while (char c = *s++)
                         {
-                            if (c == '\'')
+                            if (c == '\n')
                             {
-                                outputBuf << '\\' << c;
+                                outputBuf << "\\n";
+                            }
+                            else if (c == '\t')
+                            {
+                                outputBuf << "\\t";
+                            }
+                            else if (c == '\r')
+                            {
+                                outputBuf << "\\r";
                             }
                             else if (c == '\\')
                             {
@@ -214,11 +219,6 @@ void TSVInterface::convertChunks(vector< shared_ptr<ConstChunkIterator> > citers
                                 outputBuf << c;
                             }
                         }
-                        outputBuf << '\'';
-                    }
-                    else
-                    {
-                        outputBuf<<v.getString();
                     }
                     break;
                 case TE_BOOL:
