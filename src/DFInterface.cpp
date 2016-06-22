@@ -136,7 +136,7 @@ void DFInterface::streamData(std::vector<ConstChunk const*> const& inputChunks, 
     size_t nRows = inputChunks[0]->count();
     if(nRows == 0)
     {
-        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "received chunk with count 0, not supported";
+        return;
     }
     if(nRows > (size_t) std::numeric_limits<int32_t>::max())
     {

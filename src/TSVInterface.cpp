@@ -113,7 +113,7 @@ void TSVInterface::streamData(std::vector<ConstChunk const*> const& inputChunks,
     }
     if(inputChunks[0]->count() == 0)
     {
-        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "received chunk with count 0, not supported";
+        return;
     }
     if(!child.isAlive())
     {
