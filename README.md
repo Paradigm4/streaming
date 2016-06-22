@@ -2,7 +2,7 @@
 Prototype Hadoop streaming-like SciDB API The operator sends SciDB array data into the stdin of the process and reads its
 stdout (hence 'streaming').
 
-![image](https://cloud.githubusercontent.com/assets/2708498/16281408/47db750a-3892-11e6-8d93-20420f717a53.png)
+![image](https://cloud.githubusercontent.com/assets/2708498/16286948/b4b649d2-38ad-11e6-903f-489fdc532212.png)
 
 ## Usage
 ```
