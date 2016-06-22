@@ -17,7 +17,7 @@ where,
 * names is an optional set of comma-separated output column names and must be the same length as `types` - used only with `'format=df'`. Default column names are a0,a1,...
 * ARRAY2 is an optional second array. If used, data from this array will be streamed to the child first. 
 
-## TSV Interface for Various Clients
+## TSV Interface for Flexibility
 
 For each local chunk, the SciDB instance will convert all the attributes into a block of TSV text, preceded by an integer with the total number of lines. For example:
 ```
