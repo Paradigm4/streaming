@@ -1,5 +1,5 @@
 # streaming
-Prototype SciDB API similar to Hadoop Striming. The operator sends SciDB array data into the stdin of the process and reads its stdout (hence 'streaming').
+Prototype SciDB API similar to Hadoop Streaming. The operator sends SciDB array data into the stdin of the process and reads its stdout (hence 'streaming').
 
 ![image](https://cloud.githubusercontent.com/assets/2708498/16286948/b4b649d2-38ad-11e6-903f-489fdc532212.png)
 
@@ -22,8 +22,8 @@ For each local chunk, each SciDB instance will convert all the attributes into a
 ```
 3
 1   \N   1.1
-2   B   \N
-3   CD  2.3
+2    B    \N
+3   CD   2.3
 ```
 Only attributes are transferred, so `apply()` the dimensions if you need them. The child process is expected to fully consume the entire chunk and then output a response in the same format. SciDB then consumes the response and sends the next chunk. At the end of the exchange, SciDB sends to the child process a zero-length message like so:
 ```
