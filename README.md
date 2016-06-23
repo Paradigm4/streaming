@@ -64,7 +64,9 @@ list()
 ```
 Just like in the TSV case, SciDB shall send an empty message to the child at the end of the interaction. The child may respond with an empty message at any point during the interaction. For convenience, the names of the SciDB attributes are passed as names of the list elements. However, the names of the R output columns are disregarded. Instead, the user may specify attribute names to use with `names=`. The user must also specify the types of columns returned by the child process using `types=` - again using only string, double and int32. The returned data are split into attributes and returned as:
 ```<a0:type0, a1:type1,...>[instance_id, chunk_no, value_no]```
-where `a0,a1,..` are default attribute names that may be overridden with `names=` and the types are as supplied.
+where `a0,a1,..` are default attribute names that may be overridden with `names=` and the types are as supplied. 
+
+When sending data to child, all SciDB missing codes are converted to the R `NA`. In the opposite direction, R `NA` values are converted to SciDB `null` (missing code 0).
 
 After Feather is a little more stable, we will probably switch to that. See next section for the companion R package and detailed examples.
 
