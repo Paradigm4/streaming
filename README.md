@@ -1,6 +1,5 @@
 # streaming
-Prototype Hadoop streaming-like SciDB API The operator sends SciDB array data into the stdin of the process and reads its
-stdout (hence 'streaming').
+Prototype SciDB API similar to Hadoop Striming. The operator sends SciDB array data into the stdin of the process and reads its stdout (hence 'streaming').
 
 ![image](https://cloud.githubusercontent.com/assets/2708498/16286948/b4b649d2-38ad-11e6-903f-489fdc532212.png)
 
@@ -8,7 +7,7 @@ stdout (hence 'streaming').
 ```
 stream(ARRAY, PROGRAM [, 'format=...'][, 'types=...'][, 'names=...'][, ARRAY2])
 ```
-where,
+where
 
 * ARRAY is a SciDB array expression
 * PROGRAM is a full command line to the child program to stream data through
@@ -19,18 +18,18 @@ where,
 
 ## TSV Interface for Flexibility
 
-For each local chunk, the SciDB instance will convert all the attributes into a block of TSV text, preceded by an integer with the total number of lines. For example:
+For each local chunk, each SciDB instance will convert all the attributes into a block of TSV text, preceded by an integer with the total number of lines. For example:
 ```
 3
 1   \N   1.1
 2   B   \N
 3   CD  2.3
 ```
-Only attributes are transferred, so `apply()` the dimensions if you need them. The child process is expected to fully consume the entire chunk and then output a response in the same format. At the end of the exchange, SciDB sends to the child process a zero-length message like so:
+Only attributes are transferred, so `apply()` the dimensions if you need them. The child process is expected to fully consume the entire chunk and then output a response in the same format. SciDB then consumes the response and sends the next chunk. At the end of the exchange, SciDB sends to the child process a zero-length message like so:
 ```
 0
 ```
-Which means "end of interaction". After that, the child is required to return another response, after which it may legally self-terminate or wait for SciDB to terminate it. Note that the child may return an empty `0` message in response to any of the messages from SciDB. To recap, `0` from SciDB to child means "no more data" whereas `0` from child to SciDB means "no data right now." 
+Which means "end of interaction". After that, the child is required to return another response, and then may legally self-terminate or wait for SciDB to terminate it. Note that the child may return an empty `0` message in response to any of the messages from SciDB. To recap, `0` from SciDB to child means "no more data" whereas `0` from child to SciDB means "no data right now." 
 
 The child responses are returned in an array of `<response:string> [instance_id, chunk_no]` with the "number of lines" header and the final newline character removed. Depending on the contents, one way to parse such an array would be using the deprecated `parse()` operator provided in https://github.com/paradigm4/accelerated_io_tools. We might re-consider its deprecated status given this newfound utility.
 
@@ -62,13 +61,25 @@ Similar to the TSV interface, an empty message is an empty list:
 ```
 list()
 ```
-Just like in the TSV case, SciDB shall send an empty message to the child at the end of the interaction. The child may respond with an empty message at any point during the interaction. For convenience, the names of the SciDB attributes are passed as names of the list elements. However, the names of the R output columns are disregarded. Instead, the user may specify attribute names to use with `names=`. The user must also specify the types of columns returned by the child process using `types=` - again using only string, double and int32. The returned data are split into attributes and returned as:
+Just like in the TSV case, SciDB shall send one message per chunk to the child, each time waiting for a response. SciDB then sends an empty message to the child at the end of the interaction. The child must respond to each message from SciDB using either an empty or non-empty message. For convenience, the names of the SciDB attributes are passed as names of the list elements. However, the names of the R output columns going in the other direction are disregarded. Instead, the user may specify attribute names with `names=`. The user must also specify the types of columns returned by the child process using `types=` - again using only string, double and int32. The returned data are split into attributes and returned as:
 ```<a0:type0, a1:type1,...>[instance_id, chunk_no, value_no]```
 where `a0,a1,..` are default attribute names that may be overridden with `names=` and the types are as supplied. 
 
 When sending data to child, all SciDB missing codes are converted to the R `NA`. In the opposite direction, R `NA` values are converted to SciDB `null` (missing code 0).
 
-After Feather is a little more stable, we will probably switch to that. See next section for the companion R package and detailed examples.
+After Feather is a little more stable, we will probably switch to that.
+
+A quick example:
+```
+$ iquery -aq "stream(apply(build(<val:double> [i=1:5,5,0], i), s, 'Hello'), 'Rscript $MYDIR/examples/R_identity.R', 'format=df', 'types=double,string', 'names=a,b')" 
+{instance_id,chunk_no,value_no} a,b
+{0,0,0} 1,'Hello'
+{0,0,1} 2,'Hello'
+{0,0,2} 3,'Hello'
+{0,0,3} 4,'Hello'
+{0,0,4} 5,'Hello'
+```
+The next section discusses the companion R package and shows some really cool examples.
 
 ## R package
 
