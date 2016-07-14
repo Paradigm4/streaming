@@ -90,6 +90,8 @@ See the package vignettes and source code in this sofware repository for more de
 - https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/basic_examples.Rmd
 - https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/advanced_example.Rmd
 
+For installing the R package, see: https://github.com/Paradigm4/streaming/blob/master/r_pkg/README.md
+
 ## Stability and Security
 
 SciDB shall terminate all the child processes and cancel the query if any of the child processes deviate from the exchange protocol or exit early. SciDB shall aslo kill all the child processes if the query is cancelled for any reason.
