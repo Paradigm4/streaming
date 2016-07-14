@@ -34,6 +34,8 @@ Which means "end of interaction". After that, the child is required to return an
 The child responses are returned in an array of `<response:string> [instance_id, chunk_no]` with the "number of lines" header and the final newline character removed. Depending on the contents, one way to parse such an array would be using the deprecated `parse()` operator provided in https://github.com/paradigm4/accelerated_io_tools. We might re-consider its deprecated status given this newfound utility.
 
 ```
+# Note that you will need to compile the program `examples/client.cpp` in order 
+# for the next command to work. A `Makefile` is provided
 $ iquery -aq "parse(stream(apply(build(<a:double>[i=1:10,10,0], random()%5), b, random()%10), '$MYDIR/examples/stream_test_client'), 'num_attributes=3')"
 {source_instance_id,chunk_no,line_no} a0,a1,a2,error
 {0,0,0} 'Hello','4','5',null
