@@ -90,7 +90,7 @@ See the package vignettes and source code in this sofware repository for more de
 - https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/basic_examples.Rmd
 - https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/advanced_example.Rmd
 
-For installing the R package, see: https://github.com/Paradigm4/streaming/blob/master/r_pkg/README.md
+For installing the R package, see: https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/advanced_example.Rmd#r
 
 ## Stability and Security
 
