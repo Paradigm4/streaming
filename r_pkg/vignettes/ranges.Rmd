@@ -39,12 +39,11 @@ overlap joins may be performed on tables with millions of ranges.
 
 The example presented below finds overlaps
 between genomic variant coordinates from the 1000 genomes
-project[^3], and a list of human gene coordinates from
-https://www.pharmgkb.org/ [^4]. The example proceeds as follows:
+project[3], and a list of human gene coordinates from
+https://www.pharmgkb.org/ [4]. The example proceeds as follows:
 
-[^3]: An integrated map of genetic variation from 1,092 human genomes, McVean et Al, Nature 491, 56-65 (01 November 2012) doi:10.1038/nature11632.
-
-[^4]: M. Whirl-Carrillo, E.M. McDonagh, J. M. Hebert, L. Gong, K. Sangkuhl, C.F. Thorn, R.B. Altman and T.E. Klein. "Pharmacogenomics Knowledge for Personalized Medicine" Clinical Pharmacology & Therapeutics (2012) 92(4): 414-417.
+> 3. An integrated map of genetic variation from 1,092 human genomes, McVean et Al, Nature 491, 56-65 (01 November 2012) doi:10.1038/nature11632.
+> 4. M. Whirl-Carrillo, E.M. McDonagh, J. M. Hebert, L. Gong, K. Sangkuhl, C.F. Thorn, R.B. Altman and T.E. Klein. "Pharmacogenomics Knowledge for Personalized Medicine" Clinical Pharmacology & Therapeutics (2012) 92(4): 414-417.
 
 1. Download, parse, and load 1000 genomes variant data into SciDB
 2. Find variant and gene overlaps
