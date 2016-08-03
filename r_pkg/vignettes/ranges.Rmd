@@ -18,8 +18,9 @@ problem in computational genomics and other disciplines.  The IRanges package
 for R by Pages, Aboyoun and Lawrence[1] in the bioconductor[2] contains the
 fastest code I know for finding overlaps.
 
-> 1. http://bioconductor.org/packages/release/bioc/html/IRanges.html
-> 2. Gentleman R.C., Carey V.J., Bates D.M., Bolstad B., Dettling M., Dudoit S., Ellis B., Gautier L., Ge Y., Gentry J., Hornik K., Hothorn T., Huber W., Iacus S., Irizarry R., Leisch F., Li C., Maechler M., Rossini A.J., Sawitzki  ., Smith C., Smyth G., Tierney L., Yang J.Y. and Zhang J. (2004) Bioconductor: open software development for computational biology and bioinformatics. Genome Biol. 5(10): R80.
+> [1] http://bioconductor.org/packages/release/bioc/html/IRanges.html
+> <br/>
+> [2] Gentleman R.C., Carey V.J., Bates D.M., Bolstad B., Dettling M., Dudoit S., Ellis B., Gautier L., Ge Y., Gentry J., Hornik K., Hothorn T., Huber W., Iacus S., Irizarry R., Leisch F., Li C., Maechler M., Rossini A.J., Sawitzki  ., Smith C., Smyth G., Tierney L., Yang J.Y. and Zhang J. (2004) Bioconductor: open software development for computational biology and bioinformatics. Genome Biol. 5(10): R80.
 
 ## The Overlap Join
 
@@ -42,8 +43,9 @@ between genomic variant coordinates from the 1000 genomes
 project[3], and a list of human gene coordinates from
 https://www.pharmgkb.org/ [4]. The example proceeds as follows:
 
-> 3. An integrated map of genetic variation from 1,092 human genomes, McVean et Al, Nature 491, 56-65 (01 November 2012) doi:10.1038/nature11632.
-> 4. M. Whirl-Carrillo, E.M. McDonagh, J. M. Hebert, L. Gong, K. Sangkuhl, C.F. Thorn, R.B. Altman and T.E. Klein. "Pharmacogenomics Knowledge for Personalized Medicine" Clinical Pharmacology & Therapeutics (2012) 92(4): 414-417.
+> [3] An integrated map of genetic variation from 1,092 human genomes, McVean et Al, Nature 491, 56-65 (01 November 2012) doi:10.1038/nature11632.
+> <br/>
+> [4] M. Whirl-Carrillo, E.M. McDonagh, J. M. Hebert, L. Gong, K. Sangkuhl, C.F. Thorn, R.B. Altman and T.E. Klein. "Pharmacogenomics Knowledge for Personalized Medicine" Clinical Pharmacology & Therapeutics (2012) 92(4): 414-417.
 
 1. Download, parse, and load 1000 genomes variant data into SciDB
 2. Find variant and gene overlaps
