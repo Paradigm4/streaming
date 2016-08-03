@@ -323,7 +323,7 @@ through it.
 The following query runs the held-out test data through our model, saving the
 results into a SciDB array named "predictions":
 ```
-iquery -anq "store(stream(model, $TEST, 'Rscript /tmp/predict.R', 'format=df', 'types=string,string', _sg(model,0)), predictions)"
+iquery -anq "store(stream($TEST, 'Rscript /tmp/predict.R', 'format=df', 'types=string,string', _sg(model,0)), predictions)"
 ```
 
 We can get a better feel for how well our model works by making a cross
