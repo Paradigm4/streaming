@@ -50,15 +50,6 @@ https://www.pharmgkb.org/ [4]. The example proceeds as follows:
 1. Download, parse, and load 1000 genomes variant data into SciDB
 2. Find variant and gene overlaps
 3. Count the number of variants that overlap each gene by gene symbol
-4. Order the genes by number of variant overlaps and display the top 50
-
-The R packages include functions that combine steps 1 and 2 into a single step,
-gaining some efficiency along the way. I'm not using those more efficient
-functions in this example.
-
-In order to fairly represent typical performance, the R examples report both
-timings for loading stored data from data files and for just the overlap join
-computation part (file load dominates).
 
 You can copy and paste the examples and run them on your own hardware. The
 slowest parts of the example are downloading and parsing the data files.
