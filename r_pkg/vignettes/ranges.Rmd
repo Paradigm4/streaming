@@ -15,12 +15,11 @@ streaming protocol.
 
 Finding overlapping regions between two sets of coordinate values is a common
 problem in computational genomics and other disciplines.  The IRanges package
-for R by Pages, Aboyoun and Lawrence[^1] in the bioconductor[^2] contains the
+for R by Pages, Aboyoun and Lawrence[1] in the bioconductor[2] contains the
 fastest code I know for finding overlaps.
 
-[^1]: http://bioconductor.org/packages/release/bioc/html/IRanges.html
-
-[^2]: Gentleman R.C., Carey V.J., Bates D.M., Bolstad B., Dettling M., Dudoit S., Ellis B., Gautier L., Ge Y., Gentry J., Hornik K., Hothorn T., Huber W., Iacus S., Irizarry R., Leisch F., Li C., Maechler M., Rossini A.J., Sawitzki  ., Smith C., Smyth G., Tierney L., Yang J.Y. and Zhang J. (2004) Bioconductor: open software development for computational biology and bioinformatics. Genome Biol. 5(10): R80.
+> 1. http://bioconductor.org/packages/release/bioc/html/IRanges.html
+> 2. Gentleman R.C., Carey V.J., Bates D.M., Bolstad B., Dettling M., Dudoit S., Ellis B., Gautier L., Ge Y., Gentry J., Hornik K., Hothorn T., Huber W., Iacus S., Irizarry R., Leisch F., Li C., Maechler M., Rossini A.J., Sawitzki  ., Smith C., Smyth G., Tierney L., Yang J.Y. and Zhang J. (2004) Bioconductor: open software development for computational biology and bioinformatics. Genome Biol. 5(10): R80.
 
 ## The Overlap Join
 
