@@ -224,7 +224,7 @@ genes <- data.frame(getChunk(), stringsAsFactors=FALSE)
 f <- function(x)
 {
   chromosome <- as.integer(x\$chrom[1])
-  ir1 <- IRanges(start=x\$start, end=x\$start + nchar(x\$ref))
+  ir1 <- IRanges(start=x\$start, end=x\$start + nchar(x\$ref) - 1)
   g   <- genes[genes\$chromosome==chromosome, c("start", "end", "gene")] # filter down to our chunk's range
   ir2 <- IRanges(start=g\$start, end=g\$end)
   ans <- findOverlaps(ir1, ir2)
@@ -243,7 +243,7 @@ Let's go through this example step by step.
 2. `library(scidbstrm)` loads R the helper package from the SciDB streaming plugin.
 3. `genes <- data.frame(getChunk(), stringsAsFactors=FALSE)`  Uses the function `getChunk()` to load the first chunk of data from SciDB into a global variable named `genes`. This is done once per R process (that is, once per instance).
 4. The function `f()` will be applied to data streaming in from SciDB, one application per SciDB chunk, using the `map()` function. The function `f()` takes a single argument which is a data frame representing the attributes from the SciDB chunk and the names and data types of the columns correspond to the SciDB attribute names and types.
-5. `ir1 <- IRanges(start=x\$start, end=x\$start + nchar(x\$ref))` sets up an IRanges data frame of sorted startin and ending coordinates for the variants in our chunk. In particular, end coordinate is defined as start plus the length of the reference allele. Similar ranges are set up in `ir2` below for the genes ranges.
+5. `ir1 <- IRanges(start=x\$start, end=x\$start + nchar(x\$ref) - 1)` sets up an IRanges data frame of sorted startin and ending coordinates for the variants in our chunk. In particular, end coordinate is defined as start plus the length of the reference allele. Similar ranges are set up in `ir2` below for the genes ranges.
 6. The line starting with `g <- genes[genes...` filters the global genes array, keeping only rows corresponding to the chromosome in the current chunk. That's important because genomic coordinates are offsets relative to their chromosome.
 7. `ans <- findOverlaps(ir1, ir2)`  computes the range join. There are many options to this function but the defaults simply find all variants with coordinates that overlap with the genes.
 8. The last line of the function `f()` returns a data frame with three columns: chromosome, count, and gene. The SciDB streaming API is very picky about binary data types, so it's important to be pedantic about that (thus the `as.integer()` and `stringsAsFactors`).
