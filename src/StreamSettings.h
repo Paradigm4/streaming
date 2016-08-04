@@ -64,7 +64,7 @@ private:
     string              _command;
 
 public:
-    static const size_t MAX_PARAMETERS = 4;
+    static const size_t MAX_PARAMETERS = 5;
 
 private:
     string paramToString(shared_ptr <OperatorParam> const& parameter, shared_ptr<Query>& query, bool logical)

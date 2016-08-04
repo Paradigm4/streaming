@@ -87,8 +87,9 @@ The next section discusses the companion R package and shows some really cool ex
 
 See the package vignettes and source code in this sofware repository for more details.
 
-- https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/basic_examples.Rmd
-- https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/advanced_example.Rmd
+- [Basic example: aggregates](https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/basic_examples.Rmd)
+- [Intermediate example: range joins](https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/ranges.Rmd)
+- [Advanced example: machine learning](https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/advanced_example.Rmd)
 
 For installing the R package, see: https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/advanced_example.Rmd#r
 
