@@ -45,11 +45,12 @@ program <- as.scidb(base64encode(serialize(expression(
 # An example from the poLCA vignette:
 data(gss82)
 n <- nrow(gss82)
-INSTANCES <- nrow(scidbls(type='instances'))
+REPLICATIONS <- nrow(scidbls(type='instances'))
 
-# Replicate and upload the data once per SciDB instance, adding an integer seed
-# values that vary by instance.
-repl <- Reduce(rbind, Map(function(j) cbind(gss82, seed=j), 1:INSTANCES))
+# Replicate and upload the data, adding integer seed values that vary by
+# instance. This replication strategy is reproducible, even on different-sized
+# SciDB clusters.
+repl <- Reduce(rbind, Map(function(j) cbind(gss82, seed=j), 1:REPLICATIONS))
 x <- scidbeval(repart(as.scidb(repl), chunk=n), name='gss82')
 
 
