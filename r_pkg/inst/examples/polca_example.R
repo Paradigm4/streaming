@@ -23,10 +23,10 @@ program <- as.scidb(base64encode(serialize(expression(
     }
 
     # 2. Convert columns to factors, omit seed
-    y = data.frame(lapply(x[,-5], factor))
+    y <- data.frame(lapply(x[, -5], factor))
 
     # 3. Compute poLCA
-    f <- cbind(PURPOSE,ACCURACY,UNDERSTA,COOPERAT)~1
+    f <- cbind(PURPOSE, ACCURACY, UNDERSTA, COOPERAT) ~ 1
     p <- poLCA(f, y, nclass=4, maxiter=10000, tol=1e-7, verbose=FALSE)
     best <- p$llik
 
