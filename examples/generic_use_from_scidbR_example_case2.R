@@ -10,7 +10,8 @@ fn = expression(
   {
     print("Any R expression")       # these print statements are logged in
     print("can appear here...")     # scidb-stderr.log
-    map(function(x) data.frame(pi)) # be sure to match the 'types=...' parameter below
+    map(function(x) {data.frame(pi)+length(item)}) # be sure to match the 'types=...' parameter below
+  #  map(function(x) {item = 10; data.frame(pi)+length(item)}) # Try the alternate version to visualize the scope of `item` above
   })
 item = runif(50)
 print(mean(item))
