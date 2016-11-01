@@ -55,7 +55,14 @@ x <- scidbeval(repart(as.scidb(repl), chunk=n), name='gss82')
 
 
 # Run the experiment using the SciDB streaming API in parallel.
-query <- sprintf("stream(gss82, 'R --slave -e \"library(scidbstrm);eval(unserialize(base64enc::base64decode(getChunk()[[1]])))\"', 'format=df', 'types=double,string', 'names=llik,model', _sg(%s,0))", program@name)
+query <- sprintf("stream(gss82, 
+                   'R --slave -e \"library(scidbstrm);eval(unserialize(base64enc::base64decode(getChunk()[[1]])))\"', 
+                   'format=df', 
+                   'types=double,string', 
+                   'names=llik,model', 
+                   _sg(%s,0))", 
+                 program@name)
+
 result <- iquery(query, return=TRUE)
 
 llik <- result$llik
