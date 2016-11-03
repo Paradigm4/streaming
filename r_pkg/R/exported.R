@@ -134,10 +134,10 @@ closeStreams <- function()
 #' # The run() function lets you add an evnironment in the 'env' attribute
 #' # of your expression to include extra values in your expression environment
 #' # like the 'mydata' value in the simple example below:
-#' expr <- expression(
+#' expr <- expression({
 #'   fn <- function(x) { x + mydata }
 #'   map(fn)
-#' )
+#' })
 #' attributes(expr, "env") <- new.env()
 #' attributes(expr, "env")$mydata <- 2
 #' program <- as.scidb(base64encode(serialize(expr)))
