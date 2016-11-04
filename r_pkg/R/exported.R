@@ -114,3 +114,42 @@ closeStreams <- function()
   if(exists("con_out", envir=.scidbstream.env)) close(.scidbstream.env$con_out)
   invisible(NULL)
 }
+
+#' Run an R expression encoded in the first chunk of the optional \code{ARRAY2} streaming argument.
+#'
+#' This convenience function performs the equivalent of the low-level code
+#' \code{eval(unserialize(base64enc::base64decode(getChunk()[[1]])))}, optinally including in the evaluation environment values
+#' stored in the \code{env} attribute of the program. See the examples.
+#' @return the evaluated expression value
+#' @examples
+#' \dontrun{
+#' # Consider the polca_example.R code included in this package, which shows:
+#' query <- sprintf("stream(gss82, 
+#'                  'R --slave -e \"library(scidbstrm);eval(unserialize(base64enc::base64decode(getChunk()[[1]])))\"', 
+#'                  'format=df',  'types=double,string', 'names=llik,model', _sg(%s,0))", program@name)
+#' # Equivalent simpler version using the run() function:
+#' query <- sprintf("stream(gss82, 'R --slave -e \"library(scidbstrm);run()\"',
+#'                  'format=df',  'types=double,string', 'names=llik,model', _sg(%s,0))", program@name)
+#'
+#' # The run() function lets you add an evnironment in the 'env' attribute
+#' # of your expression to include extra values in your expression environment
+#' # like the 'mydata' value in the simple example below:
+#' expr <- expression({
+#'   fn <- function(x) { x + mydata }
+#'   map(fn)
+#' })
+#' attributes(expr, "env") <- new.env()
+#' attributes(expr, "env")$mydata <- 2
+#' program <- as.scidb(base64encode(serialize(expr)))
+#' 
+#' query <- sprintf("stream(build(<a:double>[i=1:4,1,0],i),
+#'                  'R --slave -e \"library(scidbstrm);run()\"',
+#'                  'format=df',  'types=double', _sg(%s,0))", program@name)
+#'}
+#' @importFrom base64enc base64decode
+#' @export
+run <- function()
+{
+  .program <- unserialize(base64decode(getChunk()[[1]]))
+  with(attributes(.program)$env, eval(.program))
+}

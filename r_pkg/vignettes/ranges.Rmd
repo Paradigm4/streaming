@@ -1,0 +1,280 @@
+# SciDB and R: stronger together
+
+The SciDB streaming plugin (https://github.com/Paradigm4/streaming) lets you
+invoke arbitrary programs on streaming data within the context of a SciDB query
+and collect the result in SciDB. The self-contained example described here uses
+the SciDB streaming plugin, R and the Bioconductor together.
+
+The SciDB streaming plugin runs programs in parallel across SciDB instances
+keeping data local to each instance, and very efficiently transfers data
+between SciDB and R using a native R binary/columnar data format over a
+streaming protocol.
+
+
+# 1000 Genomes Overlap Join Example
+
+Finding overlapping regions between two sets of coordinate values is a common
+problem in computational genomics and other disciplines.  The IRanges package
+for R by Pages, Aboyoun and Lawrence[1] in the bioconductor[2] contains the
+fastest code I know for finding overlaps.
+
+> [1] http://bioconductor.org/packages/release/bioc/html/IRanges.html
+> <br/>
+> [2] Gentleman R.C., Carey V.J., Bates D.M., Bolstad B., Dettling M., Dudoit S., Ellis B., Gautier L., Ge Y., Gentry J., Hornik K., Hothorn T., Huber W., Iacus S., Irizarry R., Leisch F., Li C., Maechler M., Rossini A.J., Sawitzki  ., Smith C., Smyth G., Tierney L., Yang J.Y. and Zhang J. (2004) Bioconductor: open software development for computational biology and bioinformatics. Genome Biol. 5(10): R80.
+
+## The Overlap Join
+
+The _overlap join_ finds overlapping regions between two tables of coordinates.
+The following figure illustrates a simple example. The right to left extent of
+the blue and green boxes depicts two sets of ranges, respectively.
+
+![<i>Two sets of ranges</i>](fig1.png)
+
+The overlap join operation finds ranges with overlapping extents, for example
+the green box labeled "B" overlaps with the blue boxes "2" and "3", and the
+green box labeled "C" overlaps with the blue box labeled "4." In practice,
+overlap joins may be performed on tables with millions of ranges.
+
+
+## Computed Example
+
+The example presented below finds overlaps
+between genomic variant coordinates from the 1000 genomes
+project[3], and a list of human gene coordinates from
+https://www.pharmgkb.org/ [4]. The example proceeds as follows:
+
+> [3] An integrated map of genetic variation from 1,092 human genomes, McVean et Al, Nature 491, 56-65 (01 November 2012) doi:10.1038/nature11632.
+> <br/>
+> [4] M. Whirl-Carrillo, E.M. McDonagh, J. M. Hebert, L. Gong, K. Sangkuhl, C.F. Thorn, R.B. Altman and T.E. Klein. "Pharmacogenomics Knowledge for Personalized Medicine" Clinical Pharmacology & Therapeutics (2012) 92(4): 414-417.
+
+1. Download, parse, and load 1000 genomes variant data into SciDB
+2. Find variant and gene overlaps
+3. Count the number of variants that overlap each gene by gene symbol
+
+You can copy and paste the examples and run them on your own hardware. The
+slowest parts of the example are downloading and parsing the data files.
+
+### Download the data files
+
+The following shell commands download the data files in parallel. The total
+downloaded data size is about 15 GB, which, depending on your internet
+connection, might take a little while.
+
+```
+cat << END > download.sh
+
+#!/bin/bash
+c="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22"
+for x in ${c}
+do
+  echo downloading $x
+  wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20130502/ALL.chr${x}.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz &
+done
+wait
+
+wget -O genes.zip "https://www.pharmgkb.org/download.do?objId=genes.zip"
+unzip genes.zip
+END
+
+chmod +x download.sh
+./download.sh
+```
+
+
+### Parsing the data files with R and loading into SciDB
+
+
+The following code parses the input variant files into R data.frames
+with position, reference allele, and alternate allele columns. It then
+inserts the resulting data.frames into a single SciDB array named
+'variants'. It does all this in parallel.
+
+The parsing program is complicated by the doubly-delimited data file format. In
+particular more than one alternate allele may be listed per line separated by
+commas (the remainder of the file is tab separated). R handles the extra format
+complexity with relative ease and efficiency.
+
+We use some shell utilities here to help uncompress and process the TSV files.
+R's `pipe` connection object makes it easy to operate on pipelines of shell
+commands conveniently from R.  (The data.table package includes similar
+functionality but, somewhat unfortunately, with a different syntax).  Note the
+trick of ordering the first data.frame column, which interestingly leads to a
+significant performance increase in file I/O for this example.
+
+Because the above processing pipeline includes several stages (zcat, sed, cut,
+read.table), there is already a fair amount of parallel computation going on.
+The script additionally uses the explicitly parallel `clusterApply` function
+which may lead to some over-committing of CPU resources, but still generally
+improves performance.
+
+Note that the script omits imprecisely specified variants, further described
+here: http://goo.gl/PFsIsP. Handling imprecise variants would add a lot of
+complexity to this simple example.  We also try to keep the parsing and output
+format here intentionally simple, ignoring important details in the data files
+not needed for our immediate analysis needs (like which DNA strand the variant
+occurs on and phasing information). And finally, note that we only load numeric
+chromosomes below, omitting "X", "Y" and "M" (again, just for simplicity in
+this example).
+
+
+```{r, eval=FALSE}
+library(scidb)
+library(parallel)
+
+scidbconnect()
+
+# start up a little R cluster to parse the files in parallel (adjust this to
+# suit your system size, but leave out a few extra CPU cores to handle the the
+# implicit pipeline parallelism used in the R program below)
+cl = makePSOCKcluster(14)
+scidbrm("variants", force=TRUE, error=invisible)
+iquery("create array variants <start:int32,ref:string,alt:string>[chromosome=0:*,1,0,row=0:*,100000000,0]")
+
+f = function(file)
+{
+  t2 = proc.time()
+  cmd = sprintf("zcat %s | sed '/^#/d;/IMPRECISE/d' |  cut -f 2,4,5", file)
+  name = gsub(".phase.*", "", file)
+  print(name)
+  x = read.table(pipe(cmd), stringsAsFactors=FALSE)
+  names(x) = c("start", "ref", "alt")
+
+  # Process extra comma-separated alleles (would be much easier if these were
+  # on separate rows!)
+  idx = grepl(",", x$alt)
+  s = strsplit(x[idx, "alt"], ",")
+  # replace these rows with 1st alternate allele
+  x[idx,"alt"] = vapply(s, function(z) z[1], "")
+  # Add new rows corresponding to other listed alternates
+  ref = x[idx,1:2]
+  N   = vapply(s, length, 1) # numbers of alternates by row
+  alt = lapply(2:max(N), function(i)
+    { 
+      j = which(N == i)
+      cbind(ref[j, ], alt=vapply(s[j], function(z)z[i], ""))
+    })
+  x = rbind(x, Reduce(rbind, alt))
+  # order the data.frame for better potential compression I/O rate (if used)
+  x = x[order(x$start),]
+  x$row = 1:nrow(x)
+  x$chromosome = as.integer(gsub(".*chr", "", gsub("\\.phase.*", "", file)))
+  x$start = as.integer(x$start)
+  a = as.scidb(x, chunk_size=1e6)
+  q = sprintf("insert(redimension(%s, variants), variants)", a@name)
+  iquery(q)
+  rm(list=c("x", "a"))
+  gc()
+  return(proc.time() - t2)
+}
+
+# Parse!
+files=dir(pattern="*.vcf.gz")  # All chromosomes
+t1 = proc.time()
+times = clusterApply(cl, files, f)
+print(proc.time()-t1)
+
+
+# Now, upload the much smaller genes table
+cmd = "cat genes.tsv | cut -f 6,13- | sed -e 's/chr//' | tail -n +2"
+p = pipe( cmd, open="r")
+genes = read.table(p, stringsAsFactors=FALSE, header=FALSE, sep="\t")
+close(p)
+names(genes) = c("gene","chromosome","start","end")
+genes = genes[genes$start > 0 & genes$end > 0, ]
+genes$chromosome = as.integer(genes$chromosome) # warns about NAs, expected
+genes = genes[!is.na(genes$chromosome), ]  # omit "X" "Y" "M" "" chromosome data
+scidbrm("genes", force=TRUE, error=invisible)
+as.scidb(genes, name="genes")
+
+# stop our little R cluster
+stopCluster(cl)
+
+```
+
+After the parsing and loading step, you will have two SciDB arrays named
+"variants" and "genes". The "variants" array is chunked by chromosome, that is,
+all variant data for one chromosome appears in one SciDB chunk. The "genes"
+array is tiny and fits entirely in one SciDB chunk.
+
+The chunking in SciDB is important to note because the SciDB streaming plugin
+streams data into the client programs (R) on a chunk-by-chunk basis. That quite
+closely corresponds to the Hadoop streaming API, which streams data into client
+programs on a Hadoop shard-by-shard (a. k. a. chunk) basis.
+
+
+### Overlap join
+
+Our example uses the IRanges R package from the Bioconductor. IRanges defines
+the `findOverlaps` function, a best-of-breed implementation of the overlap join
+algorithm.  You can install the IRanges package with (R code):
+```{r, eval=FALSE}
+source("http://bioconductor.org/biocLite.R")
+biocLite("IRanges")
+```
+
+Once IRanges is installed, the overlap join using the SciDB streaming API is
+easy.
+```
+cat << END > /tmp/range.R
+library(scidbstrm)
+library(IRanges)
+# Obtain the replicated genes array from SciDB
+genes <- data.frame(getChunk(), stringsAsFactors=FALSE)
+# function mapped on streaming chunks
+f <- function(x)
+{
+  chromosome <- as.integer(x\$chrom[1])
+  ir1 <- IRanges(start=x\$start, end=x\$start + nchar(x\$ref) - 1)
+  g   <- genes[genes\$chromosome==chromosome, c("start", "end", "gene")] # filter down to our chunk's range
+  ir2 <- IRanges(start=g\$start, end=g\$end)
+  ans <- findOverlaps(ir1, ir2)
+  # return int32,int32,string:
+  data.frame(chromosome=chromosome, count=as.integer(countRnodeHits(ans)), gene=g\$gene, stringsAsFactors=FALSE)
+}
+map(f)
+END
+
+time iquery -aq "stream(apply(variants, chrom, int32(chromosome)), 'Rscript /tmp/range.R', 'format=df', 'types=int32,int32,string', _sg(genes,0))"
+```
+
+Let's go through this example step by step.
+
+1. `cat << END > /tmp/range.R`  Write out everthing up to `END` to the R program file `/tmp/range.R`. This program will run in parallel managed by SciDB, one copy running on each instance in this example.
+2. `library(scidbstrm)` loads R the helper package from the SciDB streaming plugin.
+3. `genes <- data.frame(getChunk(), stringsAsFactors=FALSE)`  Uses the function `getChunk()` to load the first chunk of data from SciDB into a global variable named `genes`. This is done once per R process (that is, once per instance).
+4. The function `f()` will be applied to data streaming in from SciDB, one application per SciDB chunk, using the `map()` function. The function `f()` takes a single argument which is a data frame representing the attributes from the SciDB chunk and the names and data types of the columns correspond to the SciDB attribute names and types.
+5. `ir1 <- IRanges(start=x\$start, end=x\$start + nchar(x\$ref) - 1)` sets up an IRanges data frame of sorted startin and ending coordinates for the variants in our chunk. In particular, end coordinate is defined as start plus the length of the reference allele. Similar ranges are set up in `ir2` below for the genes ranges.
+6. The line starting with `g <- genes[genes...` filters the global genes array, keeping only rows corresponding to the chromosome in the current chunk. That's important because genomic coordinates are offsets relative to their chromosome.
+7. `ans <- findOverlaps(ir1, ir2)`  computes the range join. There are many options to this function but the defaults simply find all variants with coordinates that overlap with the genes.
+8. The last line of the function `f()` returns a data frame with three columns: chromosome, count, and gene. The SciDB streaming API is very picky about binary data types, so it's important to be pedantic about that (thus the `as.integer()` and `stringsAsFactors`).
+
+At this point, we've simply written out an R program to the file
+`/tmp/range.R`. SciDB will run that program on each instance, so importantly,
+the program needs to be visible to all instances (say, across file systems in a
+cluster), and needs to be read-able by whichever user is running SciDB (often
+the "scidb" user).
+
+Then we can run the query using SciDB streaming with the last line,
+```
+time iquery -aq "stream(apply(variants, chrom, int32(chromosome)), 'Rscript /tmp/range.R', 'format=df', 'types=int32,int32,string', _sg(genes,0))"
+```
+Let's discuss each part of that query.
+
+1. `apply(variants, chrom, int32(chromosome))` copies the SciDB dimension value `chromosome` into an attribute named `chrom`. This is necessary because we need the chromosome number in our R program and SciDB dimensions are not transferred by the SciDB streaming plugin.
+2. `'Rscript /tmp/range.R'`  tells the streaming plugin the program command line that we want to run (along with any required command line arguments), in this case a program named  `Rscript`.
+3. `'format=df'` indicates the SciDB streaming protocol. 'df' is a columnar binary protocol that right now uses R's native serialization format. Other options include row-ordered tab-separated text (similar to Hadoop's streaming API). The columnar binary format is extremely efficient.
+4. `'types=int32,int32,string'` indicates what the data frame output from the client program (`Rscript`) must look like. This is why we're so picky with the types in the R program above. If the R program fails to deliver a three-column data frame  on any instance the SciDB query is cancelled with a run-time error.
+5. `_sg(genes,0)` is an advanced option in the SciDB streaming plugin that sends one copy of the `genes` SciDB array to each client R program before the streaming of the `variant` array chunks starts. The `_sg()` operator simply replicates that array on each SciDB instance to make sure that every client R program gets a copy.
+
+
+
+# Summary
+
+This self-contained example illustrates using R to help load 1000 genomes
+variant data into SciDB.
+
+Then we use the new SciDB streaming API to compute, in parallel, counts of
+variants overlapping with a list of 23,000 genes across the whole genome.
+
+The computation runs very quickly in practice, on the order of 12 seconds on a
+single 16-core workstation.

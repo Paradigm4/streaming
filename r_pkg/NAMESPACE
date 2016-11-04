@@ -3,4 +3,6 @@
 export(closeStreams)
 export(getChunk)
 export(map)
+export(run)
 export(schema)
+importFrom(base64enc,base64decode)
