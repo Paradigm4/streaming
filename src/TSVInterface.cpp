@@ -68,7 +68,6 @@ TSVInterface::TSVInterface(Settings const& settings, ArrayDesc const& outputSche
     _attDelim(  '\t'),
     _lineDelim( '\n'),
     _printCoords(false),
-    _precision(10),
     _nanRepresentation("nan"),
     _nullRepresentation("\\N"),
     _query(query),
@@ -163,7 +162,6 @@ void TSVInterface::convertChunks(vector< shared_ptr<ConstChunkIterator> > citers
     Value stringVal;
     nCells = 0;
     ostringstream outputBuf;
-    outputBuf.precision(_precision);
     while(!citers[0]->end())
     {
         if(_printCoords)
@@ -240,6 +238,7 @@ void TSVInterface::convertChunks(vector< shared_ptr<ConstChunkIterator> > citers
                         }
                         else
                         {
+                            outputBuf.precision(std::numeric_limits<double>::max_digits10);
                             outputBuf<<nbr;
                         }
                     }
@@ -253,6 +252,7 @@ void TSVInterface::convertChunks(vector< shared_ptr<ConstChunkIterator> > citers
                         }
                         else
                         {
+                            outputBuf.precision(std::numeric_limits<float>::max_digits10);
                             outputBuf<<fnbr;
                         }
                     }

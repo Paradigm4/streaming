@@ -105,7 +105,6 @@ private:
     char const                     _attDelim;
     char const                     _lineDelim;
     bool const                     _printCoords;
-    size_t const                   _precision;
     std::string                    _nanRepresentation;
     std::string                    _nullRepresentation;
     std::shared_ptr<Query>         _query;
