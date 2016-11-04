@@ -72,5 +72,7 @@ iquery -aq "stream(
 #Conversion from client->scidb and then scidb->iquery adds extra backslashes; bear with us!
 iquery -otsv -aq "stream(apply(build(<a:string> [i=0:0,1,0], '\n \r \t \ '), b, string(null)), '$MYDIR/examples/stream_test_client')" >> $MYDIR/test.out 2>&1
 
+iquery -aq "filter(stream(build(<a:double>[i=0:9,10,0],i), 'python $MYDIR/examples/python_example.py'), instance_id=0)" >> $MYDIR/test.out 2>&1
+
 diff test.expected test.out
 
