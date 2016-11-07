@@ -134,22 +134,26 @@ closeStreams <- function()
 #' # The run() function lets you add an evnironment in the 'env' attribute
 #' # of your expression to include extra values in your expression environment
 #' # like the 'mydata' value in the simple example below:
+#' library(scidb)
+#' scidbconnect()
+#' library(scidbstrm)
 #' expr <- expression({
 #'   fn <- function(x) { x + mydata }
 #'   map(fn)
 #' })
-#' attributes(expr, "env") <- new.env()
-#' attributes(expr, "env")$mydata <- 2
-#' program <- as.scidb(base64encode(serialize(expr)))
-#' 
+#' attr(expr, "env") <- new.env()
+#' attr(expr, "env")$mydata <- 2
+#' program <- as.scidb(base64enc::base64encode(serialize(expr, NULL)))
 #' query <- sprintf("stream(build(<a:double>[i=1:4,1,0],i),
 #'                  'R --slave -e \"library(scidbstrm);run()\"',
 #'                  'format=df',  'types=double', _sg(%s,0))", program@name)
+#' iquery(query, return=TRUE)
 #'}
 #' @importFrom base64enc base64decode
 #' @export
 run <- function()
 {
-  .program <- unserialize(base64decode(getChunk()[[1]]))
-  with(attributes(.program)$env, eval(.program))
+  program <- unserialize(base64decode(getChunk()[[1]]))
+  attach(attr(program, "env"))
+  eval(program)
 }

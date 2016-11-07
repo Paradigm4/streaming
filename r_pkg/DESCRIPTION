@@ -19,4 +19,4 @@ Suggests:
     scidb (>= 2.0.0)
 License: AGPL-3
 LazyLoad: yes
-RoxygenNote: 5.0.0
+RoxygenNote: 5.0.1
