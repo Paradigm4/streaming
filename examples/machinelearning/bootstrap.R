@@ -1,5 +1,5 @@
 library(scidbstrm)
-library(base64enc)
+library(jsonlite)
 library(randomForest)
 
 #' little bootstrap function
@@ -41,7 +41,7 @@ f <- function(x)
 {
   x$class <- factor(x$class, levels=levels)
   mdl <- lb(x[, -18], x[[18]], 82816, 10, 10)
-  data.frame(x=base64encode(serialize(mdl, NULL)), stringsAsFactors=FALSE)
+  data.frame(x=base64_enc(serialize(mdl, NULL)), stringsAsFactors=FALSE)
 }
 
 map(f)

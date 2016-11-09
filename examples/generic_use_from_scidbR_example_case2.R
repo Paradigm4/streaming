@@ -1,6 +1,6 @@
 rm(list=ls())
 library(scidb)
-library(base64enc)
+library(jsonlite)
 scidbconnect()
 
 # We store a generic R expression for use by the R processes
@@ -16,9 +16,9 @@ fn = expression(
 item = runif(50)
 print(mean(item))
 pkg = list(fn, item)
-program <- as.scidb(base64encode(serialize(pkg, NULL)))
+program <- as.scidb(base64_enc(serialize(pkg, NULL)))
 
 query = sprintf("stream(build(<v:double>[i=1:1,1,0],i), 
-                'R --slave -e \"library(scidbstrm);pkg=unserialize(base64enc::base64decode(getChunk()[[1]]));item=pkg[[2]];print(mean(item));eval(pkg[[1]])\"', 
+                'R --slave -e \"library(scidbstrm);pkg=unserialize(jsonlite::base64_dec(getChunk()[[1]]));item=pkg[[2]];print(mean(item));eval(pkg[[1]])\"', 
                 'format=df', 'types=double', _sg(%s, 0))", program@name)
 print(iquery(query, return=TRUE))
