@@ -11,14 +11,14 @@ the evaluated expression value
 }
 \description{
 This convenience function performs the equivalent of the low-level code
-\code{eval(unserialize(base64enc::base64decode(getChunk()[[1]])))}, optinally including in the evaluation environment values
+\code{eval(unserialize(jsonlite::base64_dec(getChunk()[[1]])))}, optinally including in the evaluation environment values
 stored in the \code{env} attribute of the program. See the examples.
 }
 \examples{
 \dontrun{
 # Consider the polca_example.R code included in this package, which shows:
 query <- sprintf("stream(gss82, 
-                 'R --slave -e \\"library(scidbstrm);eval(unserialize(base64enc::base64decode(getChunk()[[1]])))\\"', 
+                 'R --slave -e \\"library(scidbstrm);eval(unserialize(jsonlite::base64_dec(getChunk()[[1]])))\\"', 
                  'format=df',  'types=double,string', 'names=llik,model', _sg(\%s,0))", program@name)
 # Equivalent simpler version using the run() function:
 query <- sprintf("stream(gss82, 'R --slave -e \\"library(scidbstrm);run()\\"',
@@ -36,7 +36,7 @@ expr <- expression({
 })
 attr(expr, "env") <- new.env()
 attr(expr, "env")$mydata <- 2
-program <- as.scidb(base64enc::base64encode(serialize(expr, NULL)))
+program <- as.scidb(jsonlite::base64_enc(serialize(expr, NULL)))
 query <- sprintf("stream(build(<a:double>[i=1:4,1,0],i),
                  'R --slave -e \\"library(scidbstrm);run()\\"',
                  'format=df',  'types=double', _sg(\%s,0))", program@name)

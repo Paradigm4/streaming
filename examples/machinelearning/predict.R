@@ -1,9 +1,9 @@
 library(scidbstrm)
-library(base64enc)
+library(jsonlite)
 library(randomForest)
 
 # Obtain the model from SciDB
-model <- unserialize(base64decode(getChunk()[[1]]))
+model <- unserialize(base64_dec(getChunk()[[1]]))
 
 # Predict and return two columns: observed (true) data and our prediction
 f <- function(x)

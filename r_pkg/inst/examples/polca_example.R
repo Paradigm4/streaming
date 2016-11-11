@@ -1,15 +1,15 @@
 library(poLCA)
-library(base64enc)
+library(jsonlite)
 library(scidb)
 scidbconnect()
 
 # The following program will be run by R processes invoked
 # on each SciDB instance.
-program <- as.scidb(base64encode(serialize(expression(
+program <- as.scidb(base64_enc(serialize(expression(
 {
   library(poLCA)
   library(parallel)
-  library(base64enc)
+  library(jsonlite)
   library(scidbstrm)
 
   fn <- function(x)
@@ -33,7 +33,7 @@ program <- as.scidb(base64encode(serialize(expression(
     # 4. Serialize result and return in 2-column data frame with
     # column 1: llik  (double precision value) best log likelihood
     # column 2: base64encoded serialized poLCA model
-    model <- base64encode(serialize(p, NULL))
+    model <- base64_enc(serialize(p, NULL))
     data.frame(llik=best, model=model, stringsAsFactors=FALSE)
   }
   map(fn)
@@ -56,7 +56,7 @@ x <- scidbeval(repart(as.scidb(repl), chunk=n), name='gss82')
 
 # Run the experiment using the SciDB streaming API in parallel.
 query <- sprintf("stream(gss82, 
-                   'R --slave -e \"library(scidbstrm);eval(unserialize(base64enc::base64decode(getChunk()[[1]])))\"', 
+                   'R --slave -e \"library(scidbstrm);eval(unserialize(jsonlite::base64_dec(getChunk()[[1]])))\"', 
                    'format=df', 
                    'types=double,string', 
                    'names=llik,model', 
@@ -67,7 +67,7 @@ result <- iquery(query, return=TRUE)
 
 llik <- result$llik
 # Convert the encoded models back into R objects
-models <- lapply(result$model, function(x) unserialize(base64decode(x)))
+models <- lapply(result$model, function(x) unserialize(base64_dec(x)))
 
 # A table of likelihoods and models
 print(cbind(llik, models))
