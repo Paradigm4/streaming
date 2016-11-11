@@ -1,7 +1,7 @@
 # An example R client that uses TSV to communicate with SciDB.
 # It reads data into a data.frame of X columns and returns X+1 columns, with the last column equal to the first, times two.
 # For exmaple:
-#  iquery -aq "stream(build(<val:string> [i=1:5,5,0], i), 'Rscript /home/apoliakov/streaming/src/tsv_R_client.R')"
+#  iquery -aq "stream(build(<val:string> [i=1:5,5,0], i), 'Rscript /home/apoliakov/stream/src/tsv_R_client.R')"
 #  {instance_id,chunk_no} status
 #  {0,0} '1	2
 #  2	4

@@ -26,7 +26,7 @@ columnar data frame format uses R's native data frame encoding right now but
 will move to the feather format in the future.
 
 You can directly use R with the SciDB streaming API without any extras as shown
-in the examples in https://github.com/Paradigm4/streaming/tree/master/src.
+in the examples in https://github.com/Paradigm4/stream/tree/master/src.
 
 Alternatively, the scidbstrm R package provides simple high-level interface to
 the SciDB streaming API with a single function called `map()`. The `map()`

@@ -1,6 +1,6 @@
 # SciDB and R: stronger together
 
-The SciDB streaming plugin (https://github.com/Paradigm4/streaming) lets you
+The SciDB streaming plugin (https://github.com/Paradigm4/stream) lets you
 invoke arbitrary programs on streaming data within the context of a SciDB query
 and collect the result in SciDB. The self-contained example described here uses
 the SciDB streaming plugin, R and the Bioconductor together.

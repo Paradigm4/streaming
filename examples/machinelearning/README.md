@@ -1,5 +1,5 @@
 This is a companion directory to the vignette:
-https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/advanced_example.Rmd
+https://github.com/Paradigm4/stream/blob/master/r_pkg/vignettes/advanced_example.Rmd
 
 This directory contain the individual Rscripts outlined in that vignette. 
 

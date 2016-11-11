@@ -35,10 +35,10 @@ You need SciDB and R of course, and the following add ons for each:
 - `jsonlite`
 - `scidbstrm`
 
-The scidbstrm package for R is available from https://github.com/paradigm4/streaming/r_pkg. You can
+The scidbstrm package for R is available from https://github.com/paradigm4/stream/r_pkg. You can
 install it with:
 ```
-sudo R --slave -e  "devtools::install_github('paradigm4/streaming', subdir='r_pkg')"
+sudo R --slave -e  "devtools::install_github('paradigm4/stream', subdir='r_pkg')"
 ```
 Be sure to install all packages so that they are available to all R users!
 

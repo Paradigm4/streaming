@@ -1,4 +1,4 @@
-# streaming
+# stream
 Prototype SciDB API similar to Hadoop Streaming. The operator sends SciDB array data into the stdin of the process and reads its stdout (hence 'streaming').
 
 ![image](https://cloud.githubusercontent.com/assets/2708498/16286948/b4b649d2-38ad-11e6-903f-489fdc532212.png)
@@ -87,11 +87,11 @@ The next section discusses the companion R package and shows some really cool ex
 
 See the package vignettes and source code in this sofware repository for more details.
 
-- [Basic example: aggregates](https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/basic_examples.Rmd)
-- [Intermediate example: range joins](https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/ranges.Rmd)
-- [Advanced example: machine learning](https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/advanced_example.Rmd)
+- [Basic example: aggregates](https://github.com/Paradigm4/stream/blob/master/r_pkg/vignettes/basic_examples.Rmd)
+- [Intermediate example: range joins](https://github.com/Paradigm4/stream/blob/master/r_pkg/vignettes/ranges.Rmd)
+- [Advanced example: machine learning](https://github.com/Paradigm4/stream/blob/master/r_pkg/vignettes/advanced_example.Rmd)
 
-For installing the R package, see: https://github.com/Paradigm4/streaming/blob/master/r_pkg/vignettes/advanced_example.Rmd#r
+For installing the R package, see: https://github.com/Paradigm4/stream/blob/master/r_pkg/vignettes/advanced_example.Rmd#r
 
 ## Stability and Security
 
@@ -107,7 +107,7 @@ Then it goes something like this:
 $ iquery -aq "load_library('dev_tools')"
 Query was executed successfully
 
-$ iquery -aq "install_github('paradigm4/streaming')"
+$ iquery -aq "install_github('paradigm4/stream')"
 {i} success
 {0} true
 

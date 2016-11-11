@@ -1,5 +1,5 @@
 # invoke with, for example:
-# iquery -aq "stream(build(<val:double> [i=1:5,5,0], i), 'Rscript /home/blewis/streaming/src/R_script.R', 'format=df', 'types=double,int32')"
+# iquery -aq "stream(build(<val:double> [i=1:5,5,0], i), 'Rscript /home/blewis/stream/src/R_script.R', 'format=df', 'types=double,int32')"
 
 con_in = file("stdin", "rb")
 con_out = pipe("cat", "wb")
