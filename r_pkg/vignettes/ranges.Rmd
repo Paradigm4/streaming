@@ -121,14 +121,14 @@ this example).
 library(scidb)
 library(parallel)
 
-scidbconnect()
+db = scidbconnect()
 
 # start up a little R cluster to parse the files in parallel (adjust this to
 # suit your system size, but leave out a few extra CPU cores to handle the the
 # implicit pipeline parallelism used in the R program below)
 cl = makePSOCKcluster(14)
-scidbrm("variants", force=TRUE, error=invisible)
-iquery("create array variants <start:int32,ref:string,alt:string>[chromosome=0:*,1,0,row=0:*,100000000,0]")
+db$remove("variants")
+iquery(db, "create array variants <start:int32,ref:string,alt:string>[chromosome=0:*,1,0,row=0:*,100000000,0]")
 
 f = function(file)
 {
@@ -161,7 +161,7 @@ f = function(file)
   x$start = as.integer(x$start)
   a = as.scidb(x, chunk_size=1e6)
   q = sprintf("insert(redimension(%s, variants), variants)", a@name)
-  iquery(q)
+  iquery(db, q)
   rm(list=c("x", "a"))
   gc()
   return(proc.time() - t2)
@@ -183,8 +183,8 @@ names(genes) = c("gene","chromosome","start","end")
 genes = genes[genes$start > 0 & genes$end > 0, ]
 genes$chromosome = as.integer(genes$chromosome) # warns about NAs, expected
 genes = genes[!is.na(genes$chromosome), ]  # omit "X" "Y" "M" "" chromosome data
-scidbrm("genes", force=TRUE, error=invisible)
-as.scidb(genes, name="genes")
+db$remove("genes", force=TRUE, error=invisible)
+as.scidb(db,genes, name="genes")
 
 # stop our little R cluster
 stopCluster(cl)
