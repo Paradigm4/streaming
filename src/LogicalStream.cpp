@@ -29,6 +29,7 @@
 #include "StreamSettings.h"
 #include "TSVInterface.h"
 #include "DFInterface.h"
+#include "usr_namespace/Permissions.h"
 
 using std::shared_ptr;
 
@@ -64,6 +65,14 @@ public:
             res.push_back(PARAM_CONSTANT("string"));
         }
         return res;
+    }
+
+    std::string inferPermissions(std::shared_ptr<Query>& query)
+    {
+        //Simplest security model: only admins can run streaming
+        std::string permissions;
+        permissions.push_back(scidb::permissions::Administrate);
+        return permissions;
     }
 
     ArrayDesc inferSchema(std::vector<ArrayDesc> schemas, shared_ptr<Query> query)
