@@ -2,7 +2,7 @@
 
 SCIDB_BIN=`which scidb`
 SCIDB_BIN=`dirname $SCIDB_BIN`
-CONFIG_NAME=`iquery -otsv -aq "project(filter(list('instances'), No=0), instance_path)" | sed -s "s/.*DB-//g" | sed -s "s/\/0\/0//g"`
+CONFIG_NAME="mydb"
 
 echo "Using scidb at " $SCIDB_BIN
 echo "Using config " $CONFIG_NAME
