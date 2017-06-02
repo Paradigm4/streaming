@@ -29,7 +29,7 @@
 #include "StreamSettings.h"
 #include "TSVInterface.h"
 #include "DFInterface.h"
-#include "usr_namespace/Permissions.h"
+#include "rbac/Rbac.h"
 
 using std::shared_ptr;
 
@@ -67,12 +67,10 @@ public:
         return res;
     }
 
-    std::string inferPermissions(std::shared_ptr<Query>& query)
+    void inferAccess(std::shared_ptr<Query>& query) override
     {
         //Simplest security model: only admins can run streaming
-        std::string permissions;
-        permissions.push_back(scidb::permissions::Administrate);
-        return permissions;
+        query->getRights()->upsert(rbac::ET_DB, "", rbac::P_DB_ADMIN);
     }
 
     ArrayDesc inferSchema(std::vector<ArrayDesc> schemas, shared_ptr<Query> query)
