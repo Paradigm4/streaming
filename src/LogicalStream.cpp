@@ -26,6 +26,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 #include <query/Operator.h>
+#include <fstream>
 #include "StreamSettings.h"
 #include "TSVInterface.h"
 #include "DFInterface.h"
@@ -69,7 +70,24 @@ public:
 
     void inferAccess(std::shared_ptr<Query>& query) override
     {
-        //Simplest security model: only admins can run streaming
+        //Read the file at /opt/scidb/VV.VV/etc/stream_allowed, one command per line
+        //If our command is in that file, it is "blessed" and we let it run by anyone. 
+        //Otherwise, the user needs to be in the 'operator' role. 
+        uint32_t major = SCIDB_VERSION_MAJOR();
+        uint32_t minor = SCIDB_VERSION_MINOR();
+        std::ostringstream commandsFile;
+        commandsFile<<"/opt/scidb/"<<major<<"."<<minor<<"/etc/stream_allowed";
+        Settings settings(_parameters, true, query);
+        std::string const& command = settings.getCommand(); 
+    	std::ifstream infile(commandsFile.str());
+        std::string line; 
+        while (std::getline(infile, line))
+        {
+            if(line == command)
+            {
+                return;
+            }
+        }   
         query->getRights()->upsert(rbac::ET_DB, "", rbac::P_DB_OPS);
     }
 
