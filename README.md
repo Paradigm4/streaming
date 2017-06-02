@@ -99,7 +99,7 @@ SciDB shall terminate all the child processes and cancel the query if any of the
 
 ### SciDB EE
 
-When using the SciDB Enterprise Edition in `password` mode, the user must be at least in the `operator` role in order to run a stream command. However, a list of approved commands can be created in the file `/opt/scidb/VV.VV/stream_allowed`. The commands in that file are allowed for any user. This is in addition to all array read and write permissions that apply just like they do in all other operators. Example:
+When using the SciDB Enterprise Edition in `password` mode, the user must be at least in the `operator` role in order to run `stream()` with an arbitrary command. An optional list of approved commands can be created in the file `/opt/scidb/VV.VV/stream_allowed`, one command per line. The commands in that file are allowed for any user. This is in addition to all array read and write permissions that apply just like they do in all other operators. For example:
 
 ```bash
 $ cat /tmp/foo.sh 
