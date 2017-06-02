@@ -97,7 +97,50 @@ For installing the R package, see: https://github.com/Paradigm4/stream/blob/mast
 
 SciDB shall terminate all the child processes and cancel the query if any of the child processes deviate from the exchange protocol or exit early. SciDB shall aslo kill all the child processes if the query is cancelled for any reason.
 
-Beyond that, the user assumes risks inherent in running arbitrary code next to a database: one should make sure the memory is adequate, child processes shouldn't fork other processes, ensure the security model is not compromised and so on.
+### SciDB EE
+
+When using the SciDB Enterprise Edition in `password` mode, the user must be at least in the `operator` role in order to run a stream command. However, a list of approved commands can be created in the file `/opt/scidb/VV.VV/stream_allowed`. The commands in that file are runnable by any user. This is in addition to all array read/write permissions that apply just like they do in all other operators. Example:
+
+```bash
+$ cat /tmp/foo.sh 
+echo 1
+echo "Yo!"
+
+#Root can run anything:
+$ iquery --auth-file=/home/scidb/.scidb_root_auth -aq "stream(filter(build(<val:double>[i=0:0,1,0],0),false), '/tmp/foo.sh')"
+{instance_id,chunk_no} response
+{0,0} 'Yo!'
+{1,0} 'Yo!'
+{2,0} 'Yo!'
+{3,0} 'Yo!'
+{4,0} 'Yo!'
+{5,0} 'Yo!'
+{6,0} 'Yo!'
+{7,0} 'Yo!'
+
+#This user isn't in the 'operators' group:
+$ iquery --auth-file=/home/scidb/.scidb_auth -aq "stream(filter(build(<val:double>[i=0:0,1,0],0),false), '/tmp/foo.sh')"
+UserException in file: src/namespaces/CheckAccess.cpp function: operator() line: 73
+Error id: libnamespaces::SCIDB_SE_QPROC::NAMESPACE_E_INSUFFICIENT_PERMISSIONS
+Error description: Query processor error. Insufficient permissions, need {[(db:)A],} but only have {[(ns:HUBB071601)lr],[(ns:public)RAclrud],}.
+
+#Add this command to the list of allowed commands:
+$ echo "/tmp/foo.sh" >> /opt/scidb/16.9/etc/stream_allowed 
+
+#Now anyone can run this command:
+$ iquery --auth-file=/home/scidb/.scidb_auth -aq "stream(filter(build(<val:double>[i=0:0,1,0],0),false), '/tmp/foo.sh')"
+{instance_id,chunk_no} response
+{0,0} 'Yo!'
+{1,0} 'Yo!'
+{2,0} 'Yo!'
+{3,0} 'Yo!'
+{4,0} 'Yo!'
+{5,0} 'Yo!'
+{6,0} 'Yo!'
+{7,0} 'Yo!'
+```
+
+Beyond this, the user assumes risks inherent in running arbitrary code next to a database: one should make sure the memory is adequate, child processes shouldn't fork other processes, ensure the security model is not compromised and so on.
 
 ## Installation
 
