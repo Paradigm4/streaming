@@ -99,7 +99,7 @@ SciDB shall terminate all the child processes and cancel the query if any of the
 
 ### SciDB EE
 
-When using the SciDB Enterprise Edition in `password` mode, the user must be at least in the `operator` role in order to run a stream command. However, a list of approved commands can be created in the file `/opt/scidb/VV.VV/stream_allowed`. The commands in that file are runnable by any user. This is in addition to all array read/write permissions that apply just like they do in all other operators. Example:
+When using the SciDB Enterprise Edition in `password` mode, the user must be at least in the `operator` role in order to run a stream command. However, a list of approved commands can be created in the file `/opt/scidb/VV.VV/stream_allowed`. The commands in that file are allowed for any user. This is in addition to all array read and write permissions that apply just like they do in all other operators. Example:
 
 ```bash
 $ cat /tmp/foo.sh 
@@ -118,11 +118,11 @@ $ iquery --auth-file=/home/scidb/.scidb_root_auth -aq "stream(filter(build(<val:
 {6,0} 'Yo!'
 {7,0} 'Yo!'
 
-#This user isn't in the 'operators' group:
+#This user isn't in the 'operators' role:
 $ iquery --auth-file=/home/scidb/.scidb_auth -aq "stream(filter(build(<val:double>[i=0:0,1,0],0),false), '/tmp/foo.sh')"
 UserException in file: src/namespaces/CheckAccess.cpp function: operator() line: 73
 Error id: libnamespaces::SCIDB_SE_QPROC::NAMESPACE_E_INSUFFICIENT_PERMISSIONS
-Error description: Query processor error. Insufficient permissions, need {[(db:)A],} but only have {[(ns:HUBB071601)lr],[(ns:public)RAclrud],}.
+Error description: Query processor error. Insufficient permissions, need {[(db:)A],} but only have {[(ns:XYZ)lr],[(ns:public)RAclrud],}.
 
 #Add this command to the list of allowed commands:
 $ echo "/tmp/foo.sh" >> /opt/scidb/16.9/etc/stream_allowed 
