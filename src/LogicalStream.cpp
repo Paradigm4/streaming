@@ -70,7 +70,7 @@ public:
     void inferAccess(std::shared_ptr<Query>& query) override
     {
         //Simplest security model: only admins can run streaming
-        query->getRights()->upsert(rbac::ET_DB, "", rbac::P_DB_ADMIN);
+        query->getRights()->upsert(rbac::ET_DB, "", rbac::P_DB_OPS);
     }
 
     ArrayDesc inferSchema(std::vector<ArrayDesc> schemas, shared_ptr<Query> query)
