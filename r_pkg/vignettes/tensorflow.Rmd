@@ -94,6 +94,11 @@ iquery(con, query, return=TRUE, only_attributes=TRUE)
 1 2.000002 4.999999
 ```
 
+# Basic MNIST example
+
+See the tutorial https://tensorflow.rstudio.com/tensorflow/articles/tutorial_mnist_beginners.html.
+
+
 # Distributed TensorFlow
 
 TensorFlow can distributed work across distributed processes in a cluster.  See
