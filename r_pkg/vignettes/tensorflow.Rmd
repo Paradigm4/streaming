@@ -87,6 +87,5 @@ query <- sprintf("stream(x,
                    _sg(%s,0))",
                  program@name)
 
-iquery(con, query, return=TRUE)
-iquery(con, "stream(x, 'Rscript /tmp/hello_tensorflow.r','format=df', 'types=double,double')", return=TRUE)
+iquery(con, query, return=TRUE, only_attributes=TRUE)
 ```
