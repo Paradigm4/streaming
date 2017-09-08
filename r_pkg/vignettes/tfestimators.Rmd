@@ -1,0 +1,40 @@
+# Problems with the tfestimators model interface
+
+This requires more work! The tfestimators package doesn't work in this context
+yet...  It's not possible yet to serialize models built with RStudio's
+tfestimators model interface. For instance, this doesn't work:
+
+```{r, eval=FALSE}
+library(tfestimators)
+
+# return an input_fn for a given subset of data
+mtcars_input_fn <- function(data) {
+  input_fn(data, 
+           features = c("disp", "cyl"), 
+           response = "mpg")
+}
+cols <- feature_columns( 
+  column_numeric("disp", "cyl")
+)
+model <- linear_regressor(feature_columns = cols)
+
+indices <- sample(1:nrow(mtcars), size = 0.80 * nrow(mtcars))
+train <- mtcars[indices, ]
+test  <- mtcars[-indices, ]
+
+# train the model
+model %>% train(mtcars_input_fn(train))
+
+# Try serializing the model
+save(model, file="/tmp/model.rdata")
+rm(model)
+load("/tmp/model.rdata")
+
+# even printing the unserialized model doesn't work:
+print(model)
+```
+```
+ Error in py_call_impl(callable, dots$args, dots$keywords) : 
+  AttributeError: 'NoneType' object has no attribute 'endswith' 
+```
+

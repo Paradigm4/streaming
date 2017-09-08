@@ -1,4 +1,4 @@
-# SciDB, R, and Tensorflow
+# SciDB, R, and TensorFlow
 
 The SciDB streaming plugin (https://github.com/Paradigm4/stream) lets you
 invoke arbitrary programs on streaming data within the context of a SciDB query
@@ -30,7 +30,7 @@ tryCatch(con$remove("x"), error=invisible)  # remove any array named 'x'
 as.scidb(con, (function(){x=runif(100); data.frame(x=x, y=x * 2 + 5)})(), name="x")
 ```
 
-## Define a Tensorflow gradient descent program
+## Define a TensorFlow gradient descent program
 
 ```{r, eval=FALSE}
 library(jsonlite)
@@ -89,3 +89,17 @@ query <- sprintf("stream(x,
 
 iquery(con, query, return=TRUE, only_attributes=TRUE)
 ```
+```
+        a0       a1
+1 2.000002 4.999999
+```
+
+# Distributed TensorFlow
+
+TensorFlow can distributed work across distributed processes in a cluster.  See
+https://www.tensorflow.org/deploy/distributed for details and examples.
+
+Although TensorFlow includes inter-process communication and remote procedure
+call methods, it does not include a management interface for launching and
+controlling worker processes.  We can use the SciDB streaming API to automate
+process creation for parallel/distributed TensorFlow work.

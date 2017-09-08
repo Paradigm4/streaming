@@ -88,3 +88,55 @@ models <- lapply(result$model, function(x) unserialize(base64_dec(x)))
 # The model with the best llik
 print(models[which(llik == max(llik))[1]])
 ```
+```
+Conditional item response (column) probabilities,
+ by outcome variable, for each class (row) 
+ 
+$PURPOSE
+          Depends   Good Waste of time
+class 1:   0.2720 0.1053        0.6228
+class 2:   0.1010 0.8660        0.0330
+class 3:   0.1704 0.2371        0.5925
+class 4:   0.0247 0.9752        0.0000
+
+$ACCURACY
+          Mostly true Not true
+class 1:       0.2466   0.7534
+class 2:       0.6810   0.3190
+class 3:       0.0000   1.0000
+class 4:       0.6179   0.3821
+
+$UNDERSTA
+          Fair/Poor   Good
+class 1:     0.0000 1.0000
+class 2:     0.6242 0.3758
+class 3:     0.5181 0.4819
+class 4:     0.0631 0.9369
+
+$COOPERAT
+          Cooperative Impatient Interested
+class 1:       0.1297    0.0000     0.8703
+class 2:       0.3226    0.0601     0.6173
+class 3:       0.3527    0.2246     0.4227
+class 4:       0.0496    0.0000     0.9504
+
+Estimated class population shares 
+ 0.1488 0.1638 0.0858 0.6015 
+ 
+Predicted class memberships (by modal posterior prob.) 
+ 0.1764 0.1473 0.0532 0.6231 
+ 
+========================================================= 
+Fit for 4 latent classes: 
+========================================================= 
+number of observations: 1202 
+number of estimated parameters: 27 
+residual degrees of freedom: 8 
+maximum log-likelihood: -2746.85 
+ 
+AIC(4): 5547.701
+BIC(4): 5685.178
+G^2(4): 6.50193 (Likelihood ratio/deviance statistic) 
+X^2(4): 6.580739 (Chi-square goodness of fit) 
+ 
+```
