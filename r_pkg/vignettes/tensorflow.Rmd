@@ -94,10 +94,9 @@ iquery(con, query, return=TRUE, only_attributes=TRUE)
 1 2.000002 4.999999
 ```
 
-# Basic MNIST example
+# Serializing models
 
-See the tutorial https://tensorflow.rstudio.com/tensorflow/articles/tutorial_mnist_beginners.html.
-
+WRITE ME
 
 # Distributed TensorFlow
 
