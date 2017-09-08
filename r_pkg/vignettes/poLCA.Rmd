@@ -1,3 +1,20 @@
+# poLCA package example
+
+The following self-contained example runs the 'gss82' classification example
+from the poLCA package (1982 General Social Survey).  It's a fairly advanced
+example that shows how to adapt an existing package example for parallel
+execution across an arbitrary number of workers.
+
+The example runs in parallel across all SciDB instances. Each instance returns
+a candidate classification model. The example displays the model with the best
+log likelihood fit.
+
+A notable feature of this example is that the results are reproducible, even
+across SciDB deployments with different numbers of nodes, thanks to R's
+built-in L'Ecuyer parallel random number generator streams.
+
+
+```{r, eval=FALSE}
 library(poLCA)
 library(jsonlite)
 library(scidb)
@@ -40,9 +57,7 @@ program <- as.scidb(con, base64_enc(serialize(expression(
 }), NULL)))
 
 
-
-
-# An example from the poLCA vignette:
+# From the poLCA vignette:
 data(gss82)
 n <- nrow(gss82)
 REPLICATIONS <-  nrow(iquery(con, "list('instances')", TRUE))
@@ -54,7 +69,6 @@ repl <- Reduce(rbind, Map(function(j) cbind(gss82, seed=j), 1:REPLICATIONS))
 
 schema <- sprintf("<PURPOSE:string,ACCURACY:string,UNDERSTA:string,COOPERAT:string,seed:int32> [i=1:1202:0:%d]", n)
 x <- store(con, con$repart(as.scidb(con, repl), R(schema)), name='gss82')
-
 
 # Run the experiment using the SciDB streaming API in parallel.
 query <- sprintf("stream(gss82, 
@@ -73,3 +87,4 @@ models <- lapply(result$model, function(x) unserialize(base64_dec(x)))
 
 # The model with the best llik
 print(models[which(llik == max(llik))[1]])
+```
