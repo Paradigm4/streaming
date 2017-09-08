@@ -331,8 +331,8 @@ tabulation of the results in R (interactive R code follows), sometimes
 called a confusion matrix.
 ```{r}
 library(scidb)
-scidbconnect()
-p = scidb("predictions")[]
+con <- scidbconnect()
+p = as.R(scidb(con, "predictions"))
 p = p[,4:5]
 names(p) = c("observed", "predicted")
 table(p)
