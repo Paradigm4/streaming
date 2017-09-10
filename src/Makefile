@@ -1,4 +1,4 @@
-ifeq ($(SCIDB),) 
+ifeq ($(SCIDB),)
   X := $(shell which scidb 2>/dev/null)
   ifneq ($(X),)
     X := $(shell dirname ${X})
@@ -41,7 +41,7 @@ else
 endif
 
 all: libstream.so
-	
+
 libstream.so: $(SRCS) StreamSettings.h ChildProcess.h TSVInterface.h DFInterface.h
 	@if test ! -d "$(SCIDB)"; then echo  "Error. Try:\n\nmake SCIDB=<PATH TO SCIDB INSTALL PATH>"; exit 1; fi
 	$(CXX) $(CFLAGS) $(INC) -o libstream.so $(SRCS) $(LIBS)
@@ -53,6 +53,6 @@ libstream.so: $(SRCS) StreamSettings.h ChildProcess.h TSVInterface.h DFInterface
 
 test:
 	@./test.sh
-	
+
 clean:
 	rm -f *.so *.o stream_test_client
