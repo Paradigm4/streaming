@@ -30,6 +30,7 @@
 #include "StreamSettings.h"
 #include "TSVInterface.h"
 #include "DFInterface.h"
+#include "FeatherInterface.h"
 #include "rbac/Rbac.h"
 
 using std::shared_ptr;
@@ -102,9 +103,13 @@ public:
         {
             return TSVInterface::getOutputSchema(schemas, settings, query);
         }
-        else
+        else if(settings.getFormat() == DF)
         {
             return DFInterface::getOutputSchema(schemas, settings, query);
+        }
+        else
+        {
+            return FeatherInterface::getOutputSchema(schemas, settings, query);
         }
     }
 };

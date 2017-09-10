@@ -40,6 +40,7 @@
 #include "ChildProcess.h"
 #include "TSVInterface.h"
 #include "DFInterface.h"
+#include "FeatherInterface.h"
 
 using std::shared_ptr;
 using std::make_shared;
@@ -142,9 +143,13 @@ public:
         {
             return runStream<TSVInterface>(inputArrays, settings, query);
         }
-        else
+        else if(settings.getFormat() == DF)
         {
             return runStream<DFInterface> (inputArrays, settings, query);
+        }
+        else                    // Feather
+        {
+            return runStream<FeatherInterface> (inputArrays, settings, query);
         }
     }
 };

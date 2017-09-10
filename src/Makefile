@@ -28,7 +28,7 @@ INC=-I. -DPROJECT_ROOT="\"$(SCIDB)\"" -I"$(SCIDB_THIRDPARTY_PREFIX)/3rdparty/boo
 LIBS=-shared -Wl,-soname,libstream.so -L. -L"$(SCIDB_THIRDPARTY_PREFIX)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -Wl,-rpath,$(SCIDB)/lib:$(RPATH) -lm
 CFLAGS+=-std=c++11 -DCPP11
 
-SRCS=plugin.cpp LogicalStream.cpp PhysicalStream.cpp ChildProcess.cpp TSVInterface.cpp DFInterface.cpp
+SRCS=plugin.cpp LogicalStream.cpp PhysicalStream.cpp ChildProcess.cpp TSVInterface.cpp DFInterface.cpp FeatherInterface.cpp
 # Compiler settings for SciDB version >= 15.7
 ifneq ("$(wildcard /usr/bin/g++-4.9)","")
   CC := "/usr/bin/gcc-4.9"
@@ -42,7 +42,7 @@ endif
 
 all: libstream.so
 
-libstream.so: $(SRCS) StreamSettings.h ChildProcess.h TSVInterface.h DFInterface.h
+libstream.so: $(SRCS) StreamSettings.h ChildProcess.h TSVInterface.h DFInterface.h FeatherInterface.h
 	@if test ! -d "$(SCIDB)"; then echo  "Error. Try:\n\nmake SCIDB=<PATH TO SCIDB INSTALL PATH>"; exit 1; fi
 	$(CXX) $(CFLAGS) $(INC) -o libstream.so $(SRCS) $(LIBS)
 	@echo "Now copy *.so to your SciDB lib/scidb/plugins directory and run"

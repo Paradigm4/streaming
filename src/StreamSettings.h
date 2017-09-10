@@ -49,8 +49,9 @@ namespace scidb { namespace stream
 
 enum TransferFormat
 {
-    TSV,   //text tsv
-    DF     //R data.frame
+    TSV,     // text tsv
+    DF,      // R data.frame
+    FEATHER  // Apache Arrow Feather format
 };
 
 class Settings
@@ -102,6 +103,10 @@ private:
         else if(trimmedContent == "df")
         {
             _transferFormat = DF;
+        }
+        else if(trimmedContent == "feather")
+        {
+            _transferFormat = FEATHER;
         }
         else
         {
