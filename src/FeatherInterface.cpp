@@ -2,7 +2,7 @@
 **
 * BEGIN_COPYRIGHT
 *
-* Copyright (C) 2008-2016 SciDB, Inc.
+* Copyright (C) 2008-2017 SciDB, Inc.
 * All Rights Reserved.
 *
 * stream is a plugin for SciDB, an Open Source Array DBMS maintained
@@ -23,10 +23,15 @@
 * END_COPYRIGHT
 */
 
-#include "StreamSettings.h"
-#include "ChildProcess.h"
 #include <vector>
 #include <string>
+#include <memory>
+#include <arrow/api.h>
+#include <arrow/io/memory.h>
+#include <arrow/ipc/feather.h>
+
+#include "StreamSettings.h"
+#include "ChildProcess.h"
 #include "FeatherInterface.h"
 
 using std::vector;
@@ -79,9 +84,11 @@ FeatherInterface::FeatherInterface(Settings const& settings, ArrayDesc const& ou
 void FeatherInterface::setInputSchema(ArrayDesc const& inputSchema)
 {
     Attributes const& attrs = inputSchema.getAttributes(true);
-    _inputTypes.resize(attrs.size());
-    _inputConverters.resize(attrs.size());
-    for(size_t i=0; i<_inputTypes.size(); ++i)
+    size_t const nInputAttrs = attrs.size();
+    _inputTypes.resize(nInputAttrs);
+    _inputNames.resize(nInputAttrs);
+    _inputConverters.resize(nInputAttrs);
+    for(size_t i=0; i < nInputAttrs; ++i)
     {
         TypeId const& inputType = attrs[i].getType();
         _inputTypes[i] = typeId2TypeEnum(inputType, true);
@@ -100,267 +107,147 @@ void FeatherInterface::setInputSchema(ArrayDesc const& inputSchema)
                 TID_STRING,
                 false);
         }
+        _inputNames[i]= attrs[i].getName();
     }
 }
 
-void FeatherInterface::streamData(std::vector<ConstChunk const*> const& inputChunks, ChildProcess& child)
+void FeatherInterface::streamData(std::vector<ConstChunk const*> const& inputChunks,
+                                  ChildProcess& child)
 {
     if(inputChunks.size() != _inputTypes.size())
     {
-        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "received inconsistent number of input chunks";
+        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION)
+          << "received inconsistent number of input chunks";
     }
-    if(inputChunks[0]->count() == 0)
+    size_t numRows = inputChunks[0]->count();
+    if(numRows == 0)
     {
         return;
     }
+    if(numRows > (size_t) std::numeric_limits<int32_t>::max())
+    {
+        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION)
+          << "received chunk with count exceeding the Arrow array limit";
+    }
     if(!child.isAlive())
     {
-        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child exited early";
+        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION)
+          << "child exited early";
     }
-    vector<shared_ptr<ConstChunkIterator> > citers(inputChunks.size());
-    size_t nCells;
-    string output;
-    for(size_t i =0, n= _inputTypes.size(); i<n; ++i)
-    {
-        citers[i] = inputChunks[i]->getConstIterator(ConstChunkIterator::IGNORE_OVERLAPS | ConstChunkIterator::IGNORE_EMPTY_CELLS);
-    }
-    convertChunks(citers, nCells, output);
-    writeFeather(nCells, output, child);
-    readFeather(output, child);
-    if(output.size() > MAX_RESPONSE_SIZE)
-    {
-        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "response from child exceeds maximum size";
-    }
-    if(output.size())
-    {
-        output.resize(output.size()-1);
-        addChunkToArray(output);
-    }
+    writeFeather(inputChunks, numRows, child);
+    readFeather(child);
 }
 
 shared_ptr<Array> FeatherInterface::finalize(ChildProcess& child)
 {
-    writeFeather(0, "", child);
-    string output;
-    readFeather(output, child, true);
-    if(output.size() > MAX_RESPONSE_SIZE)
-    {
-        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "response from child exceeds maximum size";
-    }
-    if(output.size())
-    {
-        output.resize(output.size()-1);
-        addChunkToArray(output);
-    }
+    writeFinalFeather(child);
+    readFeather(child, true);
     _aiter.reset();
     return _result;
 }
 
-
-void FeatherInterface::convertChunks(vector< shared_ptr<ConstChunkIterator> > citers, size_t &nCells, string& output)
+void FeatherInterface::writeFeather(vector<ConstChunk const*> const& chunks,
+                                    int32_t const numRows,
+                                    ChildProcess& child)
 {
-    Value stringVal;
-    nCells = 0;
-    ostringstream outputBuf;
-    while(!citers[0]->end())
+    int32_t numColumns = chunks.size();
+    LOG4CXX_DEBUG(logger, "writeFeather::numColumns:" << numColumns);
+    LOG4CXX_DEBUG(logger, "writeFeather::numRows:" << numRows);
+
+    std::shared_ptr<arrow::io::BufferOutputStream> stream;
+    arrow::io::BufferOutputStream::Create(
+        1024, arrow::default_memory_pool(), &stream);
+
+    std::unique_ptr<arrow::ipc::feather::TableWriter> writer;
+    arrow::ipc::feather::TableWriter::Open(stream, &writer);
+
+    writer->SetNumRows(numRows);
+
+    for(size_t i = 0; i < _inputTypes.size(); ++i)
     {
-        if(_printCoords)
+        shared_ptr<ConstChunkIterator> citer =
+          chunks[i]->getConstIterator(ConstChunkIterator::IGNORE_OVERLAPS
+                                      | ConstChunkIterator::IGNORE_EMPTY_CELLS);
+
+        std::shared_ptr<arrow::ArrayBuilder> builder;
+        switch(_inputTypes[i])
         {
-            Coordinates const& pos = citers[0]->getPosition();
-            for(size_t i =0, n=pos.size(); i<n; ++i)
+        case TE_INT64:
             {
-                if(i)
-                {
-                    outputBuf<<_attDelim;
-                }
-                outputBuf<<pos[i];
+                builder.reset(
+                    new arrow::Int64Builder(
+                        arrow::default_memory_pool(),
+                        arrow::int64()));
             }
+            break;
         }
-        for (size_t i = 0, n=citers.size(); i < n; ++i)
+        while((!citer->end()))
         {
-            Value const& v = citers[i]->getItem();
-            if (i || _printCoords)
+            Value const& value = citer->getItem();
+            switch(_inputTypes[i])
             {
-                outputBuf<<_attDelim;
-            }
-            if(v.isNull())
-            {
-                outputBuf<<_nullRepresentation; //TODO: note all missing codes are converted to this representation
-            }
-            else
-            {
-                switch(_inputTypes[i])
+            case TE_INT64:
                 {
-                case TE_STRING:
+                    if(value.isNull())
                     {
-                        char const* s = v.getString();
-                        while (char c = *s++)
-                        {
-                            if (c == '\n')
-                            {
-                                outputBuf << "\\n";
-                            }
-                            else if (c == '\t')
-                            {
-                                outputBuf << "\\t";
-                            }
-                            else if (c == '\r')
-                            {
-                                outputBuf << "\\r";
-                            }
-                            else if (c == '\\')
-                            {
-                                outputBuf << "\\\\";
-                            }
-                            else
-                            {
-                                outputBuf << c;
-                            }
-                        }
-                    }
-                    break;
-                case TE_BOOL:
-                    if(v.getBool())
-                    {
-                        outputBuf<<"true";
+                        std::dynamic_pointer_cast<arrow::Int64Builder>(
+                            builder)->AppendNull();
                     }
                     else
                     {
-                        outputBuf<<"false";
-                    }
-                    break;
-                case TE_DOUBLE:
-                    {
-                        double nbr =v.getDouble();
-                        if(std::isnan(nbr))
-                        {
-                            outputBuf<<_nanRepresentation;
-                        }
-                        else
-                        {
-                            outputBuf.precision(std::numeric_limits<double>::max_digits10);
-                            outputBuf<<nbr;
-                        }
-                    }
-                    break;
-                case TE_FLOAT:
-                    {
-                        float fnbr =v.getFloat();
-                        if(std::isnan(fnbr))
-                        {
-                            outputBuf<<_nanRepresentation;
-                        }
-                        else
-                        {
-                            outputBuf.precision(std::numeric_limits<float>::max_digits10);
-                            outputBuf<<fnbr;
-                        }
-                    }
-                    break;
-                case TE_UINT8:
-                    {
-                        uint8_t nbr =v.getUint8();
-                        outputBuf<<(int16_t) nbr;
-                    }
-                    break;
-                case TE_INT8:
-                    {
-                        int8_t nbr =v.getUint8();
-                        outputBuf<<(int16_t) nbr;
-                    }
-                    break;
-                default:
-                    {
-                        Value const * vv = &v;
-                        (*_inputConverters[i])(&vv, &stringVal, NULL);
-                        outputBuf<<stringVal.getString();
+                        std::dynamic_pointer_cast<arrow::Int64Builder>(
+                            builder)->Append(value.getInt64());
                     }
                 }
+                break;
             }
+            ++(*citer);
         }
-        outputBuf<<_lineDelim;
-        ++nCells;
-        for(size_t i = 0, n=citers.size(); i<n; ++i)
-        {
-            ++(*citers[i]);
-        }
+
+        std::shared_ptr<arrow::Array> array;
+        builder->Finish(&array);
+
+        // Print array for debugging
+        std::stringstream prettyprint_stream;
+        arrow::PrettyPrint(*array, 0, &prettyprint_stream);
+        LOG4CXX_DEBUG(logger, "writeFeather::array:"
+                      << prettyprint_stream.str().c_str());
+
+        writer->Append(_inputNames[i].c_str(), *array);
     }
-    output = outputBuf.str();
+    writer->Finalize();
+
+    std::shared_ptr<arrow::Buffer> buffer;
+    stream->Finish(&buffer);
+
+    int64_t sz = buffer->size();
+    LOG4CXX_DEBUG(logger, "writeFeather::sizeBuffer:" << sz);
+    child.hardWrite(&sz, sizeof(int64_t));
+    child.hardWrite(buffer->data(), buffer->size());
 }
 
-void FeatherInterface::writeFeather(size_t const nLines, string const& inputData, ChildProcess& child)
+void FeatherInterface::writeFinalFeather(ChildProcess& child)
 {
-    char hdr[4096];
-    snprintf (hdr, 4096, "%lu\n", nLines);
-    size_t n = strlen (hdr);
-    child.hardWrite (hdr, n);
-    if(n>0)
-    {
-        child.hardWrite (inputData.c_str(), inputData.size());
-    }
+    LOG4CXX_DEBUG(logger, "writeFinalFeather::0");
+
+    int64_t zero = 0;
+    child.hardWrite(&zero, sizeof(int64_t));
 }
 
-void FeatherInterface::readFeather (std::string& output, ChildProcess& child, bool last)
+void FeatherInterface::readFeather(ChildProcess& child,
+                                   bool lastMessage)
 {
-    size_t bufSize = 1024*1024;
-    vector<char> buf(bufSize);
-    size_t dataSize = child.softRead( &(buf[0]), bufSize, !last);
-    size_t idx =0;
-    while ( idx < dataSize && buf[idx] != '\n')
-    {
-        ++ idx;
-    }
-    if( idx >= dataSize)
-    {
-        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "Feather header provided by child did not contain a newline";
-    }
-    char* end = &(buf[0]);
-    errno = 0;
-    int64_t expectedNumLines = strtoll(&(buf[0]), &end, 10);
-    if(*end != '\n' || (size_t) (end - &(buf[0])) != idx || errno !=0 || expectedNumLines < 0)
-    {
-        LOG4CXX_DEBUG(logger, "Got this stuff "<<(&buf[0]));
-        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child provided invalid number of lines";
-    }
-    ++idx;
-    size_t const tsvStartIdx = idx;
-    int64_t linesReceived = 0;
-    while(linesReceived < expectedNumLines)
-    {
-        while(idx < dataSize && linesReceived < expectedNumLines)
-        {
-            if(buf[idx] == '\n')
-            {
-                ++linesReceived;
-            }
-            ++idx;
-        }
-        if(linesReceived < expectedNumLines)
-        {
-            if(idx >= bufSize)
-            {
-                bufSize = bufSize * 2;
-                buf.resize(bufSize);
-            }
-            dataSize += child.softRead( &(buf[0]) + dataSize, bufSize - dataSize, !last);
-        }
-    }
-    if(dataSize > idx)
-    {
-        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "received extraneous characters at end of message";
-    }
-    if(buf[dataSize-1] != '\n')
-    {
-        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "child did not end message with newline";
-    }
-    output.assign( &(buf[tsvStartIdx]), dataSize - tsvStartIdx);
-}
+    LOG4CXX_DEBUG(logger, "readFeather");
 
-void FeatherInterface::addChunkToArray(string const& output)
-{
-    shared_ptr<ChunkIterator> citer = _aiter->newChunk(_outPos).getIterator(_query, ChunkIterator::SEQUENTIAL_WRITE);
+    int64_t flag;
+    child.hardRead(&flag, sizeof(int64_t), !lastMessage);
+    LOG4CXX_DEBUG(logger, "readFeather::flag:" << flag);
+
+    shared_ptr<ChunkIterator> citer =
+      _aiter->newChunk(_outPos).getIterator(_query,
+                                            ChunkIterator::SEQUENTIAL_WRITE);
     citer->setPosition(_outPos);
-    _stringBuf.setString(output);
+    _stringBuf.setString("Hi!");
     citer->writeItem(_stringBuf);
     citer->flush();
     _outPos[1]++;

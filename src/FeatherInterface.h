@@ -2,7 +2,7 @@
 **
 * BEGIN_COPYRIGHT
 *
-* Copyright (C) 2008-2016 SciDB, Inc.
+* Copyright (C) 2008-2017 SciDB, Inc.
 * All Rights Reserved.
 *
 * stream is a plugin for SciDB, an Open Source Array DBMS maintained
@@ -100,14 +100,16 @@ private:
     std::shared_ptr<Array>         _result;
     std::shared_ptr<ArrayIterator> _aiter;
     Coordinates                    _outPos;
-    std::vector <TypeEnum>         _inputTypes;
+    std::vector<TypeEnum>          _inputTypes;
+    std::vector<std::string>       _inputNames;
     std::vector<FunctionPointer>   _inputConverters;
     Value                          _stringBuf;
 
-    void convertChunks(std::vector< std::shared_ptr<ConstChunkIterator> > citers, size_t &nCells, std::string& output);
-    void writeFeather(size_t const nLines, std::string const& inputData, ChildProcess& child);
-    void readFeather (std::string& output, ChildProcess& child, bool last = false);
-    void addChunkToArray(std::string const& output);
+    void writeFeather(std::vector<ConstChunk const*> const& chunks,
+                      int32_t const numRows,
+                      ChildProcess& child);
+    void writeFinalFeather(ChildProcess& child);
+    void readFeather(ChildProcess& child, bool lastMessage = false);
 };
 
 }}
