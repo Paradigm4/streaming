@@ -84,5 +84,6 @@ Adjust path to `python_feather_example.py`:
             build(<a:int64>[i=1:10:0:5], int64(random() % 5)),
             b, random() % 10),
           'python -u examples/python_feather_example.py',
-          'format=feather'),
+          'format=feather',
+          'types=int64,int64'),
         'num_attributes=1')"

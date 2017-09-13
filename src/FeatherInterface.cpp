@@ -42,44 +42,78 @@ namespace scidb { namespace stream {
 
 static log4cxx::LoggerPtr logger(log4cxx::Logger::getLogger("scidb.operators.stream.feather_interface"));
 
-ArrayDesc FeatherInterface::getOutputSchema(vector<ArrayDesc> const& inputSchemas, Settings const& settings, shared_ptr<Query> const& query)
+ArrayDesc FeatherInterface::getOutputSchema(
+    std::vector<ArrayDesc> const& inputSchemas,
+    Settings const& settings,
+    std::shared_ptr<Query> const& query)
 {
     if(settings.getFormat() != FEATHER)
     {
-        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "Feather interface invoked on improper format";
+        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION)
+            << "FEATHER interface invoked on improper format";
     }
-    if(settings.getTypes().size())
+    vector<TypeEnum> outputTypes = settings.getTypes();
+    vector<string>   outputNames = settings.getNames();
+    if(outputTypes.size() == 0)
     {
-        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "Feather interface does not support the types parameter";
+        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION)
+            << "FEATHER interface requires that output types are specified";
     }
-    if(settings.isChunkSizeSet())
+    if(outputNames.size() == 0)
     {
-        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "Feather interface does not support the chunk size parameter";
+        for(size_t i =0; i<outputTypes.size(); ++i)
+        {
+            ostringstream name;
+            name << "a" << i;
+            outputNames.push_back(name.str());
+        }
     }
-    if(settings.getNames().size() > 1)
+    else if (outputNames.size() != outputTypes.size())
     {
-        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "Feather interface supports only one result name";
+        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION)
+            << "received inconsistent names and types";
+    }
+    for(size_t i = 0; i<inputSchemas.size(); ++i)
+    {
+        ArrayDesc const& schema = inputSchemas[i];
+        Attributes const& attrs = schema.getAttributes(true);
+        for(size_t j = 0, nAttrs = attrs.size(); j<nAttrs; ++j)
+        {
+            AttributeDesc const& attr = attrs[j];
+            TypeEnum te = typeId2TypeEnum(attrs[j].getType(), true);
+        }
     }
     Dimensions outputDimensions;
     outputDimensions.push_back(DimensionDesc("instance_id", 0,   query->getInstancesCount()-1, 1, 0));
     outputDimensions.push_back(DimensionDesc("chunk_no",    0,   CoordinateBounds::getMax(),   1, 0));
+    outputDimensions.push_back(DimensionDesc("value_no",    0,   CoordinateBounds::getMax(),   settings.getChunkSize(), 0));
     Attributes outputAttributes;
-    outputAttributes.push_back( AttributeDesc(0, settings.getNames().size() ? settings.getNames()[0] : "response",   TID_STRING,    0, 0));
+    for(AttributeID i =0; i<outputTypes.size(); ++i)
+    {
+        outputAttributes.push_back( AttributeDesc(i,  outputNames[i], typeEnum2TypeId(outputTypes[i]), AttributeDesc::IS_NULLABLE, 0));
+    }
     outputAttributes = addEmptyTagAttribute(outputAttributes);
     return ArrayDesc(inputSchemas[0].getName(), outputAttributes, outputDimensions, defaultPartitioning(), query->getDefaultArrayResidency());
 }
 
 FeatherInterface::FeatherInterface(Settings const& settings, ArrayDesc const& outputSchema, std::shared_ptr<Query> const& query):
-    _attDelim(  '\t'),
-    _lineDelim( '\n'),
-    _printCoords(false),
-    _nanRepresentation("nan"),
-    _nullRepresentation("\\N"),
     _query(query),
     _result(new MemArray(outputSchema, query)),
-    _aiter(_result->getIterator(0)),
-    _outPos{ ((Coordinate) _query->getInstanceID()), 0}
-{}
+    _outPos{((Coordinate) _query->getInstanceID()), 0, 0},
+    _outputChunkSize(settings.getChunkSize()),
+    _nOutputAttrs((int32_t)outputSchema.getAttributes(true).size()),
+    _oaiters(_nOutputAttrs + 1),
+    _outputTypes(_nOutputAttrs),
+    _readBuf(1024*1024)
+{
+    for(int32_t i = 0; i < _nOutputAttrs; ++i)
+    {
+        _oaiters[i] = _result->getIterator(i);
+        _outputTypes[i] = settings.getTypes()[i];
+    }
+    _oaiters[_nOutputAttrs] = _result->getIterator(_nOutputAttrs);
+    _nullVal.setNull();
+}
 
 void FeatherInterface::setInputSchema(ArrayDesc const& inputSchema)
 {
@@ -142,7 +176,7 @@ shared_ptr<Array> FeatherInterface::finalize(ChildProcess& child)
 {
     writeFinalFeather(child);
     readFeather(child, true);
-    _aiter.reset();
+    _oaiters.clear();
     return _result;
 }
 
@@ -220,10 +254,10 @@ void FeatherInterface::writeFeather(vector<ConstChunk const*> const& chunks,
     std::shared_ptr<arrow::Buffer> buffer;
     stream->Finish(&buffer);
 
-    int64_t sz = buffer->size();
-    LOG4CXX_DEBUG(logger, "writeFeather::sizeBuffer:" << sz);
-    child.hardWrite(&sz, sizeof(int64_t));
-    child.hardWrite(buffer->data(), buffer->size());
+    uint64_t writeSize = buffer->size();
+    LOG4CXX_DEBUG(logger, "writeFeather::writeSize:" << writeSize);
+    child.hardWrite(&writeSize, sizeof(uint64_t));
+    child.hardWrite(buffer->data(), writeSize);
 }
 
 void FeatherInterface::writeFinalFeather(ChildProcess& child)
@@ -239,17 +273,102 @@ void FeatherInterface::readFeather(ChildProcess& child,
 {
     LOG4CXX_DEBUG(logger, "readFeather");
 
-    int64_t flag;
-    child.hardRead(&flag, sizeof(int64_t), !lastMessage);
-    LOG4CXX_DEBUG(logger, "readFeather::flag:" << flag);
+    uint64_t readSize;
+    child.hardRead(&readSize, sizeof(uint64_t), !lastMessage);
+    LOG4CXX_DEBUG(logger, "readFeather::readSize:" << readSize);
+    if (readSize == 0)
+    {
+        return;
+    }
 
-    shared_ptr<ChunkIterator> citer =
-      _aiter->newChunk(_outPos).getIterator(_query,
-                                            ChunkIterator::SEQUENTIAL_WRITE);
-    citer->setPosition(_outPos);
-    _stringBuf.setString("Hi!");
-    citer->writeItem(_stringBuf);
-    citer->flush();
+    if (readSize > _readBuf.size())
+    {
+        _readBuf.resize(readSize);
+    }
+    child.hardRead(&(_readBuf[0]), readSize, !lastMessage);
+    std::shared_ptr<arrow::io::BufferReader> buffer(
+        new arrow::io::BufferReader(&(_readBuf[0]), readSize));
+
+    std::unique_ptr<arrow::ipc::feather::TableReader> reader;
+    arrow::ipc::feather::TableReader::Open(buffer, &reader);
+
+    int64_t numColumns = reader->num_columns();
+    int64_t numRows = reader->num_rows();
+    LOG4CXX_DEBUG(logger, "readFeather::numColumns:" << numColumns
+                  << ":numRows:" << numRows);
+
+    if (numColumns > 0 && numColumns != _nOutputAttrs)
+    {
+        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION)
+            << "received incorrect number of columns";
+    }
+    if (numColumns == 0 || numRows == 0)
+    {
+        return;
+    }
+
+    std::shared_ptr<arrow::Column> col;
+    for(int64_t i = 0; i < numColumns; ++i)
+    {
+        LOG4CXX_DEBUG(logger, "readFeather::column:" << i);
+
+        reader->GetColumn(i, &col);
+        // TODO loop over chunks
+        std::shared_ptr<arrow::Array> array(col->data()->chunk(0));
+
+        shared_ptr<ChunkIterator> ociter = _oaiters[i]->newChunk(
+            _outPos).getIterator(_query,
+                                 ChunkIterator::SEQUENTIAL_WRITE
+                                 | ChunkIterator::NO_EMPTY_CHECK);
+        Coordinates valPos = _outPos;
+
+        for(int64_t j = 0; j < numRows; ++j)
+        {
+            LOG4CXX_DEBUG(logger, "readFeather::row:" << j);
+
+            ociter->setPosition(valPos);
+            switch(_outputTypes[i])
+            {
+            case TE_INT64:
+            {
+                std::shared_ptr<arrow::Int64Array> int64_array =
+                    std::dynamic_pointer_cast<arrow::Int64Array>(array);
+                // if (int64_array->null_bitmap_data()[j / 8] & 1 << (j % 8))
+                // {
+                //     ociter->writeItem(_nullVal);
+                // }
+                // else
+                // {
+                    _val.setInt64(int64_array->raw_values()[j]);
+                    ociter->writeItem(_val);
+                // }
+                break;
+            }
+            default:
+                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION)
+                    << "internal error: unknown type";
+            }
+            ++valPos[2];
+        }
+        ociter->flush();
+    }
+
+    // populate the empty tag
+    LOG4CXX_DEBUG(logger, "readFeather::empty tags...");
+    Value bmVal;
+    bmVal.setBool(true);
+    shared_ptr<ChunkIterator> bmCiter = _oaiters[_nOutputAttrs]->newChunk(
+        _outPos).getIterator(_query,
+                             ChunkIterator::SEQUENTIAL_WRITE
+                             | ChunkIterator::NO_EMPTY_CHECK);
+    Coordinates valPos = _outPos;
+    for(int64_t j =0; j<numRows; ++j)
+    {
+        bmCiter->setPosition(valPos);
+        bmCiter->writeItem(bmVal);
+        ++valPos[2];
+    }
+    bmCiter->flush();
     _outPos[1]++;
 }
 

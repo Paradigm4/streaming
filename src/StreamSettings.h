@@ -131,6 +131,10 @@ private:
             {
                 _types.push_back(TE_INT32);
             }
+            else if(t == "int64")
+            {
+                _types.push_back(TE_INT64);
+            }
             else if(t == "double")
             {
                 _types.push_back(TE_DOUBLE);

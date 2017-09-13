@@ -91,19 +91,19 @@ public:
     static size_t const MAX_RESPONSE_SIZE = 1024*1024*1024;
 
 private:
-    char const                     _attDelim;
-    char const                     _lineDelim;
-    bool const                     _printCoords;
-    std::string                    _nanRepresentation;
-    std::string                    _nullRepresentation;
-    std::shared_ptr<Query>         _query;
-    std::shared_ptr<Array>         _result;
-    std::shared_ptr<ArrayIterator> _aiter;
-    Coordinates                    _outPos;
-    std::vector<TypeEnum>          _inputTypes;
-    std::vector<std::string>       _inputNames;
-    std::vector<FunctionPointer>   _inputConverters;
-    Value                          _stringBuf;
+    std::shared_ptr<Query>                      _query;
+    std::shared_ptr<Array>                      _result;
+    Coordinates                                 _outPos;
+    size_t                                      _outputChunkSize;
+    int32_t                                     _nOutputAttrs;
+    std::vector<std::shared_ptr<ArrayIterator>> _oaiters;
+    std::vector <TypeEnum>                      _outputTypes;
+    std::vector<uint8_t>                        _readBuf;
+    Value                                       _val;
+    Value                                       _nullVal;
+    std::vector<TypeEnum>                       _inputTypes;
+    std::vector<std::string>                    _inputNames;
+    std::vector<FunctionPointer>                _inputConverters;
 
     void writeFeather(std::vector<ConstChunk const*> const& chunks,
                       int32_t const numRows,

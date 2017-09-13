@@ -13,6 +13,8 @@ end_of_interaction = 0
 sys.stderr.write('-- - start - --\n')
 
 while (end_of_interaction != 1):
+
+  ## Read Chunk
   sys.stderr.write('read 8 bytes...')
   sz = struct.unpack('<q', sys.stdin.read(8))[0]
   sys.stderr.write('OK\n')
@@ -25,12 +27,20 @@ while (end_of_interaction != 1):
     sys.stderr.write('len(df): %d\n' % len(df))
     sys.stderr.write('%s\n' % df)
 
-  else:
+  else:                         # Last Chunk
     end_of_interaction = 1
     sys.stderr.write("Got size 0. Exiting. Might get killed.\n")
 
-  sys.stderr.write('write...')
-  sys.stdout.write(struct.pack('<q', end_of_interaction))
+  ## Write Chunk
+  df = pandas.DataFrame({'x':[1,2,3], 'y':[10, 20, 30]})
+  buf = io.BytesIO()
+  df.to_feather(buf)
+  byt = buf.getvalue()
+  sz = len(byt)
+
+  sys.stderr.write('write 8 + {} bytes...'.format(sz))
+  sys.stdout.write(struct.pack('<q', sz))
+  sys.stdout.write(byt)
   sys.stderr.write('OK\n')
 
 sys.stderr.write('-- - stop - --\n')
