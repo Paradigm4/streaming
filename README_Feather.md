@@ -78,12 +78,10 @@
 Adjust path to `python_feather_example.py`:
 
     iquery -aq "
-      parse(
-        stream(
-          apply(
-            build(<a:int64>[i=1:10:0:5], int64(random() % 5)),
-            b, random() % 10),
-          'python -u examples/python_feather_example.py',
-          'format=feather',
-          'types=int64,int64'),
-        'num_attributes=1')"
+      stream(
+        apply(
+          build(<a:int64>[i=1:10:0:5], int64(random() % 5)),
+          b, random() % 10),
+        'python -u examples/python_feather_example.py',
+        'format=feather',
+        'types=int64,int64')"

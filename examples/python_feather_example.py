@@ -1,7 +1,7 @@
 ## Python 2.7
 ## pip install pandas feather-format
 ## python -u python_feather_example.py
-## iquery -aq "parse(stream(apply(build(<a:int64>[i=1:10:0:5], int64(random() % 5)), b, random() % 10), 'python -u /arrow/stream/examples/python_feather_example.py', 'format=feather'), 'num_attributes=1')"
+## iquery -aq "stream(apply(build(<a:int64>[i=1:10:0:5], int64(random() % 5)), b, random() % 10), 'python -u /arrow/stream/examples/python_feather_example.py', 'format=feather')"
 
 import sys
 import pandas
