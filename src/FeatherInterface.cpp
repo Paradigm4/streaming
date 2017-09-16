@@ -40,7 +40,8 @@ using std::string;
 
 namespace scidb { namespace stream {
 
-static log4cxx::LoggerPtr logger(log4cxx::Logger::getLogger("scidb.operators.stream.feather_interface"));
+static log4cxx::LoggerPtr logger(
+    log4cxx::Logger::getLogger("scidb.operators.stream.feather_interface"));
 
 ArrayDesc FeatherInterface::getOutputSchema(
     std::vector<ArrayDesc> const& inputSchemas,
@@ -84,19 +85,37 @@ ArrayDesc FeatherInterface::getOutputSchema(
         }
     }
     Dimensions outputDimensions;
-    outputDimensions.push_back(DimensionDesc("instance_id", 0,   query->getInstancesCount()-1, 1, 0));
-    outputDimensions.push_back(DimensionDesc("chunk_no",    0,   CoordinateBounds::getMax(),   1, 0));
-    outputDimensions.push_back(DimensionDesc("value_no",    0,   CoordinateBounds::getMax(),   settings.getChunkSize(), 0));
+    outputDimensions.push_back(
+        DimensionDesc(
+            "instance_id", 0, query->getInstancesCount() - 1, 1, 0));
+    outputDimensions.push_back(
+        DimensionDesc(
+            "chunk_no", 0, CoordinateBounds::getMax(), 1, 0));
+    outputDimensions.push_back(DimensionDesc("value_no",
+                                             0,
+                                             CoordinateBounds::getMax(),
+                                             settings.getChunkSize(),
+                                             0));
     Attributes outputAttributes;
     for(AttributeID i =0; i<outputTypes.size(); ++i)
     {
-        outputAttributes.push_back( AttributeDesc(i,  outputNames[i], typeEnum2TypeId(outputTypes[i]), AttributeDesc::IS_NULLABLE, 0));
+        outputAttributes.push_back(
+            AttributeDesc(i,
+                          outputNames[i],
+                          typeEnum2TypeId(outputTypes[i]),
+                          AttributeDesc::IS_NULLABLE, 0));
     }
     outputAttributes = addEmptyTagAttribute(outputAttributes);
-    return ArrayDesc(inputSchemas[0].getName(), outputAttributes, outputDimensions, defaultPartitioning(), query->getDefaultArrayResidency());
+    return ArrayDesc(inputSchemas[0].getName(),
+                     outputAttributes,
+                     outputDimensions,
+                     defaultPartitioning(),
+                     query->getDefaultArrayResidency());
 }
 
-FeatherInterface::FeatherInterface(Settings const& settings, ArrayDesc const& outputSchema, std::shared_ptr<Query> const& query):
+FeatherInterface::FeatherInterface(Settings const& settings,
+                                   ArrayDesc const& outputSchema,
+                                   std::shared_ptr<Query> const& query):
     _query(query),
     _result(new MemArray(outputSchema, query)),
     _outPos{((Coordinate) _query->getInstanceID()), 0, 0},
@@ -145,8 +164,9 @@ void FeatherInterface::setInputSchema(ArrayDesc const& inputSchema)
     }
 }
 
-void FeatherInterface::streamData(std::vector<ConstChunk const*> const& inputChunks,
-                                  ChildProcess& child)
+void FeatherInterface::streamData(
+    std::vector<ConstChunk const*> const& inputChunks,
+    ChildProcess& child)
 {
     if(inputChunks.size() != _inputTypes.size())
     {
@@ -345,7 +365,8 @@ void FeatherInterface::readFeather(ChildProcess& child,
                 break;
             }
             default:
-                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION)
+                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL,
+                                       SCIDB_LE_ILLEGAL_OPERATION)
                     << "internal error: unknown type";
             }
             ++valPos[2];
