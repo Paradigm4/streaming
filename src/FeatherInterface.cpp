@@ -223,43 +223,55 @@ void FeatherInterface::writeFeather(vector<ConstChunk const*> const& chunks,
           chunks[i]->getConstIterator(ConstChunkIterator::IGNORE_OVERLAPS
                                       | ConstChunkIterator::IGNORE_EMPTY_CELLS);
 
-        std::shared_ptr<arrow::ArrayBuilder> builder;
+        std::shared_ptr<arrow::Array> array;
         switch(_inputTypes[i])
         {
         case TE_INT64:
+        {
+            arrow::Int64Builder builder(arrow::default_memory_pool());
+
+            while((!citer->end()))
             {
-                builder.reset(
-                    new arrow::Int64Builder(
-                        arrow::default_memory_pool(),
-                        arrow::int64()));
+                Value const& value = citer->getItem();
+                if(value.isNull())
+                {
+                    builder.AppendNull();
+                }
+                else
+                {
+                    builder.Append(value.getInt64());
+                }
+                ++(*citer);
             }
+
+            builder.Finish(&array);
             break;
         }
-        while((!citer->end()))
+        case TE_DOUBLE:
         {
-            Value const& value = citer->getItem();
-            switch(_inputTypes[i])
-            {
-            case TE_INT64:
-                {
-                    if(value.isNull())
-                    {
-                        std::dynamic_pointer_cast<arrow::Int64Builder>(
-                            builder)->AppendNull();
-                    }
-                    else
-                    {
-                        std::dynamic_pointer_cast<arrow::Int64Builder>(
-                            builder)->Append(value.getInt64());
-                    }
-                }
-                break;
-            }
-            ++(*citer);
-        }
+            arrow::DoubleBuilder builder(arrow::default_memory_pool());
 
-        std::shared_ptr<arrow::Array> array;
-        builder->Finish(&array);
+            while((!citer->end()))
+            {
+                Value const& value = citer->getItem();
+                if(value.isNull())
+                {
+                    builder.AppendNull();
+                }
+                else
+                {
+                    builder.Append(value.getDouble());
+                }
+                ++(*citer);
+            }
+
+            builder.Finish(&array);
+            break;
+        }
+        default: throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL,
+                                        SCIDB_LE_ILLEGAL_OPERATION)
+            << "internal error: unsupported type";
+        }
 
         // Print array for debugging
         std::stringstream prettyprint_stream;
@@ -335,6 +347,11 @@ void FeatherInterface::readFeather(ChildProcess& child,
         reader->GetColumn(i, &col);
         // TODO loop over chunks
         std::shared_ptr<arrow::Array> array(col->data()->chunk(0));
+        int64_t nullCount = array->null_count();
+        const uint8_t* nullBitmap = array->null_bitmap_data();
+
+        LOG4CXX_DEBUG(logger, "readFeather::array:" << *array);
+        LOG4CXX_DEBUG(logger, "readFeather::array.null:" << nullCount);
 
         shared_ptr<ChunkIterator> ociter = _oaiters[i]->newChunk(
             _outPos).getIterator(_query,
@@ -342,34 +359,55 @@ void FeatherInterface::readFeather(ChildProcess& child,
                                  | ChunkIterator::NO_EMPTY_CHECK);
         Coordinates valPos = _outPos;
 
-        for(int64_t j = 0; j < numRows; ++j)
+        switch(_outputTypes[i])
         {
-            LOG4CXX_DEBUG(logger, "readFeather::row:" << j);
+        case TE_INT64:
+        {
+            const int64_t* arrayData =
+                std::static_pointer_cast<arrow::Int64Array>(
+                    array)->raw_values();
 
-            ociter->setPosition(valPos);
-            switch(_outputTypes[i])
+            for(int64_t j = 0; j < numRows; ++j)
             {
-            case TE_INT64:
-            {
-                std::shared_ptr<arrow::Int64Array> int64_array =
-                    std::dynamic_pointer_cast<arrow::Int64Array>(array);
-                // if (int64_array->null_bitmap_data()[j / 8] & 1 << (j % 8))
-                // {
-                //     ociter->writeItem(_nullVal);
-                // }
-                // else
-                // {
-                    _val.setInt64(int64_array->raw_values()[j]);
+                ociter->setPosition(valPos);
+                if (nullCount != 0 && ! (nullBitmap[j / 8] & 1 << j % 8))
+                {
+                    ociter->writeItem(_nullVal);
+                }
+                else
+                {
+                    _val.setInt64(arrayData[j]);
                     ociter->writeItem(_val);
-                // }
-                break;
+                }
+                ++valPos[2];
             }
-            default:
-                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL,
-                                       SCIDB_LE_ILLEGAL_OPERATION)
-                    << "internal error: unknown type";
+            break;
+        }
+        case TE_DOUBLE:
+        {
+            const double* arrayData =
+                std::static_pointer_cast<arrow::DoubleArray>(
+                    array)->raw_values();
+
+            for(int64_t j = 0; j < numRows; ++j)
+            {
+                ociter->setPosition(valPos);
+                if (nullCount != 0 && ! (nullBitmap[j / 8] & 1 << j % 8))
+                {
+                    ociter->writeItem(_nullVal);
+                }
+                else
+                {
+                    _val.setDouble(arrayData[j]);
+                    ociter->writeItem(_val);
+                }
+                ++valPos[2];
             }
-            ++valPos[2];
+            break;
+        }
+        default: throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL,
+                                        SCIDB_LE_ILLEGAL_OPERATION)
+            << "internal error: unknown type";
         }
         ociter->flush();
     }

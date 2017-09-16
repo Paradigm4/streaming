@@ -1,12 +1,13 @@
 ## Python 2.7
 ## pip install pandas feather-format
 ## python -u python_feather_example.py
-## iquery -aq "stream(apply(build(<a:int64>[i=1:10:0:5], int64(random() % 5)), b, random() % 10), 'python -u /arrow/stream/examples/python_feather_example.py', 'format=feather')"
+## iquery -aq "stream(apply(build(<a:int64>[i=1:10:0:5], int64(random() % 5)), b, random() % 10), 'python -u /arrow/stream/examples/python_feather_example.py', 'format=feather', 'types=int64,int64')"
 
-import sys
-import pandas
 import io
+import numpy
+import pandas
 import struct
+import sys
 
 end_of_interaction = 0
 
@@ -33,6 +34,12 @@ while (end_of_interaction != 1):
 
   ## Write Chunk
   df = pandas.DataFrame({'x':[1,2,3], 'y':[10, 20, 30]})
+  # df = pandas.DataFrame({'x':[9.11, 9.11, 2.71, 2.71, 2.71,
+  #                             2.71, 9.11, 9.11, 2.71, 2.71,
+  #                             2.71, 2.71, 9.11, 9.11, 2.71],
+  #                        'y':[numpy.NaN, numpy.NaN, 3.1, 4.1, 5.1,
+  #                             6.1, numpy.NaN, numpy.NaN, 9.1, 10.1,
+  #                             11.1, 12.1, numpy.NaN, numpy.NaN, 15.1]})
   buf = io.BytesIO()
   df.to_feather(buf)
   byt = buf.getvalue()
