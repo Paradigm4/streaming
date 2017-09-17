@@ -345,7 +345,8 @@ void FeatherInterface::readFeather(ChildProcess& child,
         LOG4CXX_DEBUG(logger, "readFeather::column:" << i);
 
         reader->GetColumn(i, &col);
-        // TODO loop over chunks
+        // Feather files have only one chunk
+        // http://mail-archives.apache.org/mod_mbox/arrow-dev/201709.mbox/%3CCAJPUwMApjFdQFaiTXHYZJJCGcndrPn95UESS1ptDeWZ1zURubQ%40mail.gmail.com%3E
         std::shared_ptr<arrow::Array> array(col->data()->chunk(0));
         int64_t nullCount = array->null_count();
         const uint8_t* nullBitmap = array->null_bitmap_data();
