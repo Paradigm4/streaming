@@ -228,7 +228,7 @@ void FeatherInterface::writeFeather(vector<ConstChunk const*> const& chunks,
         {
         case TE_INT64:
         {
-            arrow::Int64Builder builder(arrow::default_memory_pool());
+            arrow::Int64Builder builder;
 
             while((!citer->end()))
             {
@@ -249,7 +249,7 @@ void FeatherInterface::writeFeather(vector<ConstChunk const*> const& chunks,
         }
         case TE_DOUBLE:
         {
-            arrow::DoubleBuilder builder(arrow::default_memory_pool());
+            arrow::DoubleBuilder builder;
 
             while((!citer->end()))
             {
