@@ -172,8 +172,8 @@ Ubuntu 14.04
   Setting up libarrow0:amd64 (0.6.0-1) ...
   Setting up libarrow-dev:amd64 (0.6.0-1) ...
 
-Install SciDB Stream Plugin
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Install SciDB-Strm Plugin
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The easiest way is to first set up `dev_tools
 <https://github.com/paradigm4/dev_tools>`_. Then it goes something
@@ -201,21 +201,21 @@ like this::
   {2,0} 'What is up?'
   {3,0} 'What is up?'
 
-Install SciDB-Stream Python Package
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Install SciDB-Strm Python Library
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Install required packages::
 
   pip install pandas feather-format
 
-Install SciDB-Stream package::
+Install SciDB-Strm library::
 
   pip install git+http://github.com/paradigm4/stream.git@python#subdirectory=py_pkg
 
 SciDB-Strm Python API
 -----------------------
 
-Once installed the SciDB-Stream Python library can be imported with
+Once installed the SciDB-Strm Python library can be imported with
 ``import scidbstrm``. The library provides a high and low level access
 to the SciDB ``stream`` operator.
 
