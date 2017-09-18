@@ -268,6 +268,27 @@ void FeatherInterface::writeFeather(vector<ConstChunk const*> const& chunks,
             builder.Finish(&array);
             break;
         }
+        case TE_STRING:
+        {
+            arrow::StringBuilder builder;
+
+            while((!citer->end()))
+            {
+                Value const& value = citer->getItem();
+                if(value.isNull())
+                {
+                    builder.AppendNull();
+                }
+                else
+                {
+                    builder.Append(value.getString());
+                }
+                ++(*citer);
+            }
+
+            builder.Finish(&array);
+            break;
+        }
         default: throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL,
                                         SCIDB_LE_ILLEGAL_OPERATION)
             << "internal error: unsupported type";
@@ -400,6 +421,28 @@ void FeatherInterface::readFeather(ChildProcess& child,
                 else
                 {
                     _val.setDouble(arrayData[j]);
+                    ociter->writeItem(_val);
+                }
+                ++valPos[2];
+            }
+            break;
+        }
+        case TE_STRING:
+        {
+            std::shared_ptr<arrow::StringArray> arrayString =
+                std::static_pointer_cast<arrow::StringArray>(array);
+
+            for(int64_t j = 0; j < numRows; ++j)
+            {
+                ociter->setPosition(valPos);
+                if (nullCount != 0 && ! (nullBitmap[j / 8] & 1 << j % 8))
+                {
+                    ociter->writeItem(_nullVal);
+                }
+                else
+                {
+                    // Strings are not null-terminated
+                    _val.setString(arrayString->GetString(j));
                     ociter->writeItem(_val);
                 }
                 ++valPos[2];
