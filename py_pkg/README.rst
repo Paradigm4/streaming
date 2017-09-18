@@ -186,7 +186,7 @@ like this::
   {i} success
   {0} true
 
-  $ iquery --afl --query "load_library('stream')"
+  $ iquery --afl --query "load_library('stream', 'python')"
   Query was executed successfully
 
   $ iquery --afl --query "
@@ -219,17 +219,17 @@ Once installed the SciDB-Stream Python library can be imported with
 ``import scidbstrm``. The library provides a high and low level access
 to the SciDB ``stream`` operator.
 
-High-level access is provided by the function ``map``::
+High-level access is provided by the function ``map``:
 
 ``map(map_fun, finalize_fun=None)``
   Read SciDB chunks. For each chunk, call ``map_fun`` and stream its
   result back to SciDB. If ``finalize_fun`` is provided, call it after
   all the chunks have been processed.
 
-See `example_high.py`<example_high.py>`_ for an example using the
+See `example_high.py<example_high.py>`_ for an example using the
 ``map`` function.
 
-Low-level access is provided by the ``read`` and ``write`` functions::
+Low-level access is provided by the ``read`` and ``write`` functions:
 
 ``read()``
   Read a data chunk from SciDB. Returns a Pandas DataFrame or None.
@@ -237,5 +237,5 @@ Low-level access is provided by the ``read`` and ``write`` functions::
 ``write(df=None)``
   Write a data chunk to SciDB.
 
-See `example_low.py`<example_low.py>`_ for an example using the
+See `example_low.py<example_low.py>`_ for an example using the
 ``read`` and ``write`` functions.
