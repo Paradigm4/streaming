@@ -25,8 +25,8 @@ Installation
 Install Apache Arrow
 ^^^^^^^^^^^^^^^^^^^^
 
-CentOS6
-.......
+CentOS 6
+........
 
 ::
 
@@ -182,11 +182,11 @@ like this::
   $ iquery --afl --query "load_library('dev_tools')"
   Query was executed successfully
 
-  $ iquery --afl --query "install_github('paradigm4/stream')"
+  $ iquery --afl --query "install_github('paradigm4/stream', 'python')"
   {i} success
   {0} true
 
-  $ iquery --afl --query "load_library('stream', 'python')"
+  $ iquery --afl --query "load_library('stream')"
   Query was executed successfully
 
   $ iquery --afl --query "
