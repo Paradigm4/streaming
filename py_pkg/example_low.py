@@ -1,53 +1,63 @@
-## Python 2.7
-## pip install pandas feather-format
-## python -u python_feather_example.py
-## iquery -aq "stream(apply(build(<a:int64>[i=1:10:0:5], int64(random() % 5)), b, random() % 10), 'python -u /arrow/stream/examples/python_feather_example.py', 'format=feather', 'types=int64,int64')"
+"""Usage:
 
-import io
-import numpy
-import pandas
-import struct
+> iquery --afl --query "
+    store(
+      apply(
+        build(<x:int64 not null>[i=1:10:0:5], i),
+        y, double(i) * 10 + .1,
+        z, 'foo' + string(i)),
+      foo)"
+{i} x,y,z
+{1} 1,10.1,'foo1'
+{2} 2,20.1,'foo2'
+{3} 3,30.1,'foo3'
+{4} 4,40.1,'foo4'
+{5} 5,50.1,'foo5'
+{6} 6,60.1,'foo6'
+{7} 7,70.1,'foo7'
+{8} 8,80.1,'foo8'
+{9} 9,90.1,'foo9'
+{10} 10,100.1,'foo10'
+
+
+# Adjust the path to `example_high.py` script to match your setup
+> iquery --afl --query "
+    stream(
+      foo,
+      'python -u /stream/py_pkg/example_low.py',
+      'format=feather',
+      'types=int64,double,string')"
+{instance_id,chunk_no,value_no} a0,a1,a2
+{0,0,0} 1,10.1,'foo1'
+{0,0,1} 2,20.1,'foo2'
+{0,0,2} 3,30.1,'foo3'
+{0,0,3} 4,40.1,'foo4'
+{0,0,4} 5,50.1,'foo5'
+{1,0,0} 6,60.1,'foo6'
+{1,0,1} 7,70.1,'foo7'
+{1,0,2} 8,80.1,'foo8'
+{1,0,3} 9,90.1,'foo9'
+{1,0,4} 10,100.1,'foo10'
+
+"""
+
+import scidbstrm
 import sys
 
-end_of_interaction = 0
 
 sys.stderr.write('-- - start - --\n')
+while True:
 
-while (end_of_interaction != 1):
+    # Read DataFrame
+    df = scidbstrm.read()
 
-  ## Read Chunk
-  sys.stderr.write('read 8 bytes...')
-  sz = struct.unpack('<q', sys.stdin.read(8))[0]
-  sys.stderr.write('OK\n')
+    if df is None:
+        # End of stream
+        break
 
-  if sz:
-    sys.stderr.write('read %s bytes...' % sz)
-    df = pandas.read_feather(io.BytesIO(sys.stdin.read(sz)))
-    sys.stderr.write('OK\n')
+    # Write DataFrame
+    scidbstrm.write(df)
 
-    sys.stderr.write('len(df): %d\n' % len(df))
-    sys.stderr.write('%s\n' % df)
-
-  else:                         # Last Chunk
-    end_of_interaction = 1
-    sys.stderr.write("Got size 0. Exiting. Might get killed.\n")
-
-  ## Write Chunk
-  df = pandas.DataFrame({'x':[1,2,3], 'y':[10, 20, 30]})
-  # df = pandas.DataFrame({'x':[9.11, 9.11, 2.71, 2.71, 2.71,
-  #                             2.71, 9.11, 9.11, 2.71, 2.71,
-  #                             2.71, 2.71, 9.11, 9.11, 2.71],
-  #                        'y':[numpy.NaN, numpy.NaN, 3.1, 4.1, 5.1,
-  #                             6.1, numpy.NaN, numpy.NaN, 9.1, 10.1,
-  #                             11.1, 12.1, numpy.NaN, numpy.NaN, 15.1]})
-  buf = io.BytesIO()
-  df.to_feather(buf)
-  byt = buf.getvalue()
-  sz = len(byt)
-
-  sys.stderr.write('write 8 + {} bytes...'.format(sz))
-  sys.stdout.write(struct.pack('<q', sz))
-  sys.stdout.write(byt)
-  sys.stderr.write('OK\n')
-
+# Write final DataFrame (if any)
+scidbstrm.write(None)
 sys.stderr.write('-- - stop - --\n')
