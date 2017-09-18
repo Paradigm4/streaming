@@ -226,7 +226,7 @@ High-level access is provided by the function ``map``:
   result back to SciDB. If ``finalize_fun`` is provided, call it after
   all the chunks have been processed.
 
-See `example_high.py<example_high.py>`_ for an example using the
+See `example_high.py <example_high.py>`_ for an example using the
 ``map`` function.
 
 Low-level access is provided by the ``read`` and ``write`` functions:
@@ -237,5 +237,5 @@ Low-level access is provided by the ``read`` and ``write`` functions:
 ``write(df=None)``
   Write a data chunk to SciDB.
 
-See `example_low.py<example_low.py>`_ for an example using the
+See `example_low.py <example_low.py>`_ for an example using the
 ``read`` and ``write`` functions.
