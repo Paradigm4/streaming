@@ -46,13 +46,13 @@ def write(df=None):
     sys.stdout.write(byt)
 
 
-def pack_func():
+def pack_func(func):
     """Serialize function to upload to SciDB. The result can be used as
     `upload_data` in `input` or `load` operators.
 
     """
     return numpy.array(
-        [dill.dumps(get_first, 0)]  # Serialize streaming function
+        [dill.dumps(func, 0)]  # Serialize streaming function
     )
 
 
