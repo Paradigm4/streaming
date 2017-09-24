@@ -206,18 +206,24 @@ Install SciDB-Strm Python Library
 
 Install required packages::
 
-  pip install pandas feather-format
+  pip install pandas feather-format dill
 
 Install SciDB-Strm library::
 
   pip install git+http://github.com/paradigm4/stream.git@python#subdirectory=py_pkg
 
+The Python library needs to be installed on the SciDB server as well
+as the SciDB client if Python code is to be send from the client to
+the server.
+
+
 SciDB-Strm Python API
 -----------------------
 
-Once installed the SciDB-Strm Python library can be imported with
-``import scidbstrm``. The library provides a high and low level access
-to the SciDB ``stream`` operator.
+Once installed the *SciDB-Strm* Python library can be imported with
+``import scidbstrm``. The library provides a high and low-level access
+to the SciDB ``stream`` operator as well as the ability to send Python
+code to the SciDB server.
 
 High-level access is provided by the function ``map``:
 
@@ -227,7 +233,8 @@ High-level access is provided by the function ``map``:
   all the chunks have been processed.
 
 See `example_high.py <example_high.py>`_ for an example using the
-``map`` function.
+``map`` function. The Python script has to be copied on the SciDB
+instance.
 
 Low-level access is provided by the ``read`` and ``write`` functions:
 
@@ -238,4 +245,18 @@ Low-level access is provided by the ``read`` and ``write`` functions:
   Write a data chunk to SciDB.
 
 See `example_low.py <example_low.py>`_ for an example using the
-``read`` and ``write`` functions.
+``read`` and ``write`` functions. The Python script has to be copied
+on the SciDB instance.
+
+Python code can be send to the SciDB server for execution using
+the ``pack_func`` and ``read_func`` functions::
+
+``pack_func(func)``
+  Serialize Python function for use as ``upload_data`` in ``input`` or
+  ``load`` operators.
+
+``read_func()``
+  Read and de-serialize function from SciDB.
+
+See `example_serialize.py <example_serialize.py>`_ for an example of
+using the ``pack_func`` and ``read_func`` functions.

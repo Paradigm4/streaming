@@ -27,6 +27,7 @@ setup(
     license=LICENSE,
     packages=['scidbstrm'],
     install_requires=[
+        'dill',
         'feather-format',
         'pandas',
     ],

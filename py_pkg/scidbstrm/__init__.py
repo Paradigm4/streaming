@@ -1,4 +1,6 @@
+import dill
 import io
+import numpy
 import pandas
 import struct
 import sys
@@ -44,6 +46,25 @@ def write(df=None):
     sys.stdout.write(byt)
 
 
+def pack_func():
+    """Serialize function to upload to SciDB. The result can be used as
+    `upload_data` in `input` or `load` operators.
+
+    """
+    return numpy.array(
+        [dill.dumps(get_first, 0)]  # Serialize streaming function
+    )
+
+
+def read_func():
+    """Read and de-serialize function from SciDB.
+
+    """
+    func = dill.loads(read().iloc[0,0])
+    write()                     # SciDB expects a message back
+    return func
+
+
 def map(map_fun, finalize_fun=None):
     """Read SciDB chunks. For each chunk, call `map_fun` and stream its
     result back to SciDB. If `finalize_fun` is provided, call it after
@@ -65,7 +86,7 @@ def map(map_fun, finalize_fun=None):
 
     # Write final DataFrame (if any)
     if finalize_fun is None:
-        write(None)
+        write()
     else:
         write(finalize_fun())
     sys.stderr.write('-- - stop - --\n')
