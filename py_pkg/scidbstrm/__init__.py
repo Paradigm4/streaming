@@ -60,7 +60,7 @@ def read_func():
     """Read and de-serialize function from SciDB.
 
     """
-    func = dill.loads(read().iloc[0,0])
+    func = dill.loads(read().iloc[0, 0])
     write()                     # SciDB expects a message back
     return func
 

@@ -59,5 +59,5 @@ while True:
     scidbstrm.write(df)
 
 # Write final DataFrame (if any)
-scidbstrm.write(None)
+scidbstrm.write()
 sys.stderr.write('-- - stop - --\n')

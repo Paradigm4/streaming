@@ -17,7 +17,7 @@ def get_first(df):
     return df.head(1)
 
 
-## Serialize (pack) and Upload function to SciDB
+# Serialize (pack) and Upload function to SciDB
 ar_fun = db.input(upload_data=scidbstrm.pack_func(get_first)).store()
 
 
