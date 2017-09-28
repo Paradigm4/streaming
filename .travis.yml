@@ -24,6 +24,8 @@ before_install:
   - cd py_pkg
 
 install:
+  - docker cp tests/docker-install.sh scidb:/
+  - docker exec --tty scidb /docker-install.sh
   - pip install --upgrade -r requirements.txt
 
 script:
