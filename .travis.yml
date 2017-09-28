@@ -25,6 +25,10 @@ before_install:
 
 install:
   - docker exec --tty scidb /stream/py_pkg/tests/docker-install.sh
+  - docker exec --tty scidb iquery --afl "
+    load_library('dev_tools');
+    install_github('Paradigm4/stream');
+    load_library('stream')"
   - pip install --upgrade -r requirements.txt
 
 script:
