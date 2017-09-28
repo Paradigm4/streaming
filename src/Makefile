@@ -23,10 +23,10 @@ endif
 
 # Debug:
 #CFLAGS=-pedantic -W -Wextra -Wall -Wno-variadic-macros -Wno-strict-aliasing -Wno-long-long -Wno-unused-parameter -fPIC -D_STDC_FORMAT_MACROS -Wno-system-headers -isystem -g -ggdb3  -D_STDC_LIMIT_MACROS
-CFLAGS=-W -Wextra -Wall -Wno-unused-parameter -Wno-variadic-macros -Wno-strict-aliasing -Wno-long-long -Wno-unused -fPIC -D_STDC_FORMAT_MACROS -Wno-system-headers -isystem -O3 -g -DNDEBUG -D_STDC_LIMIT_MACROS
+CFLAGS=-W -Wextra -Wall -Wno-unused-parameter -Wno-variadic-macros -Wno-strict-aliasing -Wno-long-long -Wno-unused -fPIC -D_STDC_FORMAT_MACROS -Wno-system-headers -isystem -O3 -g -DNDEBUG -D_STDC_LIMIT_MACROS -fno-omit-frame-pointer
 INC=-I. -DPROJECT_ROOT="\"$(SCIDB)\"" -I"$(SCIDB_THIRDPARTY_PREFIX)/3rdparty/boost/include/" -I"$(SCIDB)/include"
 LIBS=-shared -Wl,-soname,libstream.so -L. -L"$(SCIDB_THIRDPARTY_PREFIX)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -Wl,-rpath,$(SCIDB)/lib:$(RPATH) -lm
-CFLAGS+=-std=c++11 -DCPP11
+CFLAGS+=-std=c++14 -DCPP11
 
 SRCS=plugin.cpp LogicalStream.cpp PhysicalStream.cpp ChildProcess.cpp TSVInterface.cpp DFInterface.cpp
 # Compiler settings for SciDB version >= 15.7
@@ -41,7 +41,7 @@ else
 endif
 
 all: libstream.so
-	
+
 libstream.so: $(SRCS) StreamSettings.h ChildProcess.h TSVInterface.h DFInterface.h
 	@if test ! -d "$(SCIDB)"; then echo  "Error. Try:\n\nmake SCIDB=<PATH TO SCIDB INSTALL PATH>"; exit 1; fi
 	$(CXX) $(CFLAGS) $(INC) -o libstream.so $(SRCS) $(LIBS)
@@ -53,6 +53,6 @@ libstream.so: $(SRCS) StreamSettings.h ChildProcess.h TSVInterface.h DFInterface
 
 test:
 	@./test.sh
-	
+
 clean:
 	rm -f *.so *.o stream_test_client
