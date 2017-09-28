@@ -21,7 +21,7 @@ before_install:
     --publish 8080:8080
     rvernica/scidb:${SCIDB_VER}
   - while ! curl http://localhost:8080/version; do sleep 1; done
-  - cp py_pkg
+  - cd py_pkg
 
 install:
   - pip install --upgrade -r requirements.txt
