@@ -22,3 +22,10 @@ wget --no-verbose --output-document -                                       \
     && make --directory=/usr/local/src/dev_tools-$SCIDB_DEV_TOOLS           \
     && cp /usr/local/src/dev_tools-$SCIDB_DEV_TOOLS/*.so                    \
           $SCIDB_INSTALL_PATH/lib/scidb/plugins
+
+
+# Install Python requirements and SciDB-Strm
+wget --no-verbose https://bootstrap.pypa.io/get-pip.py
+python get-pip.py
+pip install --upgrade -r /stream/py_pkg/requirements.txt
+pip install /stream/py_pkg/scidbstrm
