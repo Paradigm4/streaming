@@ -28,4 +28,4 @@ wget --no-verbose --output-document -                                       \
 wget --no-verbose https://bootstrap.pypa.io/get-pip.py
 python get-pip.py
 pip install --upgrade -r /stream/py_pkg/requirements.txt
-pip install /stream/py_pkg/scidbstrm
+pip install /stream/py_pkg
