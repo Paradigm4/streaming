@@ -13,12 +13,14 @@ scidb_types = (
     'int64',
     'double',
     'string',
+    'binary',
 )
 
 
 # NumPy Type Map: SciDB Type -> NumPy Type
 np_type_map = {
     'string': 'O',
+    'binary': 'O',
 }
 
 
@@ -27,6 +29,7 @@ py_type_map = {
     'int64': 'int',
     'double': 'float',
     'string': 'str',
+    'binary': 'str',
 }
 
 
@@ -36,12 +39,23 @@ py_type_map = {
     for name in (None, 'foo')
 ])
 def test_one_chunk(db, scidb_ty, name):
+    if scidb_ty == 'binary':
+        input_ar = db.input(
+            '<x:binary not null>[i=0:2:0:3]',
+            upload_data=numpy.array([str(i) for i in range(3)],
+                                    dtype='object')).store()
+        input = input_ar.name
+    else:
+        input = 'build(<x:{scidb_ty}>[i=0:2:0:3], {scidb_ty}(i))'.format(
+            scidb_ty=scidb_ty)
+
     res = db.iquery("""
         stream(
-          build(<x:{scidb_ty}>[i=0:2:0:3], {scidb_ty}(i)),
+          {input},
           'python -u /stream/py_pkg/tests/scripts/one_chunk.py',
           'format=feather',
           'types={scidb_ty}'{names})""".format(
+              input=input,
               scidb_ty=scidb_ty,
               names='' if name is None else ", 'names={}'".format(name)),
                     fetch=True)
@@ -63,12 +77,23 @@ def test_one_chunk(db, scidb_ty, name):
     for name in (None, 'foo')
 ])
 def test_any_chunks(db, scidb_ty, name):
+    if scidb_ty == 'binary':
+        input_ar = db.input(
+            '<x:binary not null>[i=0:9:0:3]',
+            upload_data=numpy.array([str(i) for i in range(10)],
+                                    dtype='object')).store()
+        input = input_ar.name
+    else:
+        input = 'build(<x:{scidb_ty}>[i=0:9:0:3], {scidb_ty}(i))'.format(
+            scidb_ty=scidb_ty)
+
     res = db.iquery("""
         stream(
-          build(<x:{scidb_ty}>[i=0:9:0:3], {scidb_ty}(i)),
+          {input},
           'python -u /stream/py_pkg/tests/scripts/any_chunks.py',
           'format=feather',
           'types={scidb_ty}'{names})""".format(
+              input=input,
               scidb_ty=scidb_ty,
               names='' if name is None else ", 'names={}'".format(name)),
                     fetch=True,

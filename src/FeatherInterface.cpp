@@ -152,6 +152,7 @@ void FeatherInterface::setInputSchema(ArrayDesc const& inputSchema)
         case TE_FLOAT:
         case TE_UINT8:
         case TE_INT8:
+        case TE_BINARY:
             _inputConverters[i] = NULL;
             break;
         default:
@@ -282,6 +283,27 @@ void FeatherInterface::writeFeather(vector<ConstChunk const*> const& chunks,
                 else
                 {
                     builder.Append(value.getString());
+                }
+                ++(*citer);
+            }
+
+            builder.Finish(&array);
+            break;
+        }
+        case TE_BINARY:
+        {
+            arrow::BinaryBuilder builder;
+
+            while((!citer->end()))
+            {
+                Value const& value = citer->getItem();
+                if(value.isNull())
+                {
+                    builder.AppendNull();
+                }
+                else
+                {
+                    builder.Append((const uint8_t*)value.data(), value.size());
                 }
                 ++(*citer);
             }
@@ -441,8 +463,32 @@ void FeatherInterface::readFeather(ChildProcess& child,
                 }
                 else
                 {
-                    // Strings are not null-terminated
+                    // Strings in Arrow arrays are not null-terminated
                     _val.setString(arrayString->GetString(j));
+                    ociter->writeItem(_val);
+                }
+                ++valPos[2];
+            }
+            break;
+        }
+        case TE_BINARY:
+        {
+            std::shared_ptr<arrow::BinaryArray> arrayBinary =
+                std::static_pointer_cast<arrow::BinaryArray>(array);
+
+            for(int64_t j = 0; j < numRows; ++j)
+            {
+                ociter->setPosition(valPos);
+                if (nullCount != 0 && ! (nullBitmap[j / 8] & 1 << j % 8))
+                {
+                    ociter->writeItem(_nullVal);
+                }
+                else
+                {
+                    const uint8_t* ptr_val;
+                    int32_t sz_val;
+                    ptr_val = arrayBinary->GetValue(j, &sz_val);
+                    _val.setData(ptr_val, sz_val);
                     ociter->writeItem(_val);
                 }
                 ++valPos[2];

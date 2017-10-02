@@ -143,6 +143,10 @@ private:
             {
                 _types.push_back(TE_STRING);
             }
+            else if(t == "binary")
+            {
+                _types.push_back(TE_BINARY);
+            }
             else
             {
                 throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse types";
