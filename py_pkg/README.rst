@@ -232,21 +232,9 @@ High-level access is provided by the function ``map``:
   result back to SciDB. If ``finalize_fun`` is provided, call it after
   all the chunks have been processed.
 
-See `example_high.py <example_high.py>`_ for an example using the
-``map`` function. The Python script has to be copied on the SciDB
-instance.
-
-Low-level access is provided by the ``read`` and ``write`` functions:
-
-``read()``
-  Read a data chunk from SciDB. Returns a Pandas DataFrame or None.
-
-``write(df=None)``
-  Write a data chunk to SciDB.
-
-See `example_low.py <example_low.py>`_ for an example using the
-``read`` and ``write`` functions. The Python script has to be copied
-on the SciDB instance.
+See `1-map-finalize.py <examples/1-map-finalize.py>`_ for an example
+using the ``map`` function. The Python script has to be copied on the
+SciDB instance.
 
 Python code can be send to the SciDB server for execution using
 the ``pack_func`` and ``read_func`` functions::
@@ -258,5 +246,17 @@ the ``pack_func`` and ``read_func`` functions::
 ``read_func()``
   Read and de-serialize function from SciDB.
 
-See `example_serialize.py <example_serialize.py>`_ for an example of
+See `2-pack-func.py <examples/2-pack-func.py>`_ for an example of
 using the ``pack_func`` and ``read_func`` functions.
+
+Low-level access is provided by the ``read`` and ``write`` functions:
+
+``read()``
+  Read a data chunk from SciDB. Returns a Pandas DataFrame or None.
+
+``write(df=None)``
+  Write a data chunk to SciDB.
+
+See `3-read-write.py <examples/3-read-write.py>`_ for an example using the
+``read`` and ``write`` functions. The Python script has to be copied
+on the SciDB instance.

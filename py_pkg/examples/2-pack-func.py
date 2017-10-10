@@ -1,7 +1,11 @@
 """Usage:
 
-> python example_serialize.py
+> python 2-pack-func.py
 [(0, 0, 0, (255,  1.))]
+
+Setup:
+
+> pip install scidb-py
 """
 
 import dill

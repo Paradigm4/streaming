@@ -20,11 +20,11 @@
 {10} 10,100.1,'foo10'
 
 
-# Adjust the path to `example_high.py` script to match your setup
+# Adjust the path to `3-read-write.py` script to match your setup
 > iquery --afl --query "
     stream(
       foo,
-      'python -u /stream/py_pkg/example_low.py',
+      'python -u /stream/py_pkg/examples/3-read-write.py',
       'format=feather',
       'types=int64,double,string')"
 {instance_id,chunk_no,value_no} a0,a1,a2

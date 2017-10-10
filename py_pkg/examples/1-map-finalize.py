@@ -20,11 +20,11 @@
 {10} 10,100.1,'foo10'
 
 
-# Adjust the path to `example_high.py` script to match your setup
+# Adjust the path to `1-map-finalize.py` script to match your setup
 > iquery --afl --query "
     stream(
       foo,
-      'python -u /stream/py_pkg/example_high.py',
+      'python -u /stream/py_pkg/examples/1-map-finalize.py',
       'format=feather',
       'types=int64,double,string',
       'names=x,y,info')"
