@@ -12,6 +12,17 @@ Requirements
   dill
   pandas
 
+Note
+^^^^
+
+The latest Apache Arrow release contains a bug which might affect
+Stream users. The bug manifests on chunks of more than `128` records
+with null-able values. For more details, see the full bug description
+`here <https://issues.apache.org/jira/browse/ARROW-1676>_`. This bug
+has been `fixed <https://github.com/apache/arrow/pull/1204>_` and the
+fix will be included in the next Apache Arrow release.
+
+
 Installation
 ------------
 
