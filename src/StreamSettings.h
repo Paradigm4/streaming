@@ -70,9 +70,10 @@ public:
 private:
     string paramToString(shared_ptr <OperatorParam> const& parameter, shared_ptr<Query>& query, bool logical)
     {
+
         if(logical)
         {
-            string result = evaluate(((shared_ptr<OperatorParamLogicalExpression>&) parameter)->getExpression(),query, TID_STRING).getString();
+            string result = evaluate(((shared_ptr<OperatorParamLogicalExpression>&) parameter)->getExpression(), TID_STRING).getString();
             return result;
         }
         return ((shared_ptr<OperatorParamPhysicalExpression>&) parameter)->getExpression()->evaluate().getString();
