@@ -8,6 +8,11 @@ import sys
 __version__ = '16.9.0'
 
 
+python_map = ("'" +
+              'python -uc ' +
+              '"import scidbstrm; scidbstrm.map(scidbstrm.read_func())"' +
+              "'")
+
 def read():
     """Read a data chunk from SciDB. Returns a Pandas DataFrame or None.
 
