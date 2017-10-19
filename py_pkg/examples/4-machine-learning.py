@@ -2,15 +2,13 @@ import dill
 import io
 import scidbpy
 import scidbstrm
-import sklearn.externals
-import sklearn.linear_model
 
 
 # Setup:
 # pip install sicdb-py sklearn scipy
 #
 # On SciDB server:
-# pip install scidb-py
+# pip install sklearn scipy
 
 
 db = scidbpy.connect()
@@ -30,15 +28,17 @@ db.aio_input(
 
 # AFL% limit(train_csv, 3);
 # {tuple_no,dst_instance_id,src_instance_id} a0,error
-# {0,0,0} '1','long,0,0,0,...
-# {1,0,0} '0','long,0,0,0,...
-# {2,0,0} '1','long,0,0,0,...
+# {0,0,0} '1','long,0,0,0,...'
+# {1,0,0} '0','long,0,0,0,...'
+# {2,0,0} '1','long,0,0,0,...'
 
 
 # -- - --
 # 2. Convert CSV to binary
 # -- - --
 def map_to_bin(df):
+    import numpy
+
     df['a0'] = df['a0'].map(int)
     df['error'] = df['error'].map(
         lambda x: numpy.array(map(int, x.split(',')[1:]),
@@ -46,16 +46,9 @@ def map_to_bin(df):
     return df
 
 ar_fun = db.input(upload_data=scidbstrm.pack_func(map_to_bin)).store()
-run_python = """'python -uc "
-import scidbstrm
-import numpy
-
-map_fun = scidbstrm.read_func()
-scidbstrm.map(map_fun)
-"'"""
 que = db.stream(
     db.arrays.train_csv,
-    run_python,
+    scidbstrm.python_map,
     "'format=feather'",
     "'types=int64,binary'",
     "'names=label,img'",
@@ -70,8 +63,9 @@ que = db.stream(
 # {0,0,2} 1,<binary>
 
 # Plot:
+# %matplotlib gtk
 # matplotlib.pyplot.imshow(
-#     numpy.frombuffer(db.arrays.train_bin[0]['img']['val'],
+#     numpy.frombuffer(db.limit(db.arrays.train_bin, 1)[0]['img']['val'],
 #                      dtype=numpy.uint8).reshape((28, 28)),
 #     cmap='gray')
 
@@ -80,6 +74,7 @@ que = db.stream(
 # 3. Convert images to black and white
 # -- - --
 def map_to_bw(df):
+    import numpy
 
     def bin_to_bw(img):
         img_ar = numpy.frombuffer(img, dtype=numpy.uint8).copy()
@@ -92,7 +87,7 @@ def map_to_bw(df):
 ar_fun = db.input(upload_data=scidbstrm.pack_func(map_to_bw)).store()
 que = db.stream(
     db.arrays.train_bin,
-    run_python,
+    scidbstrm.python_map,
     "'format=feather'",
     "'types=int64,binary'",
     "'names=label,img'",
@@ -108,7 +103,7 @@ que = db.stream(
 
 # Plot:
 # matplotlib.pyplot.imshow(
-#     numpy.frombuffer(db.arrays.train_bw[0]['img']['val'],
+#     numpy.frombuffer(db.limit(db.arrays.train_bw, 1)[0]['img']['val'],
 #                      dtype=numpy.uint8).reshape((28, 28)),
 #     cmap='binary')
 
@@ -118,11 +113,11 @@ que = db.stream(
 # -- - --
 
 class Train:
-    model = sklearn.linear_model.SGDClassifier()
+    model = None
     count = 0
 
     @staticmethod
-    def train(df):
+    def map(df):
         img = df['img'].map(
             lambda x: numpy.frombuffer(x, dtype=numpy.uint8))
         Train.model.partial_fit(numpy.matrix(img.tolist()),
@@ -132,7 +127,7 @@ class Train:
         return None
 
     @staticmethod
-    def dump():
+    def finalize():
         if Train.count == 0:
             return None
         buf = io.BytesIO()
@@ -143,7 +138,7 @@ class Train:
 
 
 ar_fun = db.input(upload_data=scidbstrm.pack_func(Train)).store()
-run_python = """'python -uc "
+python_run = """'python -uc "
 import io
 import numpy
 import pandas
@@ -152,11 +147,12 @@ import sklearn.externals
 import sklearn.linear_model
 
 Train = scidbstrm.read_func()
-scidbstrm.map(Train.train, Train.dump)
+Train.model = sklearn.linear_model.SGDClassifier()
+scidbstrm.map(Train.map, Train.finalize)
 "'"""
 que = db.stream(
     db.arrays.train_bin,
-    run_python,
+    python_run,
     "'format=feather'",
     "'types=int64,binary'",
     "'names=count,model'",
@@ -175,6 +171,11 @@ que = db.stream(
 # -- - --
 
 def merge_models(df):
+    import io
+    import pandas
+    import sklearn.ensemble
+    import sklearn.externals
+
     estimators = [sklearn.externals.joblib.load(io.BytesIO(byt))
                   for byt in df['model']]
     if not estimators:
@@ -195,22 +196,12 @@ def merge_models(df):
 
 
 ar_fun = db.input(upload_data=scidbstrm.pack_func(merge_models)).store()
-run_python = """'python -uc "
-import io
-import numpy
-import pandas
-import scidbstrm
-import sklearn.ensemble
-import sklearn.externals
 
-merge_models = scidbstrm.read_func()
-scidbstrm.map(merge_models)
-"'"""
 que = db.redimension(
     db.arrays.model,
     '<count:int64, model:binary> [i]'
 ).stream(
-    run_python,
+    scidbstrm.python_map,
     "'format=feather'",
     "'types=int64,binary'",
     "'names=count,model'",
@@ -227,28 +218,26 @@ que = db.redimension(
 # 6. Load CSV test data
 # -- - --
 # https://www.kaggle.com/c/digit-recognizer/download/test.csv
-db.aio_input(
-    "'path=/kaggle/test.csv'",
-    "'num_attributes=1'",
-    "'header=1'"
+db.input(
+    '<img:string>[ImageID=1:*]',
+    "'/kaggle/test.csv'",
+    0,
+    'csv:lt'
 ).store(
     db.arrays.test_csv)
 
 # AFL% limit(test_csv, 3);
-# {tuple_no,dst_instance_id,src_instance_id} a0,error
-# {0,0,0} '0,0,0,...
-# {1,0,0} '0,0,0,...
-# {2,0,0} '0,0,0,...
+# {ImageID} img
+# {1} '0,0,0,...'
+# {2} '0,0,0,...'
+# {3} '0,0,0,...'
 
 
 # -- - --
 # 7. Predict labels for test data
 # -- - --
 class Predict:
-    model = sklearn.externals.joblib.load(
-        io.BytesIO(
-            scidbpy.connect(
-                no_ops=True).arrays.model_final[0]['model']['val']))
+    model = None
 
     @staticmethod
     def csv_to_bw(csv):
@@ -257,54 +246,58 @@ class Predict:
         return img_ar
 
     @staticmethod
-    def predict(df):
-        img = df['a0'].map(Predict.csv_to_bw)
-        df['a0'] = Predict.model.predict(numpy.matrix(img.tolist()))
+    def map(df):
+        img = df['img'].map(Predict.csv_to_bw)
+        df['img'] = Predict.model.predict(numpy.matrix(img.tolist()))
         return df
 
-ar_fun = db.input(upload_data=scidbstrm.pack_func(Predict)).store()
-run_python = """'python -uc "
+ar_fun = db.input(
+    upload_data=scidbstrm.pack_func(Predict)
+).cross_join(
+    db.arrays.model_final
+).store()
+
+python_run = """'python -uc "
+import dill
 import io
 import numpy
-import scidbpy
 import scidbstrm
 import sklearn.externals
 
-Predict = scidbstrm.read_func()
-scidbstrm.map(Predict.predict)
+df = scidbstrm.read()
+Predict = dill.loads(df.iloc[0, 0])
+Predict.model = sklearn.externals.joblib.load(io.BytesIO(df.iloc[0, 2]))
+scidbstrm.write()
+
+scidbstrm.map(Predict.map)
 "'"""
-que = db.unpack(
+que = db.apply(
     db.arrays.test_csv,
+    'ImageID',
     'ImageID'
-).apply(
-    'ImageID',
-    'ImageID + 1'
-).project(
-    'ImageID',
-    'a0'
 ).stream(
-    run_python,
+    python_run,
     "'format=feather'",
     "'types=int64,int64'",
-    "'names=ImageID,Label'",
+    "'names=Label,ImageID'",
     '_sg({}, 0)'.format(ar_fun.name)
 ).store(
     db.arrays.predict)
 
 # AFL% limit(predict, 3);
-# {instance_id,chunk_no,value_no} ImaeID,Label
-# {0,0,0} 1,2
-# {0,0,1} 2,0
-# {0,0,2} 3,9
+# {instance_id,chunk_no,value_no} Label,ImageID
+# {0,0,0} 2,1
+# {0,0,1} 0,2
+# {0,0,2} 9,3
 
 
 # -- - --
 # 8. Download results
 # -- - --
-df = db.iquery('scan(predict)',
-               fetch=True,
-               as_dataframe=True,
-               atts_only=True)
+df = db.arrays.predict.fetch(as_dataframe=True)
 df['ImageID'] = df['ImageID'].map(int)
 df['Label'] = df['Label'].map(int)
-df.to_csv('results.csv', header=True, index=False)
+df.to_csv('results.csv',
+          header=True,
+          index=False,
+          columns=('ImageID', 'Label'))
