@@ -1,16 +1,17 @@
 #!/bin/sh
 
+## https://github.com/red-data-tools/packages.red-data-tools.org#debian-gnulinux
+cat <<APT_LINE | tee /etc/apt/sources.list.d/red-data-tools.list
+deb https://packages.red-data-tools.org/ubuntu/ trusty universe
+deb-src https://packages.red-data-tools.org/ubuntu/ trusty universe
+APT_LINE
 
-# Setup Bintray.com/rvernica repository for libarrow-dev
-apt-key adv --keyserver hkp://keyserver.ubuntu.com --recv 46BD98A354BA5235
-echo "deb https://dl.bintray.com/rvernica/deb trusty universe" \
-     > /etc/apt/sources.list.d/bintray.list
-
-
-# Install dev_tools requirements and libarrow-dev
 apt-get update
-apt-get install --assume-yes  --no-install-recommends \
-        bc                                            \
+apt-get install --assume-yes --no-install-recommends --allow-unauthenticated \
+        red-data-tools-keyring
+apt-get update
+apt-get install --assume-yes --no-install-recommends \
+        bc                                           \
         libarrow-dev
 
 
