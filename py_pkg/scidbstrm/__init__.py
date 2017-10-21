@@ -13,6 +13,7 @@ python_map = ("'" +
               '"import scidbstrm; scidbstrm.map(scidbstrm.read_func())"' +
               "'")
 
+
 def read():
     """Read a data chunk from SciDB. Returns a Pandas DataFrame or None.
 
