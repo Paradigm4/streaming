@@ -105,7 +105,7 @@ que = db.stream(
 # matplotlib.pyplot.imshow(
 #     numpy.frombuffer(db.limit(db.arrays.train_bw, 1)[0]['img']['val'],
 #                      dtype=numpy.uint8).reshape((28, 28)),
-#     cmap='binary')
+#     cmap='gray')
 
 
 # -- - --
