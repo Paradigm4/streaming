@@ -29,12 +29,12 @@ Only attributes are transferred, so `apply()` the dimensions if you need them. T
 ```
 0
 ```
-Which means "end of interaction". After that, the child is required to return another response, and then may legally self-terminate or wait for SciDB to terminate it. Note that the child may return an empty `0` message in response to any of the messages from SciDB. To recap, `0` from SciDB to child means "no more data" whereas `0` from child to SciDB means "no data right now." 
+Which means "end of interaction". After that, the child is required to return another response, and then may legally self-terminate or wait for SciDB to terminate it. Note that the child may return an empty `0` message in response to any of the messages from SciDB. To recap, `0` from SciDB to child means "no more data" whereas `0` from child to SciDB means "no data right now."
 
 The child responses are returned in an array of `<response:string> [instance_id, chunk_no]` with the "number of lines" header and the final newline character removed. Depending on the contents, one way to parse such an array would be using the deprecated `parse()` operator provided in https://github.com/paradigm4/accelerated_io_tools. We might re-consider its deprecated status given this newfound utility.
 
 ```
-# Note that you will need to compile the program `examples/client.cpp` in order 
+# Note that you will need to compile the program `examples/client.cpp` in order
 # for the next command to work. A `Makefile` is provided
 $ iquery -aq "parse(stream(apply(build(<a:double>[i=1:10,10,0], random()%5), b, random()%10), '$MYDIR/examples/stream_test_client'), 'num_attributes=3')"
 {source_instance_id,chunk_no,line_no} a0,a1,a2,error
@@ -65,7 +65,7 @@ list()
 ```
 Just like in the TSV case, SciDB shall send one message per chunk to the child, each time waiting for a response. SciDB then sends an empty message to the child at the end of the interaction. The child must respond to each message from SciDB using either an empty or non-empty message. For convenience, the names of the SciDB attributes are passed as names of the list elements. However, the names of the R output columns going in the other direction are disregarded. Instead, the user may specify attribute names with `names=`. The user must also specify the types of columns returned by the child process using `types=` - again using only string, double and int32. The returned data are split into attributes and returned as:
 ```<a0:type0, a1:type1,...>[instance_id, chunk_no, value_no]```
-where `a0,a1,..` are default attribute names that may be overridden with `names=` and the types are as supplied. 
+where `a0,a1,..` are default attribute names that may be overridden with `names=` and the types are as supplied.
 
 When sending data to child, all SciDB missing codes are converted to the R `NA`. In the opposite direction, R `NA` values are converted to SciDB `null` (missing code 0).
 
@@ -73,7 +73,7 @@ After Feather is a little more stable, we will probably switch to that.
 
 A quick example:
 ```
-$ iquery -aq "stream(apply(build(<val:double> [i=1:5,5,0], i), s, 'Hello'), 'Rscript $MYDIR/examples/R_identity.R', 'format=df', 'types=double,string', 'names=a,b')" 
+$ iquery -aq "stream(apply(build(<val:double> [i=1:5,5,0], i), s, 'Hello'), 'Rscript $MYDIR/examples/R_identity.R', 'format=df', 'types=double,string', 'names=a,b')"
 {instance_id,chunk_no,value_no} a,b
 {0,0,0} 1,'Hello'
 {0,0,1} 2,'Hello'
@@ -93,6 +93,18 @@ See the package vignettes and source code in this sofware repository for more de
 
 For installing the R package, see: https://github.com/Paradigm4/stream/blob/master/r_pkg/vignettes/advanced_example.Rmd#r
 
+## Python package
+
+A Python library is available for the `stream` plugin from Python. The
+library makes available a number of utility functions for interacting
+with the `stream` operator. The data format used to interact with the
+library is Pandas
+[DataFrame](https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html). Internally,
+the data is transferred using the
+[Apache Arrow](https://arrow.apache.org/) library. Please the the
+package [README](py_pkg/README.rst) file for instructions on installing
+the package, API documentation, and examples.
+
 ## Stability and Security
 
 SciDB shall terminate all the child processes and cancel the query if any of the child processes deviate from the exchange protocol or exit early. SciDB shall aslo kill all the child processes if the query is cancelled for any reason.
@@ -102,7 +114,7 @@ SciDB shall terminate all the child processes and cancel the query if any of the
 When using the SciDB Enterprise Edition in `password` mode, the user must be at least in the `operator` role in order to run `stream()` with an arbitrary command. An optional list of approved commands can be created in the file `/opt/scidb/VV.VV/stream_allowed`, one command per line. The commands in that file are allowed for any user. This is in addition to all array read and write permissions that apply just like they do in all other operators. For example:
 
 ```bash
-$ cat /tmp/foo.sh 
+$ cat /tmp/foo.sh
 echo 1
 echo "Yo!"
 
@@ -125,7 +137,7 @@ Error id: libnamespaces::SCIDB_SE_QPROC::NAMESPACE_E_INSUFFICIENT_PERMISSIONS
 Error description: Query processor error. Insufficient permissions, need {[(db:)A],} but only have {[(ns:XYZ)lr],[(ns:public)RAclrud],}.
 
 #Add this command to the list of allowed commands:
-$ echo "/tmp/foo.sh" >> /opt/scidb/16.9/etc/stream_allowed 
+$ echo "/tmp/foo.sh" >> /opt/scidb/16.9/etc/stream_allowed
 
 #Now anyone can run this command:
 $ iquery --auth-file=/home/scidb/.scidb_auth -aq "stream(filter(build(<val:double>[i=0:0,1,0],0),false), '/tmp/foo.sh')"
@@ -143,6 +155,18 @@ $ iquery --auth-file=/home/scidb/.scidb_auth -aq "stream(filter(build(<val:doubl
 Beyond this, the user assumes risks inherent in running arbitrary code next to a database: one should make sure the memory is adequate, child processes shouldn't fork other processes, ensure the security model is not compromised and so on.
 
 ## Installation
+
+### Install Apache Arrow
+
+Follow distribution specific instructions to install the
+`red-data-tools
+<https://github.com/red-data-tools/packages.red-data-tools.org/blob/master/README.md#package-repository>`_
+package repository and the `Apache Arrow C++
+<https://github.com/red-data-tools/packages.red-data-tools.org/blob/master/README.md#apache-arrow-c>`_
+development library. For Red Hat Enterprise Linux use CentOS
+instructions.
+
+### Install plug-in
 
 The easiest way is to first set up dev_tools (https://github.com/paradigm4/dev_tools).
 Then it goes something like this:

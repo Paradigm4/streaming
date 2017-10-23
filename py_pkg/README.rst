@@ -30,49 +30,6 @@ fix will be included in the next Apache Arrow release.
 Installation
 ------------
 
-Install Apache Arrow
-^^^^^^^^^^^^^^^^^^^^
-
-Follow distribution specific instructions to install the
-`red-data-tools
-<https://github.com/red-data-tools/packages.red-data-tools.org/blob/master/README.md#package-repository>`_
-package repository and the `Apache Arrow C++
-<https://github.com/red-data-tools/packages.red-data-tools.org/blob/master/README.md#apache-arrow-c>`_
-development library. For Red Hat Enterprise Linux use CentOS
-instructions.
-
-Install SciDB-Strm Plugin
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The easiest way is to first set up `dev_tools
-<https://github.com/paradigm4/dev_tools>`_. Then it goes something
-like this::
-
-  $ iquery --afl --query "load_library('dev_tools')"
-  Query was executed successfully
-
-  $ iquery --afl --query "install_github('paradigm4/stream', 'python')"
-  {i} success
-  {0} true
-
-  $ iquery --afl --query "load_library('stream')"
-  Query was executed successfully
-
-  $ iquery --afl --query "
-      stream(
-        filter(
-          build(<val:double>[i=0:0,1,0],0),
-          false),
-        'printf \"1\nWhat is up?\n\"')"
-  {instance_id,chunk_no} response
-  {0,0} 'What is up?'
-  {1,0} 'What is up?'
-  {2,0} 'What is up?'
-  {3,0} 'What is up?'
-
-Install SciDB-Strm Python Library
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
 Install required packages::
 
   pip install pandas feather-format dill
@@ -81,13 +38,13 @@ Install SciDB-Strm library::
 
   pip install git+http://github.com/paradigm4/stream.git@python#subdirectory=py_pkg
 
-The Python library needs to be installed on the SciDB server as well
-as the SciDB client if Python code is to be send from the client to
-the server.
+The Python library needs to be installed on the SciDB server. The
+library needs to be installed on the client as well, if Python code is
+to be send from the client to the server.
 
 
-SciDB-Strm Python API
------------------------
+SciDB-Strm Python API and Examples
+----------------------------------
 
 Once installed the *SciDB-Strm* Python library can be imported with
 ``import scidbstrm``. The library provides a high and low-level access
