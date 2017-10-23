@@ -4,9 +4,13 @@ SciDB-Strm: Python Library for SciDB Streaming
 Requirements
 ------------
 
-* SciDB ``16.9``
-* Apache Arrow ``0.6.0`` or newer
-* Python ``2.7.x``; required Python packages::
+SciDB ``16.9``
+
+Apache Arrow ``0.6.0`` or newer.
+
+Python ``2.7.x``
+
+Required Python packages::
 
   feather-format
   dill
@@ -18,8 +22,8 @@ Note
 The latest Apache Arrow release contains a bug which might affect
 Stream users. The bug manifests on chunks of more than `128` records
 with null-able values. For more details, see the full bug description
-`here <https://issues.apache.org/jira/browse/ARROW-1676>_`. This bug
-has been `fixed <https://github.com/apache/arrow/pull/1204>_` and the
+`here <https://issues.apache.org/jira/browse/ARROW-1676>`_. This bug
+has been `fixed <https://github.com/apache/arrow/pull/1204>`_ and the
 fix will be included in the next Apache Arrow release.
 
 
@@ -31,9 +35,9 @@ Install Apache Arrow
 
 Follow distribution specific instructions to install the
 `red-data-tools
-<https://github.com/red-data-tools/packages.red-data-tools.org/blob/master/README.md#package-repository>_`
+<https://github.com/red-data-tools/packages.red-data-tools.org/blob/master/README.md#package-repository>`_
 package repository and the `Apache Arrow C++
-<https://github.com/red-data-tools/packages.red-data-tools.org/blob/master/README.md#apache-arrow-c>_`
+<https://github.com/red-data-tools/packages.red-data-tools.org/blob/master/README.md#apache-arrow-c>`_
 development library. For Red Hat Enterprise Linux use CentOS
 instructions.
 
@@ -98,11 +102,11 @@ High-level access is provided by the function ``map``:
   all the chunks have been processed.
 
 See `1-map-finalize.py <examples/1-map-finalize.py>`_ for an example
-using the ``map`` function. The Python script has to be copied on the
-SciDB instance.
+using the ``map`` function. The Python script has to be copied onto
+the SciDB instance.
 
 Python code can be send to the SciDB server for execution using
-the ``pack_func`` and ``read_func`` functions::
+the ``pack_func`` and ``read_func`` functions:
 
 ``pack_func(func)``
   Serialize Python function for use as ``upload_data`` in ``input`` or
@@ -122,6 +126,10 @@ Low-level access is provided by the ``read`` and ``write`` functions:
 ``write(df=None)``
   Write a data chunk to SciDB.
 
-See `3-read-write.py <examples/3-read-write.py>`_ for an example using the
-``read`` and ``write`` functions. The Python script has to be copied
-on the SciDB instance.
+See `3-read-write.py <examples/3-read-write.py>`_ for an example using
+the ``read`` and ``write`` functions. The Python script has to be
+copied onto the SciDB instance.
+
+Finally, see `4-machine-learning.py <examples/4-machine-learning.py>`_
+for a more complex example of going throught the steps of using
+machine larning (preprocessing, training, and prediction).
