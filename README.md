@@ -159,10 +159,9 @@ Beyond this, the user assumes risks inherent in running arbitrary code next to a
 ### Install Apache Arrow
 
 Follow distribution specific instructions to install the
-`red-data-tools
-<https://github.com/red-data-tools/packages.red-data-tools.org/blob/master/README.md#package-repository>`_
-package repository and the `Apache Arrow C++
-<https://github.com/red-data-tools/packages.red-data-tools.org/blob/master/README.md#apache-arrow-c>`_
+[red-data-tools](https://github.com/red-data-tools/packages.red-data-tools.org/blob/master/README.md#package-repository)
+package repository and the
+[Apache Arrow C++](https://github.com/red-data-tools/packages.red-data-tools.org/blob/master/README.md#apache-arrow-c)
 development library. For Red Hat Enterprise Linux use CentOS
 instructions.
 
