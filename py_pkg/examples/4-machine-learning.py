@@ -215,7 +215,65 @@ que = db.redimension(
 
 
 # -- - --
-# 6. Load CSV test data
+# 6. Predict labels for train data
+# -- - --
+def predict(df):
+    img = df['img'].map(
+        lambda x: numpy.frombuffer(x, dtype=numpy.uint8))
+    df['img'] = model.predict(numpy.matrix(img.tolist()))
+    return df
+
+ar_fun = db.input(
+    upload_data=scidbstrm.pack_func(predict)
+).cross_join(
+    db.arrays.model_final
+).store()
+
+python_run = """'python -uc "
+import dill
+import io
+import numpy
+import scidbstrm
+import sklearn.externals
+
+df = scidbstrm.read()
+predict = dill.loads(df.iloc[0, 0])
+model = sklearn.externals.joblib.load(io.BytesIO(df.iloc[0, 2]))
+scidbstrm.write()
+
+scidbstrm.map(predict)
+"'"""
+que = db.stream(
+    db.arrays.train_bw,
+    python_run,
+    "'format=feather'",
+    "'types=int64,int64'",
+    "'names=Label,Predict'",
+    '_sg({}, 0)'.format(ar_fun.name)
+).store(
+    db.arrays.predict_train)
+
+# AFL% limit(predict_train, 3);
+# {instance_id,chunk_no,value_no} Label,Predict
+# {0,0,0} 1,1
+# {0,0,1} 0,0
+# {0,0,2} 1,1
+
+# Plot:
+# %matplotlib gtk
+# df = db.arrays.predict_train.fetch(as_dataframe=True)
+# def rand_jitter(arr):
+#     return arr + np.random.randn(len(arr)) * .4
+# matplotlib.pyplot.xticks(range(10))
+# matplotlib.pyplot.yticks(range(10))
+# matplotlib.pyplot.xlabel('True')
+# matplotlib.pyplot.ylabel('Predicted')
+# matplotlib.pyplot.plot(
+#     rand_jitter(df['Label']), rand_jitter(df['Predict']), '.', ms=1)
+
+
+# -- - --
+# 7. Load CSV test data
 # -- - --
 # https://www.kaggle.com/c/digit-recognizer/download/test.csv
 db.input(
@@ -234,7 +292,7 @@ db.input(
 
 
 # -- - --
-# 7. Predict labels for test data
+# 8. Predict labels for test data
 # -- - --
 class Predict:
     model = None
@@ -282,9 +340,9 @@ que = db.apply(
     "'names=Label,ImageID'",
     '_sg({}, 0)'.format(ar_fun.name)
 ).store(
-    db.arrays.predict)
+    db.arrays.predict_test)
 
-# AFL% limit(predict, 3);
+# AFL% limit(predict_test, 3);
 # {instance_id,chunk_no,value_no} Label,ImageID
 # {0,0,0} 2,1
 # {0,0,1} 0,2
@@ -292,9 +350,9 @@ que = db.apply(
 
 
 # -- - --
-# 8. Download results
+# 9. Download results
 # -- - --
-df = db.arrays.predict.fetch(as_dataframe=True)
+df = db.arrays.predict_test.fetch(as_dataframe=True)
 df['ImageID'] = df['ImageID'].map(int)
 df['Label'] = df['Label'].map(int)
 df.to_csv('results.csv',
