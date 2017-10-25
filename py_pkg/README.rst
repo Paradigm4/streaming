@@ -12,8 +12,8 @@ Python ``2.7.x``
 
 Required Python packages::
 
-  feather-format
   dill
+  feather-format
   pandas
 
 Note
@@ -86,6 +86,11 @@ Low-level access is provided by the ``read`` and ``write`` functions:
 See `3-read-write.py <examples/3-read-write.py>`_ for an example using
 the ``read`` and ``write`` functions. The Python script has to be
 copied onto the SciDB instance.
+
+A convenience invocation of the Python interpreter is provided in
+``python_map`` variable and it is set to::
+
+  python -uc "import scidbstrm; scidbstrm.map(scidbstrm.read_func())"
 
 Finally, see `4-machine-learning.py <examples/4-machine-learning.py>`_
 for a more complex example of going throught the steps of using
