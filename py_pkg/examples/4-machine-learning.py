@@ -84,16 +84,24 @@ def map_to_bw(df):
     df['img'] = df['img'].map(bin_to_bw)
     return df
 
-ar_fun = db.input(upload_data=scidbstrm.pack_func(map_to_bw)).store()
-que = db.stream(
-    db.arrays.train_bin,
-    scidbstrm.python_map,
-    "'format=feather'",
-    "'types=int64,binary'",
-    "'names=label,img'",
-    '_sg({}, 0)'.format(ar_fun.name)
-).store(
-    db.arrays.train_bw)
+que = db.iquery("""
+store(
+  stream(
+    train_bin,
+    {script},
+    'format=feather',
+    'types=int64,binary',
+    'names=label,img',
+    _sg(
+      input(
+        {{sch}},
+        '{{fn}}',
+        0,
+        '{{fmt}}'),
+      0)),
+  train_bw)""".format(script=scidbstrm.python_map),
+                upload_data=scidbstrm.pack_func(map_to_bw))
+
 
 # AFL% limit(train_bw, 3);
 # {instance_id,chunk_no,value_no} label,img
