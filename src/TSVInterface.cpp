@@ -59,7 +59,7 @@ ArrayDesc TSVInterface::getOutputSchema(vector<ArrayDesc> const& inputSchemas, S
     outputDimensions.push_back(DimensionDesc("instance_id", 0,   query->getInstancesCount()-1, 1, 0));
     outputDimensions.push_back(DimensionDesc("chunk_no",    0,   CoordinateBounds::getMax(),   1, 0));
     Attributes outputAttributes;
-    outputAttributes.push_back( AttributeDesc(0, settings.getNames().size() ? settings.getNames()[0] : "response",   TID_STRING,    0, 0));
+    outputAttributes.push_back( AttributeDesc(0, settings.getNames().size() ? settings.getNames()[0] : "response",   TID_STRING,    0, CompressorType::NONE));
     outputAttributes = addEmptyTagAttribute(outputAttributes);
     return ArrayDesc(inputSchemas[0].getName(), outputAttributes, outputDimensions, defaultPartitioning(), query->getDefaultArrayResidency());
 }
