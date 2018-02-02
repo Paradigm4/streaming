@@ -13,6 +13,6 @@ all: stream_test_client
 
 stream_test_client: client.cpp
 	$(CXX) client.cpp -ggdb -o stream_test_client
-		
+
 clean:
 	rm -f stream_test_client

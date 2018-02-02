@@ -40,11 +40,15 @@ else
   endif
 endif
 
+OBJS  := $(SRCS:%.cpp=%.o)
+%.o: %.cpp
+	$(CXX) $(CFLAGS) $(INC) -c $< -o $@
+
 all: libstream.so
 
-libstream.so: $(SRCS) StreamSettings.h ChildProcess.h TSVInterface.h DFInterface.h FeatherInterface.h
+libstream.so: $(OBJS) StreamSettings.h ChildProcess.h TSVInterface.h DFInterface.h FeatherInterface.h
 	@if test ! -d "$(SCIDB)"; then echo  "Error. Try:\n\nmake SCIDB=<PATH TO SCIDB INSTALL PATH>"; exit 1; fi
-	$(CXX) $(CFLAGS) $(INC) -o libstream.so $(SRCS) $(LIBS)
+	$(CXX) $(CFLAGS) $(INC) -o libstream.so $(OBJS) $(LIBS)
 	@echo "Now copy *.so to your SciDB lib/scidb/plugins directory and run"
 	@echo "iquery -aq \"load_library('stream')\" # to load the plugin."
 	@echo
