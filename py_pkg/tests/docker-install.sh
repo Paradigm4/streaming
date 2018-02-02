@@ -1,6 +1,10 @@
 #!/bin/sh
 
-## https://github.com/red-data-tools/packages.red-data-tools.org#debian-gnulinux
+set -o errexit
+
+# Install prerequisites
+## https://github.com/red-data-tools/packages.red-data-tools.org#ubuntu
+## No packages for Debian jessie, use Ubuntu trusty
 cat <<APT_LINE | tee /etc/apt/sources.list.d/red-data-tools.list
 deb https://packages.red-data-tools.org/ubuntu/ trusty universe
 deb-src https://packages.red-data-tools.org/ubuntu/ trusty universe
@@ -11,18 +15,14 @@ apt-get install --assume-yes --no-install-recommends --allow-unauthenticated \
         red-data-tools-keyring
 apt-get update
 apt-get install --assume-yes --no-install-recommends \
-        bc                                           \
-        libarrow-dev
+        libarrow0=$ARROW_VER                         \
+        libarrow-dev=$ARROW_VER
 
 
-# Install dev_tools
-SCIDB_DEV_TOOLS=332127216cd6d5791320abafd767e09164cd22e2
-wget --no-verbose --output-document -                                       \
-     https://github.com/Paradigm4/dev_tools/archive/$SCIDB_DEV_TOOLS.tar.gz \
-    |  tar --extract --gzip --directory=/usr/local/src                      \
-    && make --directory=/usr/local/src/dev_tools-$SCIDB_DEV_TOOLS           \
-    && cp /usr/local/src/dev_tools-$SCIDB_DEV_TOOLS/*.so                    \
-          $SCIDB_INSTALL_PATH/lib/scidb/plugins
+# Compile and install plugin
+make --directory /stream
+cp /stream/libstream.so /opt/scidb/$SCIDB_VER/lib/scidb/plugins/
+iquery --afl --query "load_library('stream')"
 
 
 # Install Python requirements and SciDB-Strm

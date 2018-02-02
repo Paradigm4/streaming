@@ -5,7 +5,7 @@ language: python
 python:
   - "2.7"
 
-env: SCIDB_VER=16.9
+env: SCIDB_VER=16.9 ARROW_VER=0.7.1-1
 
 services:
   - docker
@@ -15,20 +15,15 @@ before_install:
   - docker run
     --name scidb
     --detach
-    --volume /dev/shm
-    --volume /home/travis/build/Paradigm4/stream:/stream:ro
-    --tmpfs /dev/shm:exec
     --publish 8080:8080
+    --volume `pwd`:/stream
+    --env ARROW_VER=${ARROW_VER}
     rvernica/scidb:${SCIDB_VER}
-  - while ! curl http://localhost:8080/version; do sleep 1; done
+  - while ! curl http://localhost:8080/version; do sleep 5; done
   - cd py_pkg
 
 install:
   - docker exec --tty scidb /stream/py_pkg/tests/docker-install.sh
-  - docker exec --tty scidb iquery --afl --query "
-    load_library('dev_tools');
-    install_github('Paradigm4/stream', 'python');
-    load_library('stream')"
   - pip install --upgrade -r requirements.txt
 
 script:
