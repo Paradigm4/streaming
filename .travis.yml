@@ -20,7 +20,6 @@ before_install:
     --env ARROW_VER=${ARROW_VER}
     rvernica/scidb:${SCIDB_VER}
   - while ! curl http://localhost:8080/version; do sleep 5; done
-  - cd py_pkg
 
 install:
   - docker exec scidb bash -c "
@@ -35,7 +34,8 @@ install:
 script:
   - docker exec --tty scidb /stream/tests/test.sh
   - pycodestyle .
-  - pip install .
+  - pytest
+  - pip install py_pkg
 
 after_failure:
   - docker logs scidb
