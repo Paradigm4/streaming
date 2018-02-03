@@ -28,7 +28,7 @@ install:
 
 script:
   - docker exec --tty scidb /stream/test.sh
-  - pep8 .
+  - pycodestyle .
   - pip install .
 
 after_failure:
