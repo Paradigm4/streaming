@@ -45,6 +45,7 @@ def map_to_bin(df):
                               dtype=numpy.uint8).tobytes())
     return df
 
+
 ar_fun = db.input(upload_data=scidbstrm.pack_func(map_to_bin)).store()
 que = db.stream(
     db.arrays.train_csv,
@@ -83,6 +84,7 @@ def map_to_bw(df):
 
     df['img'] = df['img'].map(bin_to_bw)
     return df
+
 
 que = db.iquery("""
 store(
@@ -231,6 +233,7 @@ def predict(df):
     df['img'] = model.predict(numpy.matrix(img.tolist()))
     return df
 
+
 ar_fun = db.input(
     upload_data=scidbstrm.pack_func(predict)
 ).cross_join(
@@ -316,6 +319,7 @@ class Predict:
         img = df['img'].map(Predict.csv_to_bw)
         df['img'] = Predict.model.predict(numpy.matrix(img.tolist()))
         return df
+
 
 ar_fun = db.input(
     upload_data=scidbstrm.pack_func(Predict)
