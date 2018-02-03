@@ -1,9 +1,19 @@
 import dill
 import io
-import numpy
-import pandas
 import struct
 import sys
+
+# Workaround for NumPy bug #10338
+# https://github.com/numpy/numpy/issues/10338
+try:
+    import numpy
+    import pandas
+except KeyError:
+    import os
+    os.environ.setdefault('PATH', '')
+    import numpy
+    import pandas
+
 
 __version__ = '16.9.0'
 
