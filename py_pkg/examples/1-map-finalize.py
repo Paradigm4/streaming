@@ -36,8 +36,8 @@
 
 """
 
-import pandas
 import scidbstrm
+import pandas
 
 
 df_all = None

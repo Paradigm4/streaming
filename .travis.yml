@@ -33,6 +33,7 @@ script:
   - pycodestyle .
   - pytest
   - pip install py_pkg
+  - docker exec --tty scidb /stream/tests/py_pkg_examples.sh
 
 after_failure:
   - docker logs scidb

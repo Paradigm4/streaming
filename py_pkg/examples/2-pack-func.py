@@ -1,7 +1,7 @@
 """Usage:
 
 > python 2-pack-func.py
-[(0, 0, 0, (255,  1.))]
+[(0, 0, 0, (255, 1.))]
 
 Setup:
 
@@ -39,4 +39,4 @@ scidbstrm.map(map_fun)
     '_sg({}, 0)'.format(ar_fun.name)  # Array with Serialized function
 )
 
-print(que[:])
+print(que.fetch(as_dataframe=False))
