@@ -16,7 +16,8 @@ apt-get install --assume-yes --no-install-recommends --allow-unauthenticated \
 apt-get update
 apt-get install --assume-yes --no-install-recommends \
         libarrow0=$ARROW_VER                         \
-        libarrow-dev=$ARROW_VER
+        libarrow-dev=$ARROW_VER                      \
+        R-base-core
 
 
 # Compile and install plugin
