@@ -28,7 +28,7 @@ install:
     tar --extract --gzip --file /v${SHIM_VER}.tar.gz;
     make --directory /shim-${SHIM_VER} service;
     service shimsvc restart"
-  - docker exec --tty scidb /stream/py_pkg/tests/docker-install.sh
+  - docker exec --tty scidb /stream/tests/docker-install.sh
   - pip install --upgrade -r requirements.txt
 
 script:
