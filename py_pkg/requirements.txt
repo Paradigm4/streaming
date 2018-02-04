@@ -3,3 +3,5 @@ feather-format
 pandas
 pycodestyle
 scidb-py==16.9.10
+scipy
+sklearn

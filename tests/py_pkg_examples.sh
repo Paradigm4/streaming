@@ -53,5 +53,10 @@ iquery --afl --query "
 iquery --afl --query "remove(foo)"
 
 
+# 4.
+python /stream/py_pkg/examples/4-machine-learning.py \
+>> $DIR/py_pkg_examples.out
+
+
 # Diff
 diff $DIR/py_pkg_examples.out $DIR/py_pkg_examples.expected
