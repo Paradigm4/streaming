@@ -122,7 +122,9 @@ def test_arrow_1676(db):
     df = db.iquery(
         '''
         stream(
-          build(<val:string>[i=1:10000,10000,0], iif(i<10000, string(i), null)),
+          build(
+            <val:string>[i=1:10000,10000,0],
+            iif(i<10000, string(i), null)),
           'python -uc "
 import scidbstrm
 def f(x):
