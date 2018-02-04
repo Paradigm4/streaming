@@ -60,18 +60,6 @@ def test_one_chunk(db, scidb_ty, name):
               names='' if name is None else ", 'names={}'".format(name)),
                     fetch=True,
                     as_dataframe=False)
-    print(res)
-    print(numpy.array(
-        [(0, 0, i, (255, eval('{}({})'.format(
-            py_type_map.get(scidb_ty, scidb_ty), i))))
-         for i in range(3)],
-        dtype=[('instance_id', '<i8'),
-               ('chunk_no', '<i8'),
-               ('value_no', '<i8'),
-               ('a0' if name is None else name,
-                [('null', 'u1'),
-                 ('val', np_type_map.get(scidb_ty, scidb_ty))])]))
-
     assert(numpy.array_equal(res, numpy.array(
         [(0, 0, i, (255, eval('{}({})'.format(
             py_type_map.get(scidb_ty, scidb_ty),
