@@ -109,3 +109,25 @@ def test_any_chunks(db, scidb_ty, name):
          for i in range(10)],
         dtype=[(np_name, [('null', 'u1'),
                           ('val', np_type_map.get(scidb_ty, scidb_ty))])])))
+
+
+def test_arrow_1676(db):
+    """
+    https://issues.apache.org/jira/browse/ARROW-1676
+    https://github.com/Paradigm4/stream/issues/16
+    """
+    df = db.iquery(
+        '''
+        stream(
+          build(<val:string>[i=1:10000,10000,0], iif(i<10000, string(i), null)),
+          'python -uc "
+import scidbstrm
+def f(x):
+  x.to_feather(\\"/tmp/arrow_1676.feather\\")
+  return x
+scidbstrm.map(f)"',
+         'format=feather',
+         'types=string'
+        )''',
+        fetch=True)
+    assert df.shape == (10000, 4)
