@@ -8,7 +8,7 @@ python:
   - "3.5"
   - "3.6"
 
-env: SCIDB_VER=16.9 SCIDB_IMG=16.9-ext ARROW_VER=0.7.1-1
+env: SCIDB_VER=16.9 SCIDB_IMG=16.9-ext ARROW_VER=0.8.0-2
 
 services:
   - docker
