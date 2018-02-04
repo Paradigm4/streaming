@@ -37,7 +37,7 @@ script:
 
 after_failure:
   - docker logs scidb
-  - docker exec --tty cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/0/scidb-stdout.log
-  - docker exec --tty cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/0/scidb-stderr.log
-  - docker exec --tty cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/1/scidb-stdout.log
-  - docker exec --tty cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/1/scidb-stderr.log
+  - docker exec --tty scidb cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/0/scidb-stdout.log
+  - docker exec --tty scidb cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/0/scidb-stderr.log
+  - docker exec --tty scidb cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/1/scidb-stdout.log
+  - docker exec --tty scidb cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/1/scidb-stderr.log
