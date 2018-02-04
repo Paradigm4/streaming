@@ -19,7 +19,7 @@ db = scidbpy.connect()
 # -- - --
 # https://www.kaggle.com/c/digit-recognizer/download/train.csv
 db.aio_input(
-    "'path=/kaggle/train.csv'",
+    "'path=/stream/py_pkg/examples/train.csv'",
     "'num_attributes=1'",
     "'attribute_delimiter=,'",
     "'header=1'"
@@ -37,6 +37,10 @@ db.aio_input(
 # 2. Convert CSV to binary
 # -- - --
 def map_to_bin(df):
+    # Workaround for NumPy bug #10338
+    # https://github.com/numpy/numpy/issues/10338
+    import os
+    os.environ.setdefault('PATH', '')
     import numpy
 
     df['a0'] = df['a0'].map(int)
@@ -75,6 +79,8 @@ que = db.stream(
 # 3. Convert images to black and white
 # -- - --
 def map_to_bw(df):
+    import os
+    os.environ.setdefault('PATH', '')
     import numpy
 
     def bin_to_bw(img):
@@ -150,6 +156,8 @@ class Train:
 ar_fun = db.input(upload_data=scidbstrm.pack_func(Train)).store()
 python_run = """'python -uc "
 import io
+import os
+os.environ.setdefault(\\\"PATH\\\", \\\"\\\")
 import numpy
 import pandas
 import scidbstrm
@@ -243,6 +251,8 @@ ar_fun = db.input(
 python_run = """'python -uc "
 import dill
 import io
+import os
+os.environ.setdefault(\\\"PATH\\\", \\\"\\\")
 import numpy
 import scidbstrm
 import sklearn.externals
@@ -289,7 +299,7 @@ que = db.stream(
 # https://www.kaggle.com/c/digit-recognizer/download/test.csv
 db.input(
     '<img:string>[ImageID=1:*]',
-    "'/kaggle/test.csv'",
+    "'/stream/py_pkg/examples/test.csv'",
     0,
     'csv:lt'
 ).store(
@@ -330,6 +340,8 @@ ar_fun = db.input(
 python_run = """'python -uc "
 import dill
 import io
+import os
+os.environ.setdefault(\\\"PATH\\\", \\\"\\\")
 import numpy
 import scidbstrm
 import sklearn.externals
