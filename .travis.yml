@@ -33,8 +33,8 @@ script:
   - docker exec --tty scidb /stream/tests/test.sh
   - pycodestyle .
   - pytest
-  - ./tests/py_pkg_examples.sh
   - ./tests/py_pkg_examples.sh "docker exec --tty scidb"
+  - docker exec --tty scidb /stream/tests/py_pkg_examples.sh
 
 after_failure:
   - docker logs scidb
