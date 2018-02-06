@@ -27,13 +27,14 @@ before_install:
 install:
   - docker exec --tty scidb /stream/tests/docker-install.sh
   - pip install --upgrade -r py_pkg/requirements.txt
+  - pip install py_pkg
 
 script:
   - docker exec --tty scidb /stream/tests/test.sh
   - pycodestyle .
   - pytest
-  - pip install py_pkg
-  - docker exec --tty scidb /stream/tests/py_pkg_examples.sh
+  - ./tests/py_pkg_examples.sh
+  - ./tests/py_pkg_examples.sh "docker exec --tty scidb"
 
 after_failure:
   - docker logs scidb

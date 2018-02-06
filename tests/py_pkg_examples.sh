@@ -4,9 +4,14 @@ set -o errexit
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+if [ "$1" != "" ]
+then
+    PRE="$1"
+fi
+
 
 # 1.
-iquery --afl --query "
+$PRE iquery --afl --query "
     store(
       apply(
         build(<x:int64 not null>[i=1:10:0:5], i),
@@ -15,7 +20,7 @@ iquery --afl --query "
       foo)" \
 >  $DIR/py_pkg_examples.out
 
-iquery --afl --query "
+$PRE iquery --afl --query "
     stream(
       foo,
       'python -u /stream/py_pkg/examples/1-map-finalize.py',
@@ -24,16 +29,16 @@ iquery --afl --query "
       'names=x,y,info')" \
 >> $DIR/py_pkg_examples.out
 
-iquery --afl --query "remove(foo)"
+$PRE iquery --afl --query "remove(foo)"
 
 
 # 2.
-python /stream/py_pkg/examples/2-pack-func.py \
+python $DIR/../py_pkg/examples/2-pack-func.py \
 >> $DIR/py_pkg_examples.out
 
 
 # 3.
-iquery --afl --query "
+$PRE iquery --afl --query "
     store(
       apply(
         build(<x:int64 not null>[i=1:10:0:5], i),
@@ -42,7 +47,7 @@ iquery --afl --query "
       foo)" \
 >> $DIR/py_pkg_examples.out
 
-iquery --afl --query "
+$PRE iquery --afl --query "
     stream(
       foo,
       'python -u /stream/py_pkg/examples/3-read-write.py',
@@ -50,13 +55,14 @@ iquery --afl --query "
       'types=int64,double,string')" \
 >> $DIR/py_pkg_examples.out
 
-iquery --afl --query "remove(foo)"
+$PRE iquery --afl --query "remove(foo)"
 
 
 # 4.
-python /stream/py_pkg/examples/4-machine-learning.py \
+python $DIR/../py_pkg/examples/4-machine-learning.py \
 >> $DIR/py_pkg_examples.out
 
 
 # Diff
-diff $DIR/py_pkg_examples.out $DIR/py_pkg_examples.expected
+diff --ignore-trailing-space \
+     $DIR/py_pkg_examples.out $DIR/py_pkg_examples.expected
