@@ -46,7 +46,7 @@ def map_to_bin(df):
 
     df['a0'] = df['a0'].map(int)
     df['error'] = df['error'].map(
-        lambda x: numpy.array(map(int, x.split(',')[1:]),
+        lambda x: numpy.array(list(map(int, x.split(',')[1:])),
                               dtype=numpy.uint8).tobytes())
     return df
 
@@ -326,7 +326,7 @@ class Predict:
 
     @staticmethod
     def csv_to_bw(csv):
-        img_ar = numpy.array(map(int, csv.split(',')), dtype=numpy.uint8)
+        img_ar = numpy.array(list(map(int, csv.split(','))), dtype=numpy.uint8)
         img_ar[img_ar > 1] = 1
         return img_ar
 
