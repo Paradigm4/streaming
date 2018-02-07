@@ -12,6 +12,7 @@ import dill
 import numpy
 import scidbpy
 import scidbstrm
+import sys
 
 
 db = scidbpy.connect()
@@ -29,13 +30,13 @@ ar_fun = db.input(upload_data=scidbstrm.pack_func(get_first),
 
 que = db.stream(
     'build(<x:double>[i=1:5], i)',
-    """'python -uc "
+    """'{python} -uc "
 import scidbstrm
 
 map_fun = scidbstrm.read_func()
 scidbstrm.map(map_fun)
 
-"'""",
+"'""".format(python=sys.executable),
     "'format=feather'",
     "'types=double'",
     '_sg({}, 0)'.format(ar_fun.name)  # Array with Serialized function

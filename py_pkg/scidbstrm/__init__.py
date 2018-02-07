@@ -19,7 +19,7 @@ __version__ = '16.9.0'
 
 
 python_map = ("'" +
-              'python -uc ' +
+              '{python} -uc '.format(python=sys.executable) +
               '"import scidbstrm; scidbstrm.map(scidbstrm.read_func())"' +
               "'")
 

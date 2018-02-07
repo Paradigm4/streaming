@@ -2,6 +2,7 @@ import dill
 import io
 import scidbpy
 import scidbstrm
+import sys
 
 
 # Setup:
@@ -156,9 +157,9 @@ class Train:
             'model': [buf.getvalue()]})
 
 
-python_run = """'python -uc "
 ar_fun = db.input(upload_data=scidbstrm.pack_func(Train),
                   upload_schema=upload_schema).store()
+python_run = """'{python} -uc "
 import io
 import os
 os.environ.setdefault(\\\"PATH\\\", \\\"\\\")
@@ -171,7 +172,7 @@ import sklearn.linear_model
 Train = scidbstrm.read_func()
 Train.model = sklearn.linear_model.SGDClassifier()
 scidbstrm.map(Train.map, Train.finalize)
-"'"""
+"'""".format(python=sys.executable)
 que = db.stream(
     db.arrays.train_bin,
     python_run,
@@ -253,7 +254,7 @@ ar_fun = db.input(
     db.arrays.model_final
 ).store()
 
-python_run = """'python -uc "
+python_run = """'{python} -uc "
 import dill
 import io
 import os
@@ -268,7 +269,7 @@ model = sklearn.externals.joblib.load(io.BytesIO(df.iloc[0, 2]))
 scidbstrm.write()
 
 scidbstrm.map(predict)
-"'"""
+"'""".format(python=sys.executable)
 que = db.stream(
     db.arrays.train_bw,
     python_run,
@@ -343,7 +344,7 @@ ar_fun = db.input(
     db.arrays.model_final
 ).store()
 
-python_run = """'python -uc "
+python_run = """'{python} -uc "
 import dill
 import io
 import os
@@ -358,7 +359,7 @@ Predict.model = sklearn.externals.joblib.load(io.BytesIO(df.iloc[0, 2]))
 scidbstrm.write()
 
 scidbstrm.map(Predict.map)
-"'"""
+"'""".format(python=sys.executable)
 que = db.apply(
     db.arrays.test_csv,
     'ImageID',
