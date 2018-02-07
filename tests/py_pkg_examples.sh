@@ -9,6 +9,13 @@ then
     PRE="$1"
 fi
 
+if [ "$TRAVIS_PYTHON_VERSION" != "" ]
+then
+    PYTHON=python${TRAVIS_PYTHON_VERSION%.*}
+else
+    PYTHON=python
+fi
+
 
 # 1.
 $PRE iquery --afl --query "
@@ -23,7 +30,7 @@ $PRE iquery --afl --query "
 $PRE iquery --afl --query "
     stream(
       foo,
-      'python -u /stream/py_pkg/examples/1-map-finalize.py',
+      '$PYTHON -u /stream/py_pkg/examples/1-map-finalize.py',
       'format=feather',
       'types=int64,double,string',
       'names=x,y,info')" \
@@ -33,7 +40,7 @@ $PRE iquery --afl --query "remove(foo)"
 
 
 # 2.
-python $DIR/../py_pkg/examples/2-pack-func.py \
+$PYTHON $DIR/../py_pkg/examples/2-pack-func.py \
 >> $DIR/py_pkg_examples.out
 
 
@@ -50,7 +57,7 @@ $PRE iquery --afl --query "
 $PRE iquery --afl --query "
     stream(
       foo,
-      'python -u /stream/py_pkg/examples/3-read-write.py',
+      '$PYTHON -u /stream/py_pkg/examples/3-read-write.py',
       'format=feather',
       'types=int64,double,string')" \
 >> $DIR/py_pkg_examples.out
@@ -59,7 +66,7 @@ $PRE iquery --afl --query "remove(foo)"
 
 
 # 4.
-python $DIR/../py_pkg/examples/4-machine-learning.py \
+$PYTHON $DIR/../py_pkg/examples/4-machine-learning.py \
 >> $DIR/py_pkg_examples.out
 
 
