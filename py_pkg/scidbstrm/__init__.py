@@ -24,14 +24,26 @@ python_map = ("'" +
               "'")
 
 
+# Python 2 and 3 compatibility fix for reading/writing binary data
+# to/from STDIN/STDOUT
+if hasattr(sys.stdout, 'buffer'):
+    # Python 3
+    stdin = sys.stdin.buffer
+    stdout = sys.stdout.buffer
+else:
+    # Python 2
+    stdin = sys.stdin
+    stdout = sys.stdout
+
+
 def read():
     """Read a data chunk from SciDB. Returns a Pandas DataFrame or None.
 
     """
-    sz = struct.unpack('<Q', sys.stdin.read(8))[0]
+    sz = struct.unpack('<Q', stdin.read(8))[0]
 
     if sz:
-        df = pandas.read_feather(io.BytesIO(sys.stdin.read(sz)))
+        df = pandas.read_feather(io.BytesIO(stdin.read(sz)))
         return df
 
     else:                       # Last Chunk
@@ -43,7 +55,7 @@ def write(df=None):
 
     """
     if df is None:
-        sys.stdout.write(struct.pack('<Q', 0))
+        stdout.write(struct.pack('<Q', 0))
         return
 
     buf = io.BytesIO()
@@ -51,8 +63,8 @@ def write(df=None):
     byt = buf.getvalue()
     sz = len(byt)
 
-    sys.stdout.write(struct.pack('<Q', sz))
-    sys.stdout.write(byt)
+    stdout.write(struct.pack('<Q', sz))
+    stdout.write(byt)
 
 
 def pack_func(func):
