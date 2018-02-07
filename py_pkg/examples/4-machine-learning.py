@@ -12,6 +12,7 @@ import sys
 # pip install sklearn scipy
 
 
+python = 'python{}'.format(sys.version_info.major)
 db = scidbpy.connect()
 
 
@@ -172,7 +173,7 @@ import sklearn.linear_model
 Train = scidbstrm.read_func()
 Train.model = sklearn.linear_model.SGDClassifier()
 scidbstrm.map(Train.map, Train.finalize)
-"'""".format(python=sys.executable)
+"'""".format(python=python)
 que = db.stream(
     db.arrays.train_bin,
     python_run,
@@ -269,7 +270,7 @@ model = sklearn.externals.joblib.load(io.BytesIO(df.iloc[0, 2]))
 scidbstrm.write()
 
 scidbstrm.map(predict)
-"'""".format(python=sys.executable)
+"'""".format(python=python)
 que = db.stream(
     db.arrays.train_bw,
     python_run,
@@ -359,7 +360,7 @@ Predict.model = sklearn.externals.joblib.load(io.BytesIO(df.iloc[0, 2]))
 scidbstrm.write()
 
 scidbstrm.map(Predict.map)
-"'""".format(python=sys.executable)
+"'""".format(python=python)
 que = db.apply(
     db.arrays.test_csv,
     'ImageID',
