@@ -22,7 +22,9 @@ def get_first(df):
 
 
 # Serialize (pack) and Upload function to SciDB
-ar_fun = db.input(upload_data=scidbstrm.pack_func(get_first)).store()
+ar_fun = db.input(upload_data=scidbstrm.pack_func(get_first),
+                  upload_schema=scidbpy.Schema.fromstring(
+                      '<x:binary not null>[i]')).store()
 
 
 que = db.stream(

@@ -50,7 +50,9 @@ def map_to_bin(df):
     return df
 
 
-ar_fun = db.input(upload_data=scidbstrm.pack_func(map_to_bin)).store()
+upload_schema = scidbpy.Schema.fromstring('<x:binary not null>[i]')
+ar_fun = db.input(upload_data=scidbstrm.pack_func(map_to_bin),
+                  upload_schema=upload_schema).store()
 que = db.stream(
     db.arrays.train_csv,
     scidbstrm.python_map,
@@ -108,7 +110,8 @@ store(
         '{{fmt}}'),
       0)),
   train_bw)""".format(script=scidbstrm.python_map),
-                upload_data=scidbstrm.pack_func(map_to_bw))
+                upload_data=scidbstrm.pack_func(map_to_bw),
+                upload_schema=upload_schema)
 
 
 # AFL% limit(train_bw, 3);
@@ -153,8 +156,9 @@ class Train:
             'model': [buf.getvalue()]})
 
 
-ar_fun = db.input(upload_data=scidbstrm.pack_func(Train)).store()
 python_run = """'python -uc "
+ar_fun = db.input(upload_data=scidbstrm.pack_func(Train),
+                  upload_schema=upload_schema).store()
 import io
 import os
 os.environ.setdefault(\\\"PATH\\\", \\\"\\\")
@@ -213,8 +217,8 @@ def merge_models(df):
                              'model': [buf.getvalue()]})
 
 
-ar_fun = db.input(upload_data=scidbstrm.pack_func(merge_models)).store()
-
+ar_fun = db.input(upload_data=scidbstrm.pack_func(merge_models),
+                  upload_schema=upload_schema).store()
 que = db.redimension(
     db.arrays.model,
     '<count:int64, model:binary> [i]'
@@ -243,7 +247,8 @@ def predict(df):
 
 
 ar_fun = db.input(
-    upload_data=scidbstrm.pack_func(predict)
+    upload_data=scidbstrm.pack_func(predict),
+    upload_schema=upload_schema
 ).cross_join(
     db.arrays.model_final
 ).store()
@@ -332,7 +337,8 @@ class Predict:
 
 
 ar_fun = db.input(
-    upload_data=scidbstrm.pack_func(Predict)
+    upload_data=scidbstrm.pack_func(Predict),
+    upload_schema=upload_schema
 ).cross_join(
     db.arrays.model_final
 ).store()
