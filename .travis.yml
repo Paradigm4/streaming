@@ -33,8 +33,11 @@ script:
   - docker exec --tty scidb /stream/tests/test.sh
   - pycodestyle .
   - pytest
-  - ./tests/py_pkg_examples.sh "docker exec --tty scidb"
   - docker exec --tty --env TRAVIS_PYTHON_VERSION=${TRAVIS_PYTHON_VERSION} scidb /stream/tests/py_pkg_examples.sh
+  - if [ "${TRAVIS_PYTHON_VERSION}" = "2.7" -o
+         "${TRAVIS_PYTHON_VERSION}" = "3.4" ]]; then
+    ./tests/py_pkg_examples.sh "docker exec --tty scidb";
+    fi
 
 after_failure:
   - docker logs scidb
