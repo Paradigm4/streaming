@@ -15,9 +15,12 @@ apt-get install --assume-yes --no-install-recommends --allow-unauthenticated \
         red-data-tools-keyring
 apt-get update
 apt-get install --assume-yes --no-install-recommends \
-        libarrow0=$ARROW_VER                         \
+        R-base-core                                  \
+        cython3                                      \
         libarrow-dev=$ARROW_VER                      \
-        R-base-core
+        libarrow0=$ARROW_VER                         \
+        python3                                      \
+        python3-dev
 
 
 # Compile and install plugin
@@ -31,6 +34,11 @@ iquery --afl --query "load_library('stream')"
 
 # Install Python requirements and SciDB-Strm
 wget --no-verbose https://bootstrap.pypa.io/get-pip.py
-python get-pip.py
-pip install --upgrade -r /stream/py_pkg/requirements.txt
-pip install /stream/py_pkg
+
+python2 get-pip.py
+pip2 install --upgrade -r /stream/py_pkg/requirements.txt
+pip2 install /stream/py_pkg
+
+python3 get-pip.py
+pip3 install --upgrade -r /stream/py_pkg/requirements.txt
+pip3 install /stream/py_pkg
