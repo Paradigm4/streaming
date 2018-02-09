@@ -2,6 +2,19 @@
 
 set -o errexit
 
+
+# Install Paradigm4 prerequisites
+for pkg in libboost-filesystem1.54.0_1.54.0-2.1_amd64.deb \
+           libboost-system1.54.0_1.54.0-2.1_amd64.deb
+do
+    wget https://downloads.paradigm4.com/ubuntu14.04/libboost/$pkg
+done
+
+dpkg --install                                         \
+        libboost-filesystem1.54.0_1.54.0-2.1_amd64.deb \
+        libboost-system1.54.0_1.54.0-2.1_amd64.deb
+
+
 # Install prerequisites
 ## https://github.com/red-data-tools/packages.red-data-tools.org#ubuntu
 ## No packages for Debian jessie, use Ubuntu trusty
