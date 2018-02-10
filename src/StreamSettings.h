@@ -70,6 +70,7 @@ public:
 private:
     string paramToString(shared_ptr <OperatorParam> const& parameter, shared_ptr<Query>& query, bool logical)
     {
+
         if(logical)
         {
             string result = evaluate(((shared_ptr<OperatorParamLogicalExpression>&) parameter)->getExpression(), TID_STRING).getString();
