@@ -1,4 +1,7 @@
 # stream
+
+[![Build Status](https://travis-ci.org/Paradigm4/stream.svg)](https://travis-ci.org/Paradigm4/stream)
+
 Prototype SciDB API similar to Hadoop Streaming. The operator sends SciDB array data into the stdin of the process and reads its stdout (hence 'streaming').
 
 ![image](https://cloud.githubusercontent.com/assets/2708498/16286948/b4b649d2-38ad-11e6-903f-489fdc532212.png)
