@@ -8,7 +8,7 @@ SciDB ``16.9``
 
 Apache Arrow ``0.6.0`` or newer.
 
-Python ``2.7.x``
+Python ``2.7.x``, ``3.4.x``, ``3.5.x``, ``3.6.x`` or newer.
 
 Required Python packages::
 
