@@ -72,7 +72,7 @@ private:
     {
         if(logical)
         {
-            string result = evaluate(((shared_ptr<OperatorParamLogicalExpression>&) parameter)->getExpression(),query, TID_STRING).getString();
+            string result = evaluate(((shared_ptr<OperatorParamLogicalExpression>&) parameter)->getExpression(), TID_STRING).getString();
             return result;
         }
         return ((shared_ptr<OperatorParamPhysicalExpression>&) parameter)->getExpression()->evaluate().getString();

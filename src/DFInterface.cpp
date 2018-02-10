@@ -85,7 +85,7 @@ ArrayDesc DFInterface::getOutputSchema(std::vector<ArrayDesc> const& inputSchema
     Attributes outputAttributes;
     for(AttributeID i =0; i<outputTypes.size(); ++i)
     {
-        outputAttributes.push_back( AttributeDesc(i,  outputNames[i], typeEnum2TypeId(outputTypes[i]), AttributeDesc::IS_NULLABLE, 0));
+        outputAttributes.push_back( AttributeDesc(i,  outputNames[i], typeEnum2TypeId(outputTypes[i]), AttributeDesc::IS_NULLABLE, CompressorType::NONE));
     }
     outputAttributes = addEmptyTagAttribute(outputAttributes);
     return ArrayDesc(inputSchemas[0].getName(), outputAttributes, outputDimensions, defaultPartitioning(), query->getDefaultArrayResidency());
