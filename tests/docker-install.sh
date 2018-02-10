@@ -31,6 +31,7 @@ apt-get install                                      \
         --target-release jessie-updates              \
         R-base-core                                  \
         cython3                                      \
+        g++                                          \
         python3                                      \
         python3-dev
 
