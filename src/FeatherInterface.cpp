@@ -103,7 +103,7 @@ ArrayDesc FeatherInterface::getOutputSchema(
             AttributeDesc(i,
                           outputNames[i],
                           typeEnum2TypeId(outputTypes[i]),
-                          AttributeDesc::IS_NULLABLE, 0));
+                          AttributeDesc::IS_NULLABLE, CompressorType::NONE));
     }
     outputAttributes = addEmptyTagAttribute(outputAttributes);
     return ArrayDesc(inputSchemas[0].getName(),
