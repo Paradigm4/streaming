@@ -1,0 +1,109 @@
+# SciDB, R, and TensorFlow
+
+The SciDB streaming plugin (https://github.com/Paradigm4/stream) lets you
+invoke arbitrary programs on streaming data within the context of a SciDB query
+and collect the result in SciDB. The self-contained example described here uses
+the SciDB streaming plugin, R and the Bioconductor together.
+
+The SciDB streaming plugin runs programs in parallel across SciDB instances
+keeping data local to each instance, and very efficiently transfers data
+between SciDB and R using a native R binary/columnar data format over a
+streaming protocol.
+
+
+# Simple example: gradient descent least squares
+
+This introductory example computes the solution coefficients to a simple
+ordinary least squares problem. The example creates data in a SciDB array,
+defines a tensorflow program to solve the least squares problem using gradient
+descent, runs the program through SciDB streaming on the SciDB array data, and
+prints the result.
+
+
+## Create example data array
+
+```{r, eval=FALSE}
+library(scidb)
+con <- scidbconnect()
+tryCatch(con$remove("x"), error=invisible)  # remove any array named 'x'
+
+as.scidb(con, (function(){x=runif(100); data.frame(x=x, y=x * 2 + 5)})(), name="x")
+```
+
+## Define a TensorFlow gradient descent program
+
+```{r, eval=FALSE}
+library(jsonlite)
+
+program <- as.scidb(con, base64_enc(serialize(expression(
+{
+  library(scidbstrm)
+  library(tensorflow)
+  state   <- NULL
+
+  f <- function(x)
+  {
+    # Update global state data frame
+    state <<- rbind(state, x)
+    NULL  # no output to SciDB
+  }
+
+  final <- function(x)
+  {
+    print(head(state)) # debug
+    # Try to find values for W and b that compute y_data = W * x_data + b
+    W <- tf$Variable(tf$random_uniform(shape(1L), -1.0, 1.0))
+    b <- tf$Variable(tf$zeros(shape(1L)))
+    y <- W * state$x + b
+
+    # Minimize the mean squared errors.
+    loss <- tf$reduce_mean((y - state$y) ^ 2)
+    optimizer <- tf$train$GradientDescentOptimizer(0.5)
+    train <- optimizer$minimize(loss)
+
+    # Launch the graph and initialize the variables.
+    sess = tf$Session()
+    sess$run(tf$global_variables_initializer())
+
+    # Fit the line (Learns best fit is W: 0.1, b: 0.3)
+    for (step in 1:201) {
+      sess$run(train)
+      if (step %% 20 == 0)  cat(step, "-", sess$run(W), sess$run(b), "\n")
+    }
+    data.frame(a = sess$run(W), b = sess$run(b))
+  }
+  map(f, final=final)
+
+}), NULL)))
+```
+
+## Run the program on the SciDB array data
+
+```{r, eval=FALSE}
+query <- sprintf("stream(x, 
+                   'R --slave -e \"library(scidbstrm);eval(unserialize(jsonlite::base64_dec(getChunk()[[1]])))\"', 
+                   'format=df', 
+                   'types=double,double', 
+                   _sg(%s,0))",
+                 program@name)
+
+iquery(con, query, return=TRUE, only_attributes=TRUE)
+```
+```
+        a0       a1
+1 2.000002 4.999999
+```
+
+# Serializing models
+
+WRITE ME
+
+# Distributed TensorFlow
+
+TensorFlow can distributed work across distributed processes in a cluster.  See
+https://www.tensorflow.org/deploy/distributed for details and examples.
+
+Although TensorFlow includes inter-process communication and remote procedure
+call methods, it does not include a management interface for launching and
+controlling worker processes.  We can use the SciDB streaming API to automate
+process creation for parallel/distributed TensorFlow work.

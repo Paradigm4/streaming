@@ -1,0 +1,47 @@
+sudo: required
+
+language: python
+
+python:
+  - "2.7"
+  - "3.4"
+  - "3.5"
+  - "3.6"
+
+env: SCIDB_VER=16.9 SCIDB_IMG=16.9-ext ARROW_VER=0.8.0-2
+
+services:
+  - docker
+
+before_install:
+  - docker pull rvernica/scidb:${SCIDB_IMG}
+  - docker run
+    --name scidb
+    --detach
+    --publish 8080:8080
+    --volume `pwd`:/stream
+    --env ARROW_VER=${ARROW_VER}
+    rvernica/scidb:${SCIDB_IMG}
+  - while ! curl http://localhost:8080/version; do sleep 5; done
+
+install:
+  - docker exec --tty scidb /stream/tests/docker-install.sh
+  - pip install --upgrade -r py_pkg/requirements.txt
+  - pip install py_pkg/
+
+script:
+  - docker exec --tty scidb /stream/tests/test.sh
+  - pycodestyle .
+  - pytest
+  - docker exec --tty --env TRAVIS_PYTHON_VERSION=${TRAVIS_PYTHON_VERSION} scidb /stream/tests/py_pkg_examples.sh
+  - if [ "${TRAVIS_PYTHON_VERSION}" = "2.7" -o
+         "${TRAVIS_PYTHON_VERSION}" = "3.4" ]]; then
+    ./tests/py_pkg_examples.sh "docker exec --tty scidb";
+    fi
+
+after_failure:
+  - docker logs scidb
+  - docker exec --tty scidb cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/0/scidb-stdout.log
+  - docker exec --tty scidb cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/0/scidb-stderr.log
+  - docker exec --tty scidb cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/1/scidb-stdout.log
+  - docker exec --tty scidb cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/1/scidb-stderr.log

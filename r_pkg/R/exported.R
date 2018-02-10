@@ -135,7 +135,7 @@ closeStreams <- function()
 #' # of your expression to include extra values in your expression environment
 #' # like the 'mydata' value in the simple example below:
 #' library(scidb)
-#' scidbconnect()
+#' con <- scidbconnect()
 #' library(scidbstrm)
 #' expr <- expression({
 #'   fn <- function(x) { x + mydata }
@@ -143,11 +143,11 @@ closeStreams <- function()
 #' })
 #' attr(expr, "env") <- new.env()
 #' attr(expr, "env")$mydata <- 2
-#' program <- as.scidb(jsonlite::base64_enc(serialize(expr, NULL)))
+#' program <- as.scidb(con, jsonlite::base64_enc(serialize(expr, NULL)))
 #' query <- sprintf("stream(build(<a:double>[i=1:4,1,0],i),
 #'                  'R --slave -e \"library(scidbstrm);run()\"',
 #'                  'format=df',  'types=double', _sg(%s,0))", program@name)
-#' iquery(query, return=TRUE)
+#' iquery(con, query, return=TRUE)
 #'}
 #' @importFrom jsonlite base64_dec
 #' @export
