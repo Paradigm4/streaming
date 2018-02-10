@@ -90,18 +90,7 @@ public:
                 return;
             }
         }
-        //query->getRights()->upsert(rbac::EntityType::ET_DB, "", rbac::EntityType::P_DB_OPS);
-        query->getRights()->upsert(rbac::ET_DB,"", rbac::P_DB_OPS);
-        //query->getRights()->up
-        /*
-        void upsert(EntityType objType,
-                    std::string const& objName,
-                    Permissions::value_type rightsMask);
-
-        void upsert(EntityType objType,
-                    std::string const& objName,
-                    Permissions const& perms)
-        */
+        query->getRights()->upsert(rbac::ET_DB, "", rbac::P_DB_OPS);
     }
 
     ArrayDesc inferSchema(std::vector<ArrayDesc> schemas, shared_ptr<Query> query)
