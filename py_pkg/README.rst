@@ -33,11 +33,11 @@ Installation
 
 Install latest release::
 
-  $ pip install scidbstrm
+  pip install scidbstrm
 
 Install development version from GitHub::
 
-  $ pip install git+http://github.com/paradigm4/stream.git#subdirectory=py_pkg
+  pip install git+http://github.com/paradigm4/stream.git#subdirectory=py_pkg
 
 The Python library needs to be installed on the SciDB server. The
 library needs to be installed on the client as well, if Python code is
