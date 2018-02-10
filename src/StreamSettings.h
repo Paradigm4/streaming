@@ -49,8 +49,9 @@ namespace scidb { namespace stream
 
 enum TransferFormat
 {
-    TSV,   //text tsv
-    DF     //R data.frame
+    TSV,     // text tsv
+    DF,      // R data.frame
+    FEATHER  // Apache Arrow Feather format
 };
 
 class Settings
@@ -103,6 +104,10 @@ private:
         {
             _transferFormat = DF;
         }
+        else if(trimmedContent == "feather")
+        {
+            _transferFormat = FEATHER;
+        }
         else
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse format";
@@ -126,6 +131,10 @@ private:
             {
                 _types.push_back(TE_INT32);
             }
+            else if(t == "int64")
+            {
+                _types.push_back(TE_INT64);
+            }
             else if(t == "double")
             {
                 _types.push_back(TE_DOUBLE);
@@ -133,6 +142,10 @@ private:
             else if(t == "string")
             {
                 _types.push_back(TE_STRING);
+            }
+            else if(t == "binary")
+            {
+                _types.push_back(TE_BINARY);
             }
             else
             {
