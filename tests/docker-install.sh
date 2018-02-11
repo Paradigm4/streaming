@@ -4,14 +4,6 @@ set -o errexit
 
 
 # Install prerequisites
-## libboost-system1.54 and libboost-filesyste1.54
-cat <<APT_LINE | tee /etc/apt/sources.list.d/trusty.list
-deb http://us.archive.ubuntu.com/ubuntu/ trusty main
-deb http://us.archive.ubuntu.com/ubuntu/ trusty-updates main
-APT_LINE
-apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 40976EAF437D05B5
-apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3B4FE6ACC0B21F32
-
 ## https://github.com/red-data-tools/packages.red-data-tools.org#ubuntu
 ## No packages for Debian jessie, use Ubuntu trusty
 cat <<APT_LINE | tee /etc/apt/sources.list.d/red-data-tools.list
