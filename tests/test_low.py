@@ -62,7 +62,7 @@ def test_one_chunk(db, scidb_ty, name):
                     as_dataframe=False)
     assert numpy.array_equal(
         res, numpy.array(
-            [(0, 0, i, (255, eval('{}({})'.format(
+            [(1, 0, i, (255, eval('{}({})'.format(
                 py_type_map.get(scidb_ty, scidb_ty),
                 str(i).encode() if scidb_ty == 'binary' else i))))
              for i in range(3)],
