@@ -33,7 +33,7 @@ Installation
 
 Install latest release::
 
-  pip install scidbstrm
+  pip install scidb-strm
 
 Install development version from GitHub::
 
