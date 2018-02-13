@@ -17,6 +17,22 @@ else
 fi
 
 
+# 0.
+$PRE iquery --afl --query "
+  stream(
+    build(<x:int64 not null>[i=1:10:0:5], i),
+    'python -uc \"
+
+import scidbstrm, pandas
+
+scidbstrm.map(lambda df: pandas.DataFrame({\'count\': [len(df)]}))
+\"',
+    'format=feather',
+    'types=int64',
+    'names=count')" \
+>  $DIR/py_pkg_examples.out
+
+
 # 1.
 $PRE iquery --afl --query "
     store(
@@ -25,7 +41,7 @@ $PRE iquery --afl --query "
         y, double(i) * 10 + .1,
         z, 'foo' + string(i)),
       foo)" \
->  $DIR/py_pkg_examples.out
+>> $DIR/py_pkg_examples.out
 
 $PRE iquery --afl --query "
     stream(

@@ -1,0 +1,15 @@
+> iquery --afl --query "
+  stream(
+    build(<x:int64 not null>[i=1:10:0:5], i),
+    'python -uc \"
+
+import scidbstrm, pandas
+
+scidbstrm.map(lambda df: pandas.DataFrame({\'count\': [len(df)]}))
+\"',
+    'format=feather',
+    'types=int64',
+    'names=count')"
+{instance_id,chunk_no,value_no} count
+{0,0,0} 5
+{1,0,0} 5

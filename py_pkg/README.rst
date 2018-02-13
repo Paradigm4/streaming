@@ -59,6 +59,9 @@ High-level access is provided by the function ``map``:
   result back to SciDB. If ``finalize_fun`` is provided, call it after
   all the chunks have been processed.
 
+See `0-iquery.txt <examples/0-iquery.txt>`_ for a succinct example
+using the ``map`` function.
+
 See `1-map-finalize.py <examples/1-map-finalize.py>`_ for an example
 using the ``map`` function. The Python script has to be copied onto
 the SciDB instance.
