@@ -99,3 +99,30 @@ A convenience invocation of the Python interpreter is provided in
 Finally, see `4-machine-learning.py <examples/4-machine-learning.py>`_
 for a more complex example of going throught the steps of using
 machine larning (preprocessing, training, and prediction).
+
+
+Debugging Python Code
+---------------------
+
+When debugging Python code executed as part of the ``stream`` operator
+*do not* use the ``print`` function. The ``stream`` operator
+communicates with the Python process using ``stdout``. The ``print``
+function writes output to ``stdout``. So, using the ``print`` function
+would interfere with the inter-process communication.
+
+Instead, write debug output to ``stderr`` using the ``write``
+function. For example::
+
+  import sys
+
+  x = [1, 2, 3]
+  sys.stderr.write("{}\n".format(x))
+
+The output is written in the ``scidb-stderr.log`` files of each
+instance, for example::
+
+  /opt/scidb/18.1/DB-scidb/0/0/scidb-stderr.log
+  /opt/scidb/18.1/DB-scidb/0/1/scidb-stderr.log
+
+If using SciDB ``18.1`` installed in the default location and
+configured with one server and two instances.
