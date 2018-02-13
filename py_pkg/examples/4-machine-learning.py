@@ -391,3 +391,16 @@ df.to_csv('results.csv',
           header=True,
           index=False,
           columns=('ImageID', 'Label'))
+
+# -- - --
+# 10. Cleanup
+# -- - --
+for ar in (db.arrays.train_csv,
+           db.arrays.train_bin,
+           db.arrays.train_bw,
+           db.arrays.model,
+           db.arrays.model_final,
+           db.arrays.predict_train,
+           db.arrays.test_csv,
+           db.arrays.predict_test):
+    db.remove(ar)

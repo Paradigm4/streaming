@@ -1,5 +1,6 @@
 """Usage:
 
+# Setup
 > iquery --afl --query "
     store(
       apply(
@@ -33,6 +34,10 @@
 {0,1,0} 15,150.5,'total'
 {1,0,0} 40,400.5,'local'
 {1,1,0} 40,400.5,'total'
+
+
+# Cleanup
+> iquery --afl --query "remove(foo)"
 
 """
 

@@ -1,5 +1,6 @@
 """Usage:
 
+# Setup
 > iquery --afl --query "
     store(
       apply(
@@ -38,6 +39,10 @@
 {1,0,2} 8,80.1,'foo8'
 {1,0,3} 9,90.1,'foo9'
 {1,0,4} 10,100.1,'foo10'
+
+
+# Cleanup
+> iquery --afl --query "remove(foo)"
 
 """
 
