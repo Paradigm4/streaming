@@ -206,8 +206,8 @@ void FeatherInterface::writeFeather(vector<ConstChunk const*> const& chunks,
                                     ChildProcess& child)
 {
     int32_t numColumns = chunks.size();
-    LOG4CXX_DEBUG(logger, "writeFeather::numColumns:" << numColumns);
-    LOG4CXX_DEBUG(logger, "writeFeather::numRows:" << numRows);
+    LOG4CXX_DEBUG(logger, "writeFeather::numColumns:" << numColumns
+                  << ":numRows:" << numRows);
 
     std::shared_ptr<arrow::io::BufferOutputStream> stream;
     arrow::io::BufferOutputStream::Create(
@@ -317,10 +317,10 @@ void FeatherInterface::writeFeather(vector<ConstChunk const*> const& chunks,
         }
 
         // Print array for debugging
-        std::stringstream prettyprint_stream;
-        arrow::PrettyPrint(*array, 0, &prettyprint_stream);
-        LOG4CXX_DEBUG(logger, "writeFeather::array:"
-                      << prettyprint_stream.str().c_str());
+        // std::stringstream prettyprint_stream;
+        // arrow::PrettyPrint(*array, 0, &prettyprint_stream);
+        // LOG4CXX_DEBUG(logger, "writeFeather::array:"
+        //               << prettyprint_stream.str().c_str());
 
         writer->Append(_inputNames[i].c_str(), *array);
     }
@@ -394,7 +394,7 @@ void FeatherInterface::readFeather(ChildProcess& child,
         int64_t nullCount = array->null_count();
         const uint8_t* nullBitmap = array->null_bitmap_data();
 
-        LOG4CXX_DEBUG(logger, "readFeather::array:" << *array);
+        // LOG4CXX_DEBUG(logger, "readFeather::array:" << *array);
         LOG4CXX_DEBUG(logger, "readFeather::array.null:" << nullCount);
 
         shared_ptr<ChunkIterator> ociter = _oaiters[i]->newChunk(
