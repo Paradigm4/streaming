@@ -4,7 +4,7 @@ SciDB-Strm: Python Library for SciDB Streaming
 Requirements
 ------------
 
-SciDB ``16.9``
+SciDB ``16.9`` or newer
 
 Apache Arrow ``0.6.0`` or newer.
 
