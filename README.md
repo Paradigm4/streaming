@@ -119,7 +119,7 @@ argument. The names of each attribute can be specified as well using
 the `names=...` argument. See the Python
 [example](py_pkg/examples/3-read-write.py) for more details.
 
-For Python the [SciDB-stream](py_pkg/README.md) library provides
+For Python the [SciDB-stream](py_pkg/README.rst) library provides
 functions for reading data from SciDB as Pandas DataFrames and for
 sending Pandas DataFrames to SciDB.
 
