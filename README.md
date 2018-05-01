@@ -249,12 +249,40 @@ Beyond this, the user assumes risks inherent in running arbitrary code next to a
 
 ### Install Apache Arrow
 
-Follow distribution specific instructions to install the
-[red-data-tools](https://github.com/red-data-tools/packages.red-data-tools.org/blob/master/README.md#package-repository)
-package repository and the
-[Apache Arrow C++](https://github.com/red-data-tools/packages.red-data-tools.org/blob/master/README.md#apache-arrow-c)
-development library. For Red Hat Enterprise Linux use CentOS
-instructions.
+Due to a version conflict with the Protocol Buffers library included
+with the official Apache Arrow packages, we use Apache Arrow packages
+custom built for SciDB.
+
+#### CentOS 6
+```bash
+> sudo yum install \
+    https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm
+
+> sudo wget --output-document /etc/yum.repos.d/bintray-rvernica-rpm.repo \
+    https://bintray.com/rvernica/rpm/rpm
+> sudo yum install arrow-devel
+```
+
+#### CentOS 7
+```bash
+> sudo yum install \
+     https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+
+> sudo wget --output-document /etc/yum.repos.d/bintray-rvernica-rpm.repo \
+    https://bintray.com/rvernica/rpm/rpm
+> sudo yum install arrow-devel
+```
+
+#### Ubuntu
+```bash
+> cat <<APT_LINE | tee /etc/apt/sources.list.d/bintray-rvernica.list
+deb https://dl.bintray.com/rvernica/deb trusty universe
+APT_LINE
+
+> apt-key adv --keyserver hkp://keyserver.ubuntu.com --recv 46BD98A354BA5235
+> apt-get update
+> apt-get install libarrow-dev libarrow0
+```
 
 ### Install plug-in
 
