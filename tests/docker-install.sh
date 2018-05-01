@@ -40,7 +40,7 @@ iquery --afl --query "load_library('stream')"
 # Install Python requirements and SciDB-Strm
 wget --no-verbose https://bootstrap.pypa.io/get-pip.py
 
-sed --in-place s/pandas/pandas<0.21/ /stream/py_pkg/requirements.txt
+sed --in-place "s/pandas/pandas<0.21/" /stream/py_pkg/requirements.txt
 
 python2 get-pip.py
 pip2 install --upgrade -r /stream/py_pkg/requirements.txt
