@@ -13,10 +13,9 @@ set -o errexit
 # apt-get update
 # apt-get install --assume-yes --no-install-recommends --allow-unauthenticated \
 #         red-data-tools-keyring
-# apt-get update
-# apt-get install --assume-yes --no-install-recommends \
-#         libarrow-dev=$ARROW_VER                      \
-#         libarrow0=$ARROW_VER
+apt-get update
+apt-get install --assume-yes --no-install-recommends \
+        libarrow-dev
 apt-get install                                      \
         --assume-yes                                 \
         --no-install-recommends                      \
