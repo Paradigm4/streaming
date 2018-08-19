@@ -8,7 +8,7 @@ python:
   - "3.5"
   - "3.6"
 
-env: SCIDB_VER=18.1 SCIDB_IMG=18.1-ext
+env: SCIDB_VER=18.1 SCIDB_IMG=18.1-ext ARROW_VER=0.9.0
 
 services:
   - docker
@@ -20,6 +20,7 @@ before_install:
     --detach
     --publish 8080:8080
     --volume `pwd`:/stream
+    --env ARROW_VER=${ARROW_VER}
     rvernica/scidb:${SCIDB_IMG}
   - while ! curl http://localhost:8080/version; do sleep 5; done
 

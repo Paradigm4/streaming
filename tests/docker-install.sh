@@ -15,7 +15,7 @@ set -o errexit
 #         red-data-tools-keyring
 apt-get update
 apt-get install --assume-yes --no-install-recommends \
-        libarrow-dev
+        libarrow-dev=$ARROW_VER-1
 apt-get install                                      \
         --assume-yes                                 \
         --no-install-recommends                      \
