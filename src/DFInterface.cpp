@@ -230,7 +230,7 @@ void DFInterface::writeDF(vector<ConstChunk const*> const& chunks, int32_t const
                 }
                 else
                 {
-                    int32_t datum = (int32_t) (v.getInt16());
+                    int32_t datum = (int32_t) (v.getUint16());
                     _writeBuf.pushData(&datum, sizeof(int32_t));
                 }
                 break;
