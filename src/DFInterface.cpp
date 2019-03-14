@@ -70,10 +70,10 @@ ArrayDesc DFInterface::getOutputSchema(std::vector<ArrayDesc> const& inputSchema
         {
             AttributeDesc const& attr = attrs[j];
             TypeEnum te = typeId2TypeEnum(attrs[j].getType(), true);
-            if(te != TE_INT32 && te != TE_DOUBLE && te != TE_STRING)
+            if(te != TE_UINT16 &&  te != TE_INT32 && te != TE_DOUBLE && te != TE_STRING)
             {
                 ostringstream error;
-                error<<"Attribute "<<attr.getName()<<" has unsupported type "<<attr.getType()<<" only double, int32 and string supported right now";
+                error<<"Attribute "<<attr.getName()<<" has unsupported type "<<attr.getType()<<" only double, uint16, int32 and string supported right now";
                 throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << error.str();
             }
         }
@@ -181,6 +181,7 @@ void DFInterface::writeDF(vector<ConstChunk const*> const& chunks, int32_t const
         {
         case TE_STRING:     child.hardWrite (R_STRSXP,  sizeof (R_STRSXP));  break;
         case TE_DOUBLE:     child.hardWrite (R_REALSXP, sizeof (R_REALSXP)); break;
+        case TE_UINT16:
         case TE_INT32:      child.hardWrite (R_INTSXP,  sizeof (R_INTSXP));  break;
         default:         throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "internal error: unknown type";
         }
@@ -218,6 +219,19 @@ void DFInterface::writeDF(vector<ConstChunk const*> const& chunks, int32_t const
                 {
                     double  datum = v.getDouble();
                     _writeBuf.pushData(&datum, sizeof(double));
+                }
+                break;
+            }
+            case TE_UINT16:
+            {
+                if(v.isNull())
+                {
+                    _writeBuf.pushData(&_rNanInt32, sizeof(int32_t));
+                }
+                else
+                {
+                    int32_t datum = (int32_t) (v.getInt16());
+                    _writeBuf.pushData(&datum, sizeof(int32_t));
                 }
                 break;
             }
