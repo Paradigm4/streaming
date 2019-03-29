@@ -28,6 +28,8 @@
 #include <vector>
 #include <string>
 #include "TSVInterface.h"
+#include <array/MemArray.h>
+#include <query/Query.h>
 
 using std::vector;
 using std::shared_ptr;
@@ -59,9 +61,9 @@ ArrayDesc TSVInterface::getOutputSchema(vector<ArrayDesc> const& inputSchemas, S
     outputDimensions.push_back(DimensionDesc("instance_id", 0,   query->getInstancesCount()-1, 1, 0));
     outputDimensions.push_back(DimensionDesc("chunk_no",    0,   CoordinateBounds::getMax(),   1, 0));
     Attributes outputAttributes;
-    outputAttributes.push_back( AttributeDesc(0, settings.getNames().size() ? settings.getNames()[0] : "response",   TID_STRING,    0, CompressorType::NONE));
-    outputAttributes = addEmptyTagAttribute(outputAttributes);
-    return ArrayDesc(inputSchemas[0].getName(), outputAttributes, outputDimensions, defaultPartitioning(), query->getDefaultArrayResidency());
+    outputAttributes.push_back( AttributeDesc(settings.getNames().size() ? settings.getNames()[0] : "response",   TID_STRING,    0, CompressorType::NONE));
+    outputAttributes.addEmptyTagAttribute();
+    return ArrayDesc(inputSchemas[0].getName(), outputAttributes, outputDimensions, createDistribution(defaultDistType()), query->getDefaultArrayResidency());
 }
 
 TSVInterface::TSVInterface(Settings const& settings, ArrayDesc const& outputSchema, std::shared_ptr<Query> const& query):
@@ -72,7 +74,7 @@ TSVInterface::TSVInterface(Settings const& settings, ArrayDesc const& outputSche
     _nullRepresentation("\\N"),
     _query(query),
     _result(new MemArray(outputSchema, query)),
-    _aiter(_result->getIterator(0)),
+    _aiter(_result->getIterator(outputSchema.getAttributes(true).firstDataAttribute())),
     _outPos{ ((Coordinate) _query->getInstanceID()), 0}
 {}
 
@@ -81,9 +83,11 @@ void TSVInterface::setInputSchema(ArrayDesc const& inputSchema)
     Attributes const& attrs = inputSchema.getAttributes(true);
     _inputTypes.resize(attrs.size());
     _inputConverters.resize(attrs.size());
-    for(size_t i=0; i<_inputTypes.size(); ++i)
+//    for(size_t i=0; i<_inputTypes.size(); ++i)
+    size_t i = 0;
+    for (const auto& attr : attrs)
     {
-        TypeId const& inputType = attrs[i].getType();
+        TypeId const& inputType = attr.getType();
         _inputTypes[i] = typeId2TypeEnum(inputType, true);
         switch(_inputTypes[i])
         {
@@ -100,6 +104,7 @@ void TSVInterface::setInputSchema(ArrayDesc const& inputSchema)
                 TID_STRING,
                 false);
         }
+        i++;
     }
 }
 
@@ -290,6 +295,7 @@ void TSVInterface::convertChunks(vector< shared_ptr<ConstChunkIterator> > citers
 
 void TSVInterface::writeTSV(size_t const nLines, string const& inputData, ChildProcess& child)
 {
+    LOG4CXX_DEBUG(logger, "Input of stream: "<< inputData);
     char hdr[4096];
     snprintf (hdr, 4096, "%lu\n", nLines);
     size_t n = strlen (hdr);
@@ -335,6 +341,7 @@ void TSVInterface::readTSV (std::string& output, ChildProcess& child, bool last)
             }
             ++idx;
         }
+        LOG4CXX_DEBUG(logger, "linesReceived: "<< linesReceived);
         if(linesReceived < expectedNumLines)
         {
             if(idx >= bufSize)

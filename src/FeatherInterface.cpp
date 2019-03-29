@@ -29,6 +29,8 @@
 #include <arrow/api.h>
 #include <arrow/io/memory.h>
 #include <arrow/ipc/feather.h>
+#include <array/MemArray.h>
+#include <query/Query.h>
 
 #include "StreamSettings.h"
 #include "ChildProcess.h"
@@ -78,10 +80,10 @@ ArrayDesc FeatherInterface::getOutputSchema(
     {
         ArrayDesc const& schema = inputSchemas[i];
         Attributes const& attrs = schema.getAttributes(true);
-        for(size_t j = 0, nAttrs = attrs.size(); j<nAttrs; ++j)
+//        for(size_t j = 0, nAttrs = attrs.size(); j<nAttrs; ++j)
+        for(AttributeDesc const&attr : attrs)
         {
-            AttributeDesc const& attr = attrs[j];
-            TypeEnum te = typeId2TypeEnum(attrs[j].getType(), true);
+            TypeEnum te = typeId2TypeEnum(attr.getType(), true);
         }
     }
     Dimensions outputDimensions;
@@ -100,16 +102,15 @@ ArrayDesc FeatherInterface::getOutputSchema(
     for(AttributeID i =0; i<outputTypes.size(); ++i)
     {
         outputAttributes.push_back(
-            AttributeDesc(i,
-                          outputNames[i],
+            AttributeDesc(outputNames[i],
                           typeEnum2TypeId(outputTypes[i]),
                           AttributeDesc::IS_NULLABLE, CompressorType::NONE));
     }
-    outputAttributes = addEmptyTagAttribute(outputAttributes);
+    outputAttributes.addEmptyTagAttribute();
     return ArrayDesc(inputSchemas[0].getName(),
                      outputAttributes,
                      outputDimensions,
-                     defaultPartitioning(),
+                     createDistribution(defaultDistType()),
                      query->getDefaultArrayResidency());
 }
 
@@ -125,12 +126,15 @@ FeatherInterface::FeatherInterface(Settings const& settings,
     _outputTypes(_nOutputAttrs),
     _readBuf(1024*1024)
 {
-    for(int32_t i = 0; i < _nOutputAttrs; ++i)
+    //for(int32_t i = 0; i < _nOutputAttrs; ++i)
+    int32_t i = 0;
+    for (const auto& attr : outputSchema.getAttributes(true))
     {
-        _oaiters[i] = _result->getIterator(i);
+        _oaiters[i] = _result->getIterator(attr);
         _outputTypes[i] = settings.getTypes()[i];
+        i++;
     }
-    _oaiters[_nOutputAttrs] = _result->getIterator(_nOutputAttrs);
+    _oaiters[_nOutputAttrs] = _result->getIterator(*outputSchema.getEmptyBitmapAttribute());
     _nullVal.setNull();
 }
 
@@ -141,9 +145,11 @@ void FeatherInterface::setInputSchema(ArrayDesc const& inputSchema)
     _inputTypes.resize(nInputAttrs);
     _inputNames.resize(nInputAttrs);
     _inputConverters.resize(nInputAttrs);
-    for(size_t i=0; i < nInputAttrs; ++i)
+    size_t i = 0;
+//    for(size_t i=0; i < nInputAttrs; ++i)
+    for (const auto& attr : attrs)
     {
-        TypeId const& inputType = attrs[i].getType();
+        TypeId const& inputType = attr.getType();
         _inputTypes[i] = typeId2TypeEnum(inputType, true);
         switch(_inputTypes[i])
         {
@@ -161,7 +167,8 @@ void FeatherInterface::setInputSchema(ArrayDesc const& inputSchema)
                 TID_STRING,
                 false);
         }
-        _inputNames[i]= attrs[i].getName();
+        _inputNames[i]= attr.getName();
+        i++;
     }
 }
 

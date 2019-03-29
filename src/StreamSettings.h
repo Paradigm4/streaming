@@ -28,7 +28,7 @@
 
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
-#include <query/Operator.h>
+#include <query/PhysicalOperator.h>
 #include <log4cxx/logger.h>
 
 using boost::algorithm::trim;

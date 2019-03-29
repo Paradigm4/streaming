@@ -25,14 +25,16 @@
 
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
-#include <query/Operator.h>
+#include <query/LogicalOperator.h>
+#include <query/Query.h>
 #include <fstream>
 #include "StreamSettings.h"
 #include "TSVInterface.h"
 #include "DFInterface.h"
 #include "FeatherInterface.h"
-#include "rbac/Rbac.h"
-#include "rbac/Rights.h"
+#include <rbac/Rbac.h>
+#include <rbac/Rights.h>
+#include <rbac/Session.h>
 
 using std::shared_ptr;
 
@@ -53,24 +55,24 @@ public:
     LogicalStream(const std::string& logicalName, const std::string& alias) :
         LogicalOperator(logicalName, alias)
     {
-        ADD_PARAM_INPUT();
-        ADD_PARAM_CONSTANT("string");
-        ADD_PARAM_VARIES();
     }
 
-    std::vector<shared_ptr<OperatorParamPlaceholder> > nextVaryParamPlaceholder(const std::vector< ArrayDesc> &schemas)
+    static PlistSpec const* makePlistSpec()
     {
-        std::vector<shared_ptr<OperatorParamPlaceholder> > res;
-        res.push_back(END_OF_VARIES_PARAMS());
-        if (_parameters.size() < Settings::MAX_PARAMETERS)
-        {
-            res.push_back(PARAM_INPUT());
-            res.push_back(PARAM_CONSTANT("string"));
-        }
-        return res;
+        static PlistSpec argSpec {
+            { "", // positionals
+              RE(RE::LIST, {
+                 RE(PP(PLACEHOLDER_INPUT)),
+                 RE(RE::STAR, {
+                    RE(PP(PLACEHOLDER_CONSTANT, TID_STRING))
+                 })
+              })
+            }
+        };
+        return &argSpec;
     }
 
-    void inferAccess(std::shared_ptr<Query>& query) override
+    void inferAccess(std::shared_ptr<Query>& query)
     {
         //Read the file at /opt/scidb/VV.VV/etc/stream_allowed, one command per line
         //If our command is in that file, it is "blessed" and we let it run by anyone.

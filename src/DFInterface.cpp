@@ -28,6 +28,8 @@
 #include "ChildProcess.h"
 #include <vector>
 #include <string>
+#include <query/Query.h>
+#include <array/MemArray.h>
 
 using std::vector;
 using std::shared_ptr;
@@ -66,10 +68,11 @@ ArrayDesc DFInterface::getOutputSchema(std::vector<ArrayDesc> const& inputSchema
     {
         ArrayDesc const& schema = inputSchemas[i];
         Attributes const& attrs = schema.getAttributes(true);
-        for(size_t j = 0, nAttrs = attrs.size(); j<nAttrs; ++j)
+            //for(size_t j = 0, nAttrs = attrs.size(); j<nAttrs; ++j)
+        for (const auto& attr : attrs)
         {
-            AttributeDesc const& attr = attrs[j];
-            TypeEnum te = typeId2TypeEnum(attrs[j].getType(), true);
+//            AttributeDesc const& attr = attrs[j];
+            TypeEnum te = typeId2TypeEnum(attr.getType(), true);
             if(te != TE_INT32 && te != TE_DOUBLE && te != TE_STRING)
             {
                 ostringstream error;
@@ -85,10 +88,10 @@ ArrayDesc DFInterface::getOutputSchema(std::vector<ArrayDesc> const& inputSchema
     Attributes outputAttributes;
     for(AttributeID i =0; i<outputTypes.size(); ++i)
     {
-        outputAttributes.push_back( AttributeDesc(i,  outputNames[i], typeEnum2TypeId(outputTypes[i]), AttributeDesc::IS_NULLABLE, CompressorType::NONE));
+        outputAttributes.push_back( AttributeDesc(outputNames[i], typeEnum2TypeId(outputTypes[i]), AttributeDesc::IS_NULLABLE, CompressorType::NONE));
     }
-    outputAttributes = addEmptyTagAttribute(outputAttributes);
-    return ArrayDesc(inputSchemas[0].getName(), outputAttributes, outputDimensions, defaultPartitioning(), query->getDefaultArrayResidency());
+    outputAttributes.addEmptyTagAttribute();
+    return ArrayDesc(inputSchemas[0].getName(), outputAttributes, outputDimensions, createDistribution(defaultDistType()), query->getDefaultArrayResidency());
 }
 
 DFInterface::DFInterface(Settings const& settings, ArrayDesc const& outputSchema, std::shared_ptr<Query> const& query):
@@ -102,12 +105,15 @@ DFInterface::DFInterface(Settings const& settings, ArrayDesc const& outputSchema
     _readBuf(1024*1024),
     _writeBuf(1024*1024)
 {
-    for(int32_t i =0; i<_nOutputAttrs; ++i)
+//    for(int32_t i =0; i<_nOutputAttrs; ++i)
+    int32_t i =0;
+    for (const auto& attr : outputSchema.getAttributes(true))
     {
-        _oaiters[i] = _result->getIterator(i);
+        _oaiters[i] = _result->getIterator(attr);
         _outputTypes[i] = settings.getTypes()[i];
+        i++;
     }
-    _oaiters[_nOutputAttrs] = _result->getIterator(_nOutputAttrs);
+    _oaiters[_nOutputAttrs] = _result->getIterator(*outputSchema.getEmptyBitmapAttribute());
     _nullVal.setNull();
     unsigned char nanDouble[8] = { 0xa2, 0x07, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x7f };
     _rNanDouble = *((double*) (&nanDouble));
@@ -120,10 +126,13 @@ void DFInterface::setInputSchema(ArrayDesc const& inputSchema)
     size_t const nInputAttrs = attrs.size();
     _inputTypes.resize(nInputAttrs);
     _inputNames.resize(nInputAttrs);
-    for(size_t i =0; i<nInputAttrs; ++i)
+//    for(size_t i =0; i<nInputAttrs; ++i)
+    size_t i =0;
+    for (const auto& attr : attrs)
     {
-        _inputTypes[i]= typeId2TypeEnum(attrs[i].getType());
-        _inputNames[i]= attrs[i].getName();
+        _inputTypes[i]= typeId2TypeEnum(attr.getType());
+        _inputNames[i]= attr.getName();
+        i++;
     }
 }
 
@@ -269,7 +278,7 @@ void DFInterface::readDF(ChildProcess& child, bool lastMessage)
     child.hardRead(&numColumns, sizeof(int32_t), !lastMessage);
     if (numColumns > 0 && numColumns != _nOutputAttrs)
     {
-        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "received incorrect number of columns";
+        throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "received incorrect number of columns "; // << numColumns << " attrs " << _nOutputAttrs;
     }
     if (numColumns == 0)
     {
