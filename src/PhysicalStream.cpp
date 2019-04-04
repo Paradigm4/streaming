@@ -51,9 +51,6 @@ using std::vector;
 namespace scidb { namespace stream
 {
 
-// Logger for operator. static to prevent visibility of variable outside of file
-static log4cxx::LoggerPtr logger(log4cxx::Logger::getLogger("scidb.operators.stream"));
-
 
 }
 
@@ -151,7 +148,7 @@ public:
 
     shared_ptr< Array> execute(std::vector< shared_ptr< Array> >& inputArrays, std::shared_ptr<Query> query)
     {
-        Settings settings(_parameters, false, query);
+        Settings settings(_parameters, _kwParameters, false, query);
         if(settings.getFormat() == TSV)
         {
             return runStream<TSVInterface>(inputArrays, settings, query);

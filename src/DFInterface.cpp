@@ -37,8 +37,6 @@ using std::string;
 
 namespace scidb { namespace stream {
 
-static log4cxx::LoggerPtr logger(log4cxx::Logger::getLogger("scidb.operators.stream.df_interface"));
-
 ArrayDesc DFInterface::getOutputSchema(std::vector<ArrayDesc> const& inputSchemas, Settings const& settings, std::shared_ptr<Query> const& query)
 {
     if(settings.getFormat() != DF)

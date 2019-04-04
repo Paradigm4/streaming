@@ -63,10 +63,30 @@ public:
             { "", // positionals
               RE(RE::LIST, {
                  RE(PP(PLACEHOLDER_INPUT)),
-                 RE(RE::STAR, {
-                    RE(PP(PLACEHOLDER_CONSTANT, TID_STRING))
-                 })
+                 RE(PP(PLACEHOLDER_CONSTANT, TID_STRING))
               })
+            },
+            { KW_FORMAT, RE(PP(PLACEHOLDER_CONSTANT, TID_STRING)) },
+            { KW_CHUNK_SIZE, RE(PP(PLACEHOLDER_CONSTANT, TID_INT64)) },
+            { KW_TYPES, RE(RE::OR, {
+                           RE(PP(PLACEHOLDER_EXPRESSION, TID_STRING)),
+                           RE(RE::GROUP, {
+                                  RE(PP(PLACEHOLDER_EXPRESSION, TID_STRING)),
+                                  RE(RE::PLUS, {
+                                     RE(PP(PLACEHOLDER_EXPRESSION, TID_STRING))
+                              })
+                           })
+                        })
+            },
+            { KW_NAMES, RE(RE::OR, {
+                           RE(PP(PLACEHOLDER_EXPRESSION, TID_STRING)),
+                           RE(RE::GROUP, {
+                                  RE(PP(PLACEHOLDER_EXPRESSION, TID_STRING)),
+                                  RE(RE::PLUS, {
+                                     RE(PP(PLACEHOLDER_EXPRESSION, TID_STRING))
+                              })
+                           })
+                        })
             }
         };
         return &argSpec;
@@ -81,7 +101,7 @@ public:
         uint32_t minor = SCIDB_VERSION_MINOR();
         std::ostringstream commandsFile;
         commandsFile<<"/opt/scidb/"<<major<<"."<<minor<<"/etc/stream_allowed";
-        Settings settings(_parameters, true, query);
+        Settings settings(_parameters, _kwParameters, true, query);
         std::string const& command = settings.getCommand();
     	std::ifstream infile(commandsFile.str());
         std::string line;
@@ -101,7 +121,7 @@ public:
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "can't support more than two input arrays";
         }
-        Settings settings(_parameters, true, query);
+        Settings settings(_parameters, _kwParameters, true, query);
         if(settings.getFormat() == TSV)
         {
             return TSVInterface::getOutputSchema(schemas, settings, query);

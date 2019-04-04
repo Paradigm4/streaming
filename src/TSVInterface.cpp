@@ -37,8 +37,6 @@ using std::string;
 
 namespace scidb { namespace stream {
 
-static log4cxx::LoggerPtr logger(log4cxx::Logger::getLogger("scidb.operators.stream.tsv_interface"));
-
 ArrayDesc TSVInterface::getOutputSchema(vector<ArrayDesc> const& inputSchemas, Settings const& settings, shared_ptr<Query> const& query)
 {
     if(settings.getFormat() != TSV)

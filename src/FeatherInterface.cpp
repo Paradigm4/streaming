@@ -42,9 +42,6 @@ using std::string;
 
 namespace scidb { namespace stream {
 
-static log4cxx::LoggerPtr logger(
-    log4cxx::Logger::getLogger("scidb.operators.stream.feather_interface"));
-
 ArrayDesc FeatherInterface::getOutputSchema(
     std::vector<ArrayDesc> const& inputSchemas,
     Settings const& settings,
