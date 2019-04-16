@@ -77,7 +77,7 @@ private:
     string              _command;
 
 public:
-    static const size_t MAX_PARAMETERS = 5;
+    static const size_t MAX_PARAMETERS = 1;
 
 private:
     void setParamDfNames(vector<string> names)
