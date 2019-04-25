@@ -8,7 +8,7 @@ python:
   - "3.5"
   - "3.6"
 
-env: SCIDB_VER=18.1 SCIDB_IMG=18.1-ext ARROW_VER=0.8.0-2
+env: SCIDB_VER=18.1 SCIDB_IMG=18.1-ext ARROW_VER=0.9.0
 
 services:
   - docker
@@ -30,12 +30,13 @@ install:
   - pip install py_pkg/
 
 script:
-  - docker exec --tty scidb /stream/tests/test.sh
+  - docker exec scidb /stream/tests/test.sh
   - pycodestyle .
   - pytest
-  - docker exec --tty --env TRAVIS_PYTHON_VERSION=${TRAVIS_PYTHON_VERSION} scidb /stream/tests/py_pkg_examples.sh
+  - docker exec --env TRAVIS_PYTHON_VERSION=${TRAVIS_PYTHON_VERSION} scidb /stream/tests/py_pkg_examples.sh
+  - docker exec scidb rm /stream/tests/py_pkg_examples.out
   - if [ "${TRAVIS_PYTHON_VERSION}" = "2.7" -o
-         "${TRAVIS_PYTHON_VERSION}" = "3.4" ]]; then
+         "${TRAVIS_PYTHON_VERSION}" = "3.4" ]; then
     ./tests/py_pkg_examples.sh "docker exec --tty scidb";
     fi
 

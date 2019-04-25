@@ -30,6 +30,7 @@ setup(
         'dill',
         'feather-format',
         'pandas',
+        'pyarrow==0.9.0'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',

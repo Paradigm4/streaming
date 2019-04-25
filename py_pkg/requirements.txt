@@ -1,6 +1,7 @@
 dill
 feather-format
 pandas
+pyarrow==0.9.0
 pycodestyle
 scidb-py
 scipy
