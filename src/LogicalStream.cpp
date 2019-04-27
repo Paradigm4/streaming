@@ -62,7 +62,9 @@ public:
         static PlistSpec argSpec {
             { "", // positionals
               RE(RE::LIST, {
-                 RE(PP(PLACEHOLDER_INPUT)),
+                 RE(RE::PLUS, {
+                    RE(PP(PLACEHOLDER_INPUT))
+                 }),
                  RE(PP(PLACEHOLDER_CONSTANT, TID_STRING))
               })
             },
