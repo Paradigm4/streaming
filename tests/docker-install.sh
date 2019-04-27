@@ -10,6 +10,10 @@ set -o errexit
 # deb https://packages.red-data-tools.org/ubuntu/ trusty universe
 # APT_LINE
 
+sed --in-place                                                  \
+    "\#deb http://deb.debian.org/debian jessie-updates main#d"  \
+    /etc/apt/sources.list
+
 # apt-get update
 # apt-get install --assume-yes --no-install-recommends --allow-unauthenticated \
 #         red-data-tools-keyring
