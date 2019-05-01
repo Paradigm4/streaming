@@ -139,6 +139,14 @@ public:
         return true;
     }
 
+    void checkInputDistAgreement(std::vector<DistType> const& inDist, size_t /*depth*/) const override
+    {
+        SCIDB_ASSERT(inDist.size() == 2);
+        // input[0] can have arbitrary distribution
+        // input[1] can be arbitraary
+        // NOTE: if the answer is more restrictive than this, then please add SCIDB_ASSERT() about what inDist[0] and inDist[1] can be;
+    }
+
     virtual RedistributeContext getOutputDistribution(
                std::vector<RedistributeContext> const& inputDistributions,
                std::vector< ArrayDesc> const& inputSchemas) const
