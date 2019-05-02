@@ -134,6 +134,15 @@ public:
       return _schema.getDistribution()->getDistType();
     }
 
+    // required to allow replicated input
+    std::vector<bool> isReplicatedInputOk(size_t numChildren) const override
+    {
+        vector<bool> result(numChildren, false);
+        SCIDB_ASSERT(numChildren==2);
+        result[1] = true;   // permitted on the right-hand input
+        return result;
+    }
+
     virtual bool changesDistribution(std::vector<ArrayDesc> const&) const
     {
         return true;
