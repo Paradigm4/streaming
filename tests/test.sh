@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# These tests assumes a 4 instance configuration.  A different number of instances yield different numbers of computations
+# from the stream() operator, which executes on all instances.
+
 MY_DIR=`dirname $0`
 pushd $MY_DIR > /dev/null
 MY_DIR=`pwd`
@@ -40,7 +43,7 @@ iquery -aq "op_count(stream(foo, 'Rscript $EX_DIR/tsv_R_client.R'))" >> $MY_DIR/
 
 iquery -aq "remove(foo)" > /dev/null 2>&1
 
-iquery -aq "stream(build(<val:double> [i=1:5:0:5], i), 'Rscript $EX_DIR/R_client.R', format:'df', types:('double','int32'))" >> $MY_DIR/test.out 2>&1
+iquery -ocsv -aq "stream(build(<val:double> [i=1:5:0:5], i), 'Rscript $EX_DIR/R_client.R', format:'df', types:('double','int32'))" >> $MY_DIR/test.out 2>&1
 
 iquery -aq "
  stream(
@@ -60,9 +63,9 @@ iquery -aq "
   names:'sum'
  )" >> $MY_DIR/test.out 2>&1
 
-iquery -aq "stream(build(<val:string> [i=1:10,10,0], iif(i=1,'', string(i))), 'Rscript $EX_DIR/R_strings.R', format:'df', types:'string', names:'s')" >> $MY_DIR/test.out 2>&1
+iquery -ocsv -aq "stream(build(<val:string> [i=1:10,10,0], iif(i=1,'', string(i))), 'Rscript $EX_DIR/R_strings.R', format:'df', types:'string', names:'s')" >> $MY_DIR/test.out 2>&1
 
-iquery -aq "stream(
+iquery -ocsv -aq "stream(
  apply(
   build(<a:int32>[i=1:3:0:3], i),
   dub, double(iif(a=1, null, iif(a=2, 0,  1))),
@@ -74,6 +77,6 @@ iquery -aq "stream(
 #Conversion from client->scidb and then scidb->iquery adds extra backslashes; bear with us!
 iquery -otsv -aq "stream(apply(build(<a:string> [i=0:0:0:1], '\n \r \t \ '), b, string(null)), '$EX_DIR/stream_test_client')" >> $MY_DIR/test.out 2>&1
 
-iquery -aq "filter(stream(build(<a:double>[i=0:9:0:10],i), 'python $EX_DIR/python_example.py'), instance_id=1)" >> $MY_DIR/test.out 2>&1
+iquery -ocsv -aq "stream(build(<a:double>[i=0:9:0:10],i), 'python $EX_DIR/python_example.py')" >> $MY_DIR/test.out 2>&1
 
 diff $MY_DIR/test.expected $MY_DIR/test.out

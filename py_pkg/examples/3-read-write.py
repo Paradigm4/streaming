@@ -26,8 +26,8 @@
     stream(
       foo,
       'python -u /stream/py_pkg/examples/3-read-write.py',
-      'format=feather',
-      'types=int64,double,string')"
+      format:'feather',
+      types:('int64','double','string'))"
 {instance_id,chunk_no,value_no} a0,a1,a2
 {0,0,0} 1,10.1,'foo1'
 {0,0,1} 2,20.1,'foo2'

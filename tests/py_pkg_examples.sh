@@ -2,6 +2,13 @@
 
 set -o errexit
 
+set -x
+
+MY_DIR=`dirname $0`
+pushd $MY_DIR > /dev/null
+MY_DIR=`pwd`
+EX_DIR=`pwd`/../py_pkg/examples
+
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 if [ "$1" != "" ]
@@ -27,9 +34,9 @@ import scidbstrm, pandas
 
 scidbstrm.map(lambda df: pandas.DataFrame({\'count\': [len(df)]}))
 \"',
-    'format=feather',
-    'types=int64',
-    'names=count')" \
+    format:'feather',
+    types:'int64',
+    names:'count')" \
 >  $DIR/py_pkg_examples.out
 
 
@@ -46,10 +53,10 @@ $PRE iquery --afl --query "
 $PRE iquery --afl --query "
     stream(
       foo,
-      '$PYTHON -u /stream/py_pkg/examples/1-map-finalize.py',
-      'format=feather',
-      'types=int64,double,string',
-      'names=x,y,info')" \
+      '$PYTHON -u $EX_DIR/1-map-finalize.py',
+      format:'feather',
+      types:('int64','double','string'),
+      names:('x','y','info'))" \
 >> $DIR/py_pkg_examples.out
 
 $PRE iquery --afl --query "remove(foo)"
@@ -73,9 +80,9 @@ $PRE iquery --afl --query "
 $PRE iquery --afl --query "
     stream(
       foo,
-      '$PYTHON -u /stream/py_pkg/examples/3-read-write.py',
-      'format=feather',
-      'types=int64,double,string')" \
+      '$PYTHON -u $EX_DIR/3-read-write.py',
+      format:'feather',
+      types:('int64','double','string'))" \
 >> $DIR/py_pkg_examples.out
 
 $PRE iquery --afl --query "remove(foo)"
