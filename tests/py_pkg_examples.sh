@@ -2,8 +2,6 @@
 
 set -o errexit
 
-set -x
-
 MY_DIR=`dirname $0`
 pushd $MY_DIR > /dev/null
 MY_DIR=`pwd`
