@@ -1,8 +1,7 @@
 dill
 feather-format
 pandas
-pyarrow==0.9.0
 pycodestyle
-scidb-py
+scidb-py<19.3
 scipy
 sklearn
