@@ -26,7 +26,7 @@
 #ifndef CHILDPROCESS_H_
 #define CHILDPROCESS_H_
 
-#include <query/Operator.h>
+#include <query/PhysicalOperator.h>
 #include <unistd.h>
 
 namespace scidb { namespace stream

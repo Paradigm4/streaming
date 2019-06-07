@@ -26,7 +26,7 @@
 #ifndef SRC_DFINTERFACE_H_
 #define SRC_DFINTERFACE_H_
 
-#include <query/Operator.h>
+#include <query/PhysicalOperator.h>
 #include <query/TypeSystem.h>
 
 namespace scidb { namespace stream

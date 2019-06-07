@@ -28,7 +28,9 @@
 
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
-#include <query/Operator.h>
+#include <query/PhysicalOperator.h>
+#include <query/OperatorParam.h>
+#include <query/Query.h>
 #include <log4cxx/logger.h>
 
 using boost::algorithm::trim;
@@ -44,10 +46,20 @@ using std::shared_ptr;
 using std::string;
 using std::ostringstream;
 
-namespace scidb { namespace stream
+namespace scidb {
+namespace stream
 {
+// Logger for operator. static to prevent visibility of variable outside of file
+static log4cxx::LoggerPtr logger(log4cxx::Logger::getLogger("scidb.operators.stream"));
 
-enum TransferFormat
+static const char* const KW_FORMAT = "format";
+static const char* const KW_CHUNK_SIZE = "chunk_size";
+static const char* const KW_TYPES = "types";
+static const char* const KW_NAMES = "names";
+
+typedef std::shared_ptr<OperatorParamLogicalExpression> ParamType_t ;
+
+    enum TransferFormat
 {
     TSV,     // text tsv
     DF,      // R data.frame
@@ -61,69 +73,24 @@ private:
     vector<TypeEnum>    _types;
     vector<string>      _names;
     ssize_t             _outputChunkSize;
-    bool                _outputChunkSizeSet;
+    bool				_chunkSizeSet;
     string              _command;
 
 public:
-    static const size_t MAX_PARAMETERS = 5;
+    static const size_t MAX_PARAMETERS = 1;
 
 private:
-    string paramToString(shared_ptr <OperatorParam> const& parameter, shared_ptr<Query>& query, bool logical)
+    void setParamDfNames(vector<string> names)
     {
-        if(logical)
-        {
-            string result = evaluate(((shared_ptr<OperatorParamLogicalExpression>&) parameter)->getExpression(), TID_STRING).getString();
-            return result;
-        }
-        return ((shared_ptr<OperatorParamPhysicalExpression>&) parameter)->getExpression()->evaluate().getString();
-    }
-
-    void setParamChunkSize(string trimmedContent)
-    {
-        try
-        {
-            _outputChunkSize = lexical_cast<int64_t>(trimmedContent);
-            if(_outputChunkSize <= 0)
-            {
-                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "chunk size must be positive";
-            }
-        }
-        catch (bad_lexical_cast const& exn)
-        {
-            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse chunk size";
+        LOG4CXX_DEBUG(logger, "stream dataframe out name size " << names.size());
+        for (size_t i = 0; i < names.size(); ++i) {
+            _names.push_back(names[i]);
+            LOG4CXX_DEBUG(logger, "stream dataframe out name " << i << " is " << names[i]);
         }
     }
 
-    void setParamFormat(string trimmedContent)
+    void setParamDfTypes(vector<string> tokens)
     {
-        if(trimmedContent == "tsv")
-        {
-            _transferFormat = TSV;
-        }
-        else if(trimmedContent == "df")
-        {
-            _transferFormat = DF;
-        }
-        else if(trimmedContent == "feather")
-        {
-            _transferFormat = FEATHER;
-        }
-        else
-        {
-            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse format";
-        }
-    }
-
-    void setParamDfTypes(string trimmedContent)
-    {
-        trim_left_if(trimmedContent, is_any_of("("));
-        trim_right_if(trimmedContent, is_any_of(")"));
-        vector<string> tokens;
-        split(tokens, trimmedContent, is_any_of(","));
-        if(tokens.size() == 0)
-        {
-            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse types";
-        }
         for(size_t i =0; i<tokens.size(); ++i)
         {
             string const& t = tokens[i];
@@ -151,111 +118,177 @@ private:
             {
                 throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse types";
             }
+            LOG4CXX_DEBUG(logger, "stream dataframe out type " << i << " is " << t);
         }
     }
 
-    void setParamDfNames(string trimmedContent)
+    void checkIfSet(bool alreadySet, const char* kw)
     {
-        trim_left_if(trimmedContent, is_any_of("("));
-        trim_right_if(trimmedContent, is_any_of(")"));
-        vector<string> tokens;
-        split(tokens, trimmedContent, is_any_of(","));
-        if(tokens.size() == 0)
-        {
-            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse names";
-        }
-        for(size_t i =0; i<tokens.size(); ++i)
-        {
-            string const& t = tokens[i];
-            if(t.size()==0)
-            {
-                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse names";
-            }
-            for(size_t j=0; j<i; ++j)
-            {
-                if(t==tokens[j])
-                {
-                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "duplicate names not allowed";
-                }
-            }
-            for(size_t j=0; j<t.size(); ++j)
-            {
-                char ch = t[j];
-                if( !( (j == 0 && ((ch>='a' && ch<='z') || (ch>='A' && ch<='Z') || ch == '_')) ||
-                       (j > 0  && ((ch>='a' && ch<='z') || (ch>='A' && ch<='Z') || (ch>='0' && ch <= '9') || ch == '_' ))))
-                {
-                    ostringstream error;
-                    error<<"invalid name '"<<t<<"'";
-                    throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << error.str();;
-                }
-            }
-            _names.push_back(t);
-        }
-    }
-
-    void setParam (string const& parameterString, bool& alreadySet, string const& header, void (Settings::* innersetter)(string) )
-    {
-        string paramContent = parameterString.substr(header.size());
         if (alreadySet)
         {
-            string header = parameterString.substr(0, header.size()-1);
             ostringstream error;
-            error<<"illegal attempt to set "<<header<<" multiple times";
+            error<<"illegal attempt to set "<<kw<<" multiple times";
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << error.str().c_str();
         }
-        trim(paramContent);
-        (this->*innersetter)(paramContent); //TODO:.. tried for an hour with a template first. #thisIsWhyWeCantHaveNiceThings
-        alreadySet = true;
+    }
+
+    void setParamChunkSize(vector<int64_t> keys)
+    {
+        int64_t res = keys[0];
+        if(res <= 0)
+        {
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "chunk size must be positive";
+        }
+        _outputChunkSize = res;
+    }
+
+    void setParamFormat(vector<string> keys)
+    {
+        string trimmedContent = keys[0];
+        if(trimmedContent == "tsv")
+        {
+            _transferFormat = TSV;
+        }
+        else if(trimmedContent == "df")
+        {
+            _transferFormat = DF;
+        }
+        else if(trimmedContent == "feather")
+        {
+            _transferFormat = FEATHER;
+        }
+        else
+        {
+            throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "could not parse format";
+        }
+    }
+
+    void setKeywordParamString(KeywordParameters const& kwParams, const char* const kw, bool& alreadySet, void (Settings::* innersetter)(vector<string>) )
+    {
+        checkIfSet(alreadySet, kw);
+        vector <string> paramContent;
+
+        Parameter kwParam = getKeywordParam(kwParams, kw);
+        if (kwParam) {
+            if (kwParam->getParamType() == PARAM_NESTED) {
+                auto group = dynamic_cast<OperatorParamNested*>(kwParam.get());
+                Parameters& gParams = group->getParameters();
+                for (size_t i = 0; i < gParams.size(); ++i) {
+                    paramContent.push_back(getParamContentString(gParams[i]));
+                }
+            } else {
+                paramContent.push_back(getParamContentString(kwParam));
+            }
+            (this->*innersetter)(paramContent);
+            alreadySet = true;
+        } else {
+            LOG4CXX_DEBUG(logger, "stream findKeyword null: " << kw);
+        }
+    }
+
+    void setKeywordParamInt64(KeywordParameters const& kwParams, const char* const kw, bool& alreadySet, void (Settings::* innersetter)(vector<int64_t>) )
+    {
+        checkIfSet(alreadySet, kw);
+
+        vector<int64_t> paramContent;
+        size_t numParams;
+
+        Parameter kwParam = getKeywordParam(kwParams, kw);
+        if (kwParam) {
+            if (kwParam->getParamType() == PARAM_NESTED) {
+                auto group = dynamic_cast<OperatorParamNested*>(kwParam.get());
+                Parameters& gParams = group->getParameters();
+                numParams = gParams.size();
+                for (size_t i = 0; i < numParams; ++i) {
+                    paramContent.push_back(getParamContentInt64(gParams[i]));
+                }
+            } else {
+                paramContent.push_back(getParamContentInt64(kwParam));
+            }
+            (this->*innersetter)(paramContent);
+            alreadySet = true;
+        } else {
+            LOG4CXX_DEBUG(logger, "Stream findKeyword null: " << kw);
+        }
+    }
+
+    string getParamContentString(Parameter& param)
+    {
+        string paramContent;
+
+        if(param->getParamType() == PARAM_LOGICAL_EXPRESSION) {
+            ParamType_t& paramExpr = reinterpret_cast<ParamType_t&>(param);
+            paramContent = evaluate(paramExpr->getExpression(), TID_STRING).getString();
+        } else {
+            OperatorParamPhysicalExpression* exp =
+                dynamic_cast<OperatorParamPhysicalExpression*>(param.get());
+            SCIDB_ASSERT(exp != nullptr);
+            paramContent = exp->getExpression()->evaluate().getString();
+        }
+        return paramContent;
+    }
+
+    int64_t getParamContentInt64(Parameter& param)
+    {
+        size_t paramContent;
+
+        if(param->getParamType() == PARAM_LOGICAL_EXPRESSION) {
+            ParamType_t& paramExpr = reinterpret_cast<ParamType_t&>(param);
+            paramContent = evaluate(paramExpr->getExpression(), TID_INT64).getInt64();
+        } else {
+            OperatorParamPhysicalExpression* exp =
+                dynamic_cast<OperatorParamPhysicalExpression*>(param.get());
+            SCIDB_ASSERT(exp != nullptr);
+            paramContent = exp->getExpression()->evaluate().getInt64();
+            LOG4CXX_DEBUG(logger, "Stream integer param is " << paramContent)
+
+        }
+        return paramContent;
+    }
+
+    Parameter getKeywordParam(KeywordParameters const& kwp, const std::string& kw) const
+    {
+        auto const& kwPair = kwp.find(kw);
+        return kwPair == kwp.end() ? Parameter() : kwPair->second;
+    }
+
+    string paramToString(shared_ptr <OperatorParam> const& parameter, shared_ptr<Query>& query, bool logical)
+    {
+        if(logical)
+        {
+            string result = evaluate(((shared_ptr<OperatorParamLogicalExpression>&) parameter)->getExpression(), TID_STRING).getString();
+            return result;
+        }
+        return ((shared_ptr<OperatorParamPhysicalExpression>&) parameter)->getExpression()->evaluate().getString();
     }
 
 public:
     Settings(vector<shared_ptr <OperatorParam> > const& operatorParameters,
+             KeywordParameters const& kwParams,
              bool logical,
              shared_ptr<Query>& query):
                  _transferFormat(TSV),
                  _types(0),
                  _outputChunkSize(1024*1024*1024),
-                 _outputChunkSizeSet(false)
+                 _chunkSizeSet(false)
      {
-        string const formatHeader                  = "format=";
-        string const chunkSizeHeader               = "chunk_size=";
-        string const typesHeader                   = "types=";
-        string const namesHeader                   = "names=";
         bool formatSet    = false;
         bool typesSet     = false;
         bool namesSet     = false;
         size_t const nParams = operatorParameters.size();
+
         if (nParams > MAX_PARAMETERS)
         {   //assert-like exception. Caller should have taken care of this!
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "illegal number of parameters passed to stream";
         }
         _command = paramToString(operatorParameters[0], query, logical);
-        for (size_t i= 1; i<nParams; ++i)
-        {
-            string parameterString = paramToString(operatorParameters[i], query, logical);
-            if (starts_with(parameterString, chunkSizeHeader))
-            {
-                setParam(parameterString, _outputChunkSizeSet, chunkSizeHeader, &Settings::setParamChunkSize);
-            }
-            else if (starts_with(parameterString, formatHeader))
-            {
-                setParam(parameterString, formatSet, formatHeader, &Settings::setParamFormat);
-            }
-            else if (starts_with(parameterString, typesHeader))
-            {
-                setParam(parameterString, typesSet, typesHeader, &Settings::setParamDfTypes);
-            }
-            else if (starts_with(parameterString, namesHeader))
-            {
-                setParam(parameterString, namesSet, namesHeader, &Settings::setParamDfNames);
-            }
-            else
-            {
-                ostringstream error;
-                error << "Unrecognized token '"<<parameterString<<"'";
-                throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << error.str().c_str();
-            }
-        }
+        LOG4CXX_DEBUG(logger, "Stream command is " << _command)
+
+        setKeywordParamInt64(kwParams, KW_CHUNK_SIZE, _chunkSizeSet, &Settings::setParamChunkSize);
+        setKeywordParamString(kwParams, KW_FORMAT, formatSet, &Settings::setParamFormat);
+        setKeywordParamString(kwParams, KW_TYPES, typesSet, &Settings::setParamDfTypes);
+        setKeywordParamString(kwParams, KW_NAMES, namesSet, &Settings::setParamDfNames);
+
     }
 
     TransferFormat getFormat() const
@@ -280,7 +313,7 @@ public:
 
     bool isChunkSizeSet() const
     {
-        return _outputChunkSizeSet;
+        return _chunkSizeSet;
     }
 
     string const& getCommand() const

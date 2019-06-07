@@ -25,14 +25,16 @@
 
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
-#include <query/Operator.h>
+#include <query/LogicalOperator.h>
+#include <query/Query.h>
 #include <fstream>
 #include "StreamSettings.h"
 #include "TSVInterface.h"
 #include "DFInterface.h"
 #include "FeatherInterface.h"
-#include "rbac/Rbac.h"
-#include "rbac/Rights.h"
+#include <rbac/Rbac.h>
+#include <rbac/Rights.h>
+#include <rbac/Session.h>
 
 using std::shared_ptr;
 
@@ -53,24 +55,46 @@ public:
     LogicalStream(const std::string& logicalName, const std::string& alias) :
         LogicalOperator(logicalName, alias)
     {
-        ADD_PARAM_INPUT();
-        ADD_PARAM_CONSTANT("string");
-        ADD_PARAM_VARIES();
     }
 
-    std::vector<shared_ptr<OperatorParamPlaceholder> > nextVaryParamPlaceholder(const std::vector< ArrayDesc> &schemas)
+    static PlistSpec const* makePlistSpec()
     {
-        std::vector<shared_ptr<OperatorParamPlaceholder> > res;
-        res.push_back(END_OF_VARIES_PARAMS());
-        if (_parameters.size() < Settings::MAX_PARAMETERS)
-        {
-            res.push_back(PARAM_INPUT());
-            res.push_back(PARAM_CONSTANT("string"));
-        }
-        return res;
+        static PlistSpec argSpec {
+            { "", // positionals
+              RE(RE::LIST, {
+                 RE(RE::PLUS, {
+                    RE(PP(PLACEHOLDER_INPUT))
+                 }),
+                 RE(PP(PLACEHOLDER_CONSTANT, TID_STRING))
+              })
+            },
+            { KW_FORMAT, RE(PP(PLACEHOLDER_CONSTANT, TID_STRING)) },
+            { KW_CHUNK_SIZE, RE(PP(PLACEHOLDER_CONSTANT, TID_INT64)) },
+            { KW_TYPES, RE(RE::OR, {
+                           RE(PP(PLACEHOLDER_EXPRESSION, TID_STRING)),
+                           RE(RE::GROUP, {
+                                  RE(PP(PLACEHOLDER_EXPRESSION, TID_STRING)),
+                                  RE(RE::PLUS, {
+                                     RE(PP(PLACEHOLDER_EXPRESSION, TID_STRING))
+                              })
+                           })
+                        })
+            },
+            { KW_NAMES, RE(RE::OR, {
+                           RE(PP(PLACEHOLDER_EXPRESSION, TID_STRING)),
+                           RE(RE::GROUP, {
+                                  RE(PP(PLACEHOLDER_EXPRESSION, TID_STRING)),
+                                  RE(RE::PLUS, {
+                                     RE(PP(PLACEHOLDER_EXPRESSION, TID_STRING))
+                              })
+                           })
+                        })
+            }
+        };
+        return &argSpec;
     }
 
-    void inferAccess(std::shared_ptr<Query>& query) override
+    void inferAccess(std::shared_ptr<Query>& query)
     {
         //Read the file at /opt/scidb/VV.VV/etc/stream_allowed, one command per line
         //If our command is in that file, it is "blessed" and we let it run by anyone.
@@ -79,7 +103,7 @@ public:
         uint32_t minor = SCIDB_VERSION_MINOR();
         std::ostringstream commandsFile;
         commandsFile<<"/opt/scidb/"<<major<<"."<<minor<<"/etc/stream_allowed";
-        Settings settings(_parameters, true, query);
+        Settings settings(_parameters, _kwParameters, true, query);
         std::string const& command = settings.getCommand();
     	std::ifstream infile(commandsFile.str());
         std::string line;
@@ -99,7 +123,7 @@ public:
         {
             throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "can't support more than two input arrays";
         }
-        Settings settings(_parameters, true, query);
+        Settings settings(_parameters, _kwParameters, true, query);
         if(settings.getFormat() == TSV)
         {
             return TSVInterface::getOutputSchema(schemas, settings, query);

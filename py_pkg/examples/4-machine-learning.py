@@ -3,6 +3,7 @@ import io
 import scidbpy
 import scidbstrm
 import sys
+from os import getcwd
 
 
 # Setup:
@@ -21,10 +22,11 @@ db = scidbpy.connect()
 # -- - --
 # https://www.kaggle.com/c/digit-recognizer/download/train.csv
 db.aio_input(
-    "'path=/stream/py_pkg/examples/train.csv'",
-    "'num_attributes=1'",
-    "'attribute_delimiter=,'",
-    "'header=1'"
+    "paths:'" + getcwd() + "/../py_pkg/examples/train.csv'",
+    "instances:1",
+    "num_attributes:1",
+    "attribute_delimiter:','",
+    "header:1"
 ).store(
     db.arrays.train_csv)
 
@@ -57,11 +59,11 @@ ar_fun = db.input(upload_data=scidbstrm.pack_func(map_to_bin),
                   upload_schema=upload_schema).store()
 que = db.stream(
     db.arrays.train_csv,
+    '_sg({}, 0)'.format(ar_fun.name),
     scidbstrm.python_map,
-    "'format=feather'",
-    "'types=int64,binary'",
-    "'names=label,img'",
-    '_sg({}, 0)'.format(ar_fun.name)
+    "format:'feather'",
+    "types:('int64','binary')",
+    "names:('label','img')"
 ).store(
     db.arrays.train_bin)
 
@@ -100,17 +102,18 @@ que = db.iquery("""
 store(
   stream(
     train_bin,
-    {script},
-    'format=feather',
-    'types=int64,binary',
-    'names=label,img',
     _sg(
       input(
         {{sch}},
         '{{fn}}',
         0,
         '{{fmt}}'),
-      0)),
+      0),
+    {script},
+    format:'feather',
+    types:('int64','binary'),
+    names:('label','img')
+    ),
   train_bw)""".format(script=scidbstrm.python_map),
                 upload_data=scidbstrm.pack_func(map_to_bw),
                 upload_schema=upload_schema)
@@ -176,11 +179,11 @@ scidbstrm.map(Train.map, Train.finalize)
 "'""".format(python=python)
 que = db.stream(
     db.arrays.train_bin,
+    '_sg({}, 0)'.format(ar_fun.name),
     python_run,
-    "'format=feather'",
-    "'types=int64,binary'",
-    "'names=count,model'",
-    '_sg({}, 0)'.format(ar_fun.name)
+    "format:'feather'",
+    "types:('int64','binary')",
+    "names:('count','model')"
 ).store(
     db.arrays.model)
 
@@ -225,11 +228,11 @@ que = db.redimension(
     db.arrays.model,
     '<count:int64, model:binary> [i]'
 ).stream(
+    '_sg({}, 0)'.format(ar_fun.name),
     scidbstrm.python_map,
-    "'format=feather'",
-    "'types=int64,binary'",
-    "'names=count,model'",
-    '_sg({}, 0)'.format(ar_fun.name)
+    "format:'feather'",
+    "types:('int64','binary')",
+    "names:('count','model')"
 ).store(
     db.arrays.model_final)
 
@@ -271,13 +274,14 @@ scidbstrm.write()
 
 scidbstrm.map(predict)
 "'""".format(python=python)
+print python_run
 que = db.stream(
     db.arrays.train_bw,
+    '_sg({}, 0)'.format(ar_fun.name),
     python_run,
-    "'format=feather'",
-    "'types=int64,int64'",
-    "'names=Label,Predict'",
-    '_sg({}, 0)'.format(ar_fun.name)
+    "format:'feather'",
+    "types:('int64','int64')",
+    "names:('Label','Predict')"
 ).store(
     db.arrays.predict_train)
 
@@ -366,11 +370,11 @@ que = db.apply(
     'ImageID',
     'ImageID'
 ).stream(
+    '_sg({}, 0)'.format(ar_fun.name),
     python_run,
-    "'format=feather'",
-    "'types=int64,int64'",
-    "'names=Label,ImageID'",
-    '_sg({}, 0)'.format(ar_fun.name)
+    "format:'feather'",
+    "types:('int64','int64')",
+    "names:('Label','ImageID')"
 ).store(
     db.arrays.predict_test)
 

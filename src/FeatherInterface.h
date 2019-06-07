@@ -26,7 +26,7 @@
 #ifndef SRC_FEATHERINTERFACE_H_
 #define SRC_FEATHERINTERFACE_H_
 
-#include <query/Operator.h>
+#include <query/PhysicalOperator.h>
 #include <query/TypeSystem.h>
 
 namespace scidb { namespace stream
