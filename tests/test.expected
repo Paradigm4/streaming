@@ -52,8 +52,6 @@ Query was executed successfully
 3,1,1,'abc'
 Hello\t\\n \\r \\t \\\\ \t\\N\nOK\tthanks!
 'KTHXBYE'
-'KTHXBYE'
-'KTHXBYE'
 'I got	0
 I got	1
 I got	2
