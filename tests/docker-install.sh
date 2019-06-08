@@ -34,7 +34,7 @@ apt-get install                                      \
 
 
 # Compile and install plugin
-iquery --afl --query "unload_library('stream')"
+# iquery --afl --query "unload_library('stream')"
 scidb.py stopall $SCIDB_NAME
 make --directory /stream
 cp /stream/libstream.so /opt/scidb/$SCIDB_VER/lib/scidb/plugins/
