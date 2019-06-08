@@ -50,5 +50,6 @@ pip2 install --upgrade -r /stream/py_pkg/requirements.txt
 pip2 install /stream/py_pkg
 
 python3 get-pip.py
+pip3 install numpy==1.14.0 pandas==0.19.0
 pip3 install --upgrade -r /stream/py_pkg/requirements.txt
 pip3 install /stream/py_pkg
