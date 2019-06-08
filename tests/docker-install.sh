@@ -35,10 +35,10 @@ apt-get install                                      \
 
 # Compile and install plugin
 # iquery --afl --query "unload_library('stream')"
-scidbctl.py stop $SCIDB_NAME
+# scidbctl.py stop $SCIDB_NAME
 make --directory /stream
 cp /stream/libstream.so /opt/scidb/$SCIDB_VER/lib/scidb/plugins/
-scidbctl.py start $SCIDB_NAME
+# scidbctl.py start $SCIDB_NAME
 iquery --afl --query "load_library('stream')"
 
 
