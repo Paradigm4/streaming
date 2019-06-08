@@ -10,6 +10,9 @@ set -o errexit
 # deb https://packages.red-data-tools.org/ubuntu/ trusty universe
 # APT_LINE
 
+wget -O- https://paradigm4.github.io/extra-scidb-libs/install.sh \
+|  sh -s -- --only-prereq
+
 sed --in-place                                                  \
     "\#deb http://deb.debian.org/debian jessie-updates main#d"  \
     /etc/apt/sources.list
