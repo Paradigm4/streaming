@@ -53,16 +53,16 @@ def test_one_chunk(db, scidb_ty, name):
         stream(
           {input},
           'python -u /stream/tests/scripts/one_chunk.py',
-          'format=feather',
-          'types={scidb_ty}'{names})""".format(
+          format:'feather',
+          types:'{scidb_ty}'{names})""".format(
               input=input,
               scidb_ty=scidb_ty,
-              names='' if name is None else ", 'names={}'".format(name)),
+              names='' if name is None else ", names:'{}'".format(name)),
                     fetch=True,
                     as_dataframe=False)
     assert numpy.array_equal(
         res, numpy.array(
-            [(1, 0, i, (255, eval('{}({})'.format(
+            [(0, 0, i, (255, eval('{}({})'.format(
                 py_type_map.get(scidb_ty, scidb_ty),
                 str(i).encode() if scidb_ty == 'binary' else i))))
              for i in range(3)],
@@ -94,11 +94,11 @@ def test_any_chunks(db, scidb_ty, name):
         stream(
           {input},
           'python -u /stream/tests/scripts/any_chunks.py',
-          'format=feather',
-          'types={scidb_ty}'{names})""".format(
+          format:'feather',
+          types:'{scidb_ty}'{names})""".format(
               input=input,
               scidb_ty=scidb_ty,
-              names='' if name is None else ", 'names={}'".format(name)),
+              names='' if name is None else ", names:'{}'".format(name)),
                     fetch=True,
                     atts_only=True,
                     as_dataframe=False)
@@ -131,8 +131,8 @@ def f(x):
   x.to_feather(\\"/tmp/arrow_1676.feather\\")
   return x
 scidbstrm.map(f)"',
-         'format=feather',
-         'types=string'
+         format:'feather',
+         types:'string'
         )''',
         fetch=True)
     assert df.shape == (10000, 4)
