@@ -16,6 +16,10 @@ services:
   - docker
 
 before_install:
+  - wget --no-verbose --output-document -
+    https://github.com/Paradigm4/accelerated_io_tools/archive/master.tar.gz
+    | tar --extract --gzip --directory=.
+
   - docker pull rvernica/scidb:${SCIDB_VER}${SCIDB_IMG}
   - docker run
     --name scidb
@@ -30,6 +34,16 @@ install:
   - docker exec --tty scidb /stream/tests/docker-install.sh
   - pip install --upgrade -r py_pkg/requirements.txt
   - pip install py_pkg/
+
+ - docker exec scidb apt-get install
+    --assume-yes
+    --no-install-recommends
+    libpqxx-dev
+  - docker exec scidb make --directory=/stream/accelerated_io_tools-master
+  - docker exec scidb cp
+    /stream/accelerated_io_tools-master/libaccelerated_io_tools.so
+    /opt/scidb/${SCIDB_VER}/lib/scidb/plugins/
+  - docker exec scidb iquery --afl --query "load_library('accelerated_io_tools')"
 
 script:
   - docker exec scidb /stream/tests/test.sh
