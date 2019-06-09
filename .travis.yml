@@ -49,7 +49,8 @@ script:
   - docker exec scidb /stream/tests/test.sh
   - pycodestyle .
   - pytest
-  - docker exec --env TRAVIS_PYTHON_VERSION=${TRAVIS_PYTHON_VERSION} scidb /stream/tests/py_pkg_examples.sh
+  - docker exec --env TRAVIS_PYTHON_VERSION=${TRAVIS_PYTHON_VERSION} scidb
+    /stream/tests/py_pkg_examples.sh
   - docker exec scidb rm /stream/tests/py_pkg_examples.out
   - if [ "${TRAVIS_PYTHON_VERSION}" = "2.7" -o
          "${TRAVIS_PYTHON_VERSION}" = "3.4" ]; then
@@ -58,7 +59,11 @@ script:
 
 after_failure:
   - docker logs scidb
-  - docker exec --tty scidb cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/0/scidb-stdout.log
-  - docker exec --tty scidb cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/0/scidb-stderr.log
-  - docker exec --tty scidb cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/1/scidb-stdout.log
-  - docker exec --tty scidb cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/1/scidb-stderr.log
+  - docker exec --tty scidb
+    cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/0/scidb-stdout.log
+  - docker exec --tty scidb
+    cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/0/scidb-stderr.log
+  - docker exec --tty scidb
+    cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/1/scidb-stdout.log
+  - docker exec --tty scidb
+    cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/1/scidb-stderr.log
