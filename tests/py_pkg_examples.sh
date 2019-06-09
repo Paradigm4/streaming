@@ -45,7 +45,8 @@ $PRE iquery --afl --query "
         build(<x:int64 not null>[i=1:10:0:5], i),
         y, double(i) * 10 + .1,
         z, 'foo' + string(i)),
-      foo)" \
+      foo);
+    scan(foo)" \
 >> $DIR/py_pkg_examples.out
 
 $PRE iquery --afl --query "
@@ -72,7 +73,8 @@ $PRE iquery --afl --query "
         build(<x:int64 not null>[i=1:10:0:5], i),
         y, double(i) * 10 + .1,
         z, 'foo' + string(i)),
-      foo)" \
+      foo);
+    scan(foo)" \
 >> $DIR/py_pkg_examples.out
 
 $PRE iquery --afl --query "
