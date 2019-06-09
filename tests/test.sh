@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# These tests assumes a 4 instance configuration.  A different number of instances yield different numbers of computations
-# from the stream() operator, which executes on all instances.
+# These tests assumes a 2 instance configuration.  A different number
+# of instances yield different numbers of computations from the
+# stream() operator, which executes on all instances.
 
 MY_DIR=`dirname $0`
 pushd $MY_DIR > /dev/null
