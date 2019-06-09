@@ -35,7 +35,7 @@ install:
   - pip install --upgrade -r py_pkg/requirements.txt
   - pip install py_pkg/
 
- - docker exec scidb apt-get install
+  - docker exec scidb apt-get install
     --assume-yes
     --no-install-recommends
     libpqxx-dev
