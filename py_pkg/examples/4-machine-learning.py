@@ -274,7 +274,6 @@ scidbstrm.write()
 
 scidbstrm.map(predict)
 "'""".format(python=python)
-print python_run
 que = db.stream(
     db.arrays.train_bw,
     '_sg({}, 0)'.format(ar_fun.name),
