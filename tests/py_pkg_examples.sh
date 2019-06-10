@@ -2,16 +2,13 @@
 
 set -o errexit
 
-MY_DIR=`dirname $0`
-pushd $MY_DIR > /dev/null
-MY_DIR=`pwd`
-EX_DIR=`pwd`/../py_pkg/examples
-
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DIR_EXAMPLES=$DIR/../py_pkg/examples
 
 if [ "$1" != "" ]
 then
     PRE="$1"
+    DIR_EXAMPLES="/stream/py_pkg/examples"
 fi
 
 if [ "$TRAVIS_PYTHON_VERSION" != "" ]
@@ -52,7 +49,7 @@ $PRE iquery --afl --query "
 $PRE iquery --afl --query "
     stream(
       foo,
-      '$PYTHON -u $EX_DIR/1-map-finalize.py',
+      '$PYTHON -u $DIR_EXAMPLES/1-map-finalize.py',
       format:'feather',
       types:('int64','double','string'),
       names:('x','y','info'))" \
@@ -80,7 +77,7 @@ $PRE iquery --afl --query "
 $PRE iquery --afl --query "
     stream(
       foo,
-      '$PYTHON -u $EX_DIR/3-read-write.py',
+      '$PYTHON -u $DIR_EXAMPLES/3-read-write.py',
       format:'feather',
       types:('int64','double','string'))" \
 >> $DIR/py_pkg_examples.out
@@ -89,7 +86,7 @@ $PRE iquery --afl --query "remove(foo)"
 
 
 # 4.
-$PYTHON $DIR/../py_pkg/examples/4-machine-learning.py \
+$PYTHON $DIR/../py_pkg/examples/4-machine-learning.py "$DIR_EXAMPLES" \
 >> $DIR/py_pkg_examples.out
 
 

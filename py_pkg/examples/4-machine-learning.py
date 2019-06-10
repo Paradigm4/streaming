@@ -1,9 +1,9 @@
 import dill
 import io
+import os.path
 import scidbpy
 import scidbstrm
 import sys
-from os import getcwd
 
 
 # Setup:
@@ -16,13 +16,17 @@ from os import getcwd
 python = 'python{}'.format(sys.version_info.major)
 db = scidbpy.connect()
 
+base_dir = os.path.dirname(os.path.abspath(__file__))
+if len(sys.argv) > 1:
+    base_dir = sys.argv[1]
+
 
 # -- - --
 # 1. Load CSV training data
 # -- - --
 # https://www.kaggle.com/c/digit-recognizer/download/train.csv
 db.aio_input(
-    "paths:'" + getcwd() + "/../py_pkg/examples/train.csv'",
+    "paths:'" + base_dir + "/train.csv'",
     "instances:1",
     "num_attributes:1",
     "attribute_delimiter:','",
