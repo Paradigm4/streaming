@@ -31,7 +31,7 @@ setup(
         'feather-format',
         'pandas',
         'pyarrow==0.9.0;python_version<"3.5"',
-        'pyarrow;python_version>="3.5"',
+        'pyarrow>=0.9.0,<0.14.0;python_version>="3.5"',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
