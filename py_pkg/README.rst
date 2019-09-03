@@ -126,3 +126,26 @@ instance, for example::
 
 If using SciDB ``18.1`` installed in the default location and
 configured with one server and two instances.
+
+
+ImportError: No module named
+----------------------------
+
+When trying to de-serialize a Python function uploaded to SciDB using
+``pack_func``, one might encounter::
+
+  ImportError: No module named ...
+
+This error is because ``dill``, the Python serialization library,
+links the function to the module in which it is defined. This can be
+resolved in two ways:
+
+1. Make the named module available on all the SciDB instances
+2. If the module is small, the recursive ``dill`` mode can be
+   used. Replace::
+
+     foo_pack = scidbstrm.pack_func(foo)
+
+   with::
+
+     foo_pack = numpy.array([dill.dumps(foo, 0, recurse=True)])
