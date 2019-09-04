@@ -29,7 +29,7 @@ setup(
     install_requires=[
         'dill',
         'feather-format',
-        'pandas',
+        'pandas>=0.20.0',
         'pyarrow==0.9.0;python_version<"3.5"',
         'pyarrow>=0.9.0,<0.14.0;python_version>="3.5"',
     ],
