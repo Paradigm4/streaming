@@ -15,6 +15,7 @@ Required Python packages::
   dill
   feather-format
   pandas
+  pyarrow
 
 Note
 ^^^^
