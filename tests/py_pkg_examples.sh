@@ -3,10 +3,12 @@
 set -o errexit
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DIR_EXAMPLES=$DIR/../py_pkg/examples
 
 if [ "$1" != "" ]
 then
     PRE="$1"
+    DIR_EXAMPLES="/stream/py_pkg/examples"
 fi
 
 if [ "$TRAVIS_PYTHON_VERSION" != "" ]
@@ -27,9 +29,9 @@ import scidbstrm, pandas
 
 scidbstrm.map(lambda df: pandas.DataFrame({\'count\': [len(df)]}))
 \"',
-    'format=feather',
-    'types=int64',
-    'names=count')" \
+    format:'feather',
+    types:'int64',
+    names:'count')" \
 >  $DIR/py_pkg_examples.out
 
 
@@ -40,16 +42,17 @@ $PRE iquery --afl --query "
         build(<x:int64 not null>[i=1:10:0:5], i),
         y, double(i) * 10 + .1,
         z, 'foo' + string(i)),
-      foo)" \
+      foo);
+    scan(foo)" \
 >> $DIR/py_pkg_examples.out
 
 $PRE iquery --afl --query "
     stream(
       foo,
-      '$PYTHON -u /stream/py_pkg/examples/1-map-finalize.py',
-      'format=feather',
-      'types=int64,double,string',
-      'names=x,y,info')" \
+      '$PYTHON -u $DIR_EXAMPLES/1-map-finalize.py',
+      format:'feather',
+      types:('int64','double','string'),
+      names:('x','y','info'))" \
 >> $DIR/py_pkg_examples.out
 
 $PRE iquery --afl --query "remove(foo)"
@@ -67,22 +70,23 @@ $PRE iquery --afl --query "
         build(<x:int64 not null>[i=1:10:0:5], i),
         y, double(i) * 10 + .1,
         z, 'foo' + string(i)),
-      foo)" \
+      foo);
+    scan(foo)" \
 >> $DIR/py_pkg_examples.out
 
 $PRE iquery --afl --query "
     stream(
       foo,
-      '$PYTHON -u /stream/py_pkg/examples/3-read-write.py',
-      'format=feather',
-      'types=int64,double,string')" \
+      '$PYTHON -u $DIR_EXAMPLES/3-read-write.py',
+      format:'feather',
+      types:('int64','double','string'))" \
 >> $DIR/py_pkg_examples.out
 
 $PRE iquery --afl --query "remove(foo)"
 
 
 # 4.
-$PYTHON $DIR/../py_pkg/examples/4-machine-learning.py \
+$PYTHON $DIR/../py_pkg/examples/4-machine-learning.py "$DIR_EXAMPLES" \
 >> $DIR/py_pkg_examples.out
 
 

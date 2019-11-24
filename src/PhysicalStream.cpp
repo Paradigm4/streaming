@@ -33,7 +33,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <query/TypeSystem.h>
-#include <query/Operator.h>
+#include <query/PhysicalOperator.h>
 #include <log4cxx/logger.h>
 
 #include "StreamSettings.h"
@@ -50,9 +50,6 @@ using std::vector;
 
 namespace scidb { namespace stream
 {
-
-// Logger for operator. static to prevent visibility of variable outside of file
-static log4cxx::LoggerPtr logger(log4cxx::Logger::getLogger("scidb.operators.stream"));
 
 
 }
@@ -82,13 +79,15 @@ public:
             size_t const nAttrs = preSchema.getAttributes(true).size();
             vector <shared_ptr<ConstArrayIterator> > aiters (nAttrs);
             vector<ConstChunk const*> chunks(nAttrs, NULL);
-            for(size_t i =0; i<nAttrs; ++i)
+            //            for(size_t i =0; i<nAttrs; ++i)
+            size_t i = 0;
+            for (const auto& attr : preSchema.getAttributes(true))
             {
-                aiters[i] = preArray->getConstIterator(i);
+                aiters[i++] = preArray->getConstIterator(attr);
             }
             while(!aiters[0]->end())
             {
-                for(size_t i =0; i<nAttrs; ++i)
+                for(i =0; i<nAttrs; ++i)
                 {
                    chunks[i]= &(aiters[i]->getChunk());
                 }
@@ -105,13 +104,16 @@ public:
         size_t const nAttrs = inputSchema.getAttributes(true).size();
         vector <shared_ptr<ConstArrayIterator> > aiters (nAttrs);
         vector<ConstChunk const*> chunks(nAttrs, NULL);
-        for(size_t i =0; i<nAttrs; ++i)
+        //        for(size_t i =0; i<nAttrs; ++i)
+        size_t i = 0;
+        for (const auto& attr : inputSchema.getAttributes(true))
+
         {
-            aiters[i] = inputArray->getConstIterator(i);
+            aiters[i++] = inputArray->getConstIterator(attr);
         }
         while(!aiters[0]->end())
         {
-            for(size_t i =0; i<nAttrs; ++i)
+            for(i = 0; i<nAttrs; ++i)
             {
                chunks[i]= &(aiters[i]->getChunk());
             }
@@ -124,21 +126,46 @@ public:
         return interface.finalize(child);
     }
 
+    /// @see OperatorDist
+    DistType inferSynthesizedDistType(std::vector<DistType> const& /*inDist*/, size_t /*depth*/) const override
+    {
+      // Distribution is undefined.
+      SCIDB_ASSERT(_schema.getDistribution()->getDistType()==dtUndefined);
+      return _schema.getDistribution()->getDistType();
+    }
+
+    // required to allow replicated input
+    std::vector<bool> isReplicatedInputOk(size_t numChildren) const override
+    {
+        vector<bool> result(numChildren, false);
+        SCIDB_ASSERT(numChildren==2);
+        result[1] = true;   // permitted on the right-hand input
+        return result;
+    }
+
     virtual bool changesDistribution(std::vector<ArrayDesc> const&) const
     {
         return true;
+    }
+
+    void checkInputDistAgreement(std::vector<DistType> const& inDist, size_t /*depth*/) const override
+    {
+        SCIDB_ASSERT(inDist.size() == 2);
+        // input[0] can have arbitrary distribution
+        // input[1] can be arbitraary
+        // NOTE: if the answer is more restrictive than this, then please add SCIDB_ASSERT() about what inDist[0] and inDist[1] can be;
     }
 
     virtual RedistributeContext getOutputDistribution(
                std::vector<RedistributeContext> const& inputDistributions,
                std::vector< ArrayDesc> const& inputSchemas) const
     {
-        return RedistributeContext(createDistribution(psUndefined), _schema.getResidency() );
+        return RedistributeContext(_schema.getDistribution(), _schema.getResidency() );
     }
 
     shared_ptr< Array> execute(std::vector< shared_ptr< Array> >& inputArrays, std::shared_ptr<Query> query)
     {
-        Settings settings(_parameters, false, query);
+        Settings settings(_parameters, _kwParameters, false, query);
         if(settings.getFormat() == TSV)
         {
             return runStream<TSVInterface>(inputArrays, settings, query);

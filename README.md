@@ -1,5 +1,6 @@
 # stream
 
+[![SciDB 19.3](https://img.shields.io/badge/SciDB-19.3-blue.svg)](https://forum.paradigm4.com/t/scidb-release-19-3/2359)
 [![Build Status](https://travis-ci.org/Paradigm4/stream.svg)](https://travis-ci.org/Paradigm4/stream)
 
 Prototype SciDB API similar to Hadoop Streaming. The operator sends SciDB array data into the stdin of the process and reads its stdout (hence 'streaming').
@@ -8,20 +9,20 @@ Prototype SciDB API similar to Hadoop Streaming. The operator sends SciDB array 
 
 ## Usage
 ```
-stream(ARRAY, PROGRAM [, 'format=...'][, 'types=...'][, 'names=...'][, ARRAY2])
+stream(ARRAY [, ARRAY2], PROGRAM [, format:'...'][, types:('...')][, names:('...')])
 ```
 where
 
 * ARRAY is a SciDB array expression
 * PROGRAM is a full command line to the child program to stream data through
-* format is either `'format=tsv'` for the tab-separated values (TSV)
-  interface, `'format=feather'` for Apache Arrow, Feather format, or
-  `'format=df'` for the R binary data.frame interface (see below);
+* format is either `format:'tsv'` for the tab-separated values (TSV)
+  interface, `format:'feather'` for Apache Arrow, Feather format, or
+  `format:'df'` for the R binary data.frame interface (see below);
   `tsv` is the default
 * types is a comma-separated list of expected returned column SciDB
-  types - used only with `'format=df'`
+  types - used only with `format:'df'`
 * names is an optional set of comma-separated output column names and
-  must be the same length as `types` - used only with `'format=df'`;
+  must be the same length as `types` - used only with `format:'df'`;
   default column names are a0,a1,...
 * ARRAY2 is an optional second array; if used, data from this array
   will be streamed to the child first
@@ -81,7 +82,7 @@ The child responses are returned in an array of `<response:string> [instance_id,
 ```
 # Note that you will need to compile the program `examples/client.cpp` in order
 # for the next command to work. A `Makefile` is provided
-$ iquery -aq "parse(stream(apply(build(<a:double>[i=1:10,10,0], random()%5), b, random()%10), '$MYDIR/examples/stream_test_client'), 'num_attributes=3')"
+$ iquery -aq "parse(stream(apply(build(<a:double>[i=1:10,10,0], random()%5), b, random()%10), '$MYDIR/examples/stream_test_client'), num_attributes:3)"
 {source_instance_id,chunk_no,line_no} a0,a1,a2,error
 {0,0,0} 'Hello','4','5',null
 {0,0,1} 'Hello','1','3',null
@@ -112,11 +113,11 @@ respond to each message from SciDB using either an empty or non-empty
 message. The data from the child is expected in the same format, the
 size in bytes followed by data in Feather format.
 
-To use the Feather format, specify `format=feather` as an argument to
+To use the Feather format, specify format:'feather` as an argument to
 the `stream` operator. For data coming from the child process, the
-type of each attribute has to be specified using the `types=...`
+type of each attribute has to be specified using the `types:...`
 argument. The names of each attribute can be specified as well using
-the `names=...` argument. See the Python
+the `names:...` argument. See the Python
 [example](py_pkg/examples/3-read-write.py) for more details.
 
 For Python the [SciDB-stream](py_pkg/README.rst) library provides
@@ -147,12 +148,12 @@ respond to each message from SciDB using either an empty or non-empty
 message. For convenience, the names of the SciDB attributes are passed
 as names of the list elements. However, the names of the R output
 columns going in the other direction are disregarded. Instead, the
-user may specify attribute names with `names=`. The user must also
+user may specify attribute names with `names:`. The user must also
 specify the types of columns returned by the child process using
-`types=` - again using only string, double and int32. The returned
+`types:` - again using only string, double and int32. The returned
 data are split into attributes and returned as: ```<a0:type0,
 a1:type1,...>[instance_id, chunk_no, value_no]``` where `a0,a1,..` are
-default attribute names that may be overridden with `names=` and the
+default attribute names that may be overridden with `names:` and the
 types are as supplied.
 
 When sending data to child, all SciDB missing codes are converted to
@@ -162,7 +163,7 @@ SciDB `null` (missing code 0).
 A quick example:
 
 ```
-$ iquery -aq "stream(apply(build(<val:double> [i=1:5,5,0], i), s, 'Hello'), 'Rscript $MYDIR/examples/R_identity.R', 'format=df', 'types=double,string', 'names=a,b')"
+$ iquery -aq "stream(apply(build(<val:double> [i=1:5,5,0], i), s, 'Hello'), 'Rscript $MYDIR/examples/R_identity.R', format:'df', 'types:('double','string'), names:('a','b'))"
 {instance_id,chunk_no,value_no} a,b
 {0,0,0} 1,'Hello'
 {0,0,1} 2,'Hello'

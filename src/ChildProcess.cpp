@@ -30,11 +30,13 @@
 #include <string>
 #include <vector>
 #include <ctype.h>
+#include <fcntl.h>
 #include <poll.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/resource.h>
+#include <query/Query.h>
 
 using std::shared_ptr;
 using std::string;

@@ -10,6 +10,9 @@ set -o errexit
 # deb https://packages.red-data-tools.org/ubuntu/ trusty universe
 # APT_LINE
 
+wget -O- https://paradigm4.github.io/extra-scidb-libs/install.sh \
+|  sh -s -- --only-prereq
+
 sed --in-place                                                  \
     "\#deb http://deb.debian.org/debian jessie-updates main#d"  \
     /etc/apt/sources.list
@@ -31,23 +34,22 @@ apt-get install                                      \
 
 
 # Compile and install plugin
-iquery --afl --query "unload_library('stream')"
-scidb.py stopall $SCIDB_NAME
+# iquery --afl --query "unload_library('stream')"
+# scidbctl.py stop $SCIDB_NAME
 make --directory /stream
 cp /stream/libstream.so /opt/scidb/$SCIDB_VER/lib/scidb/plugins/
-scidb.py startall $SCIDB_NAME
+# scidbctl.py start $SCIDB_NAME
 iquery --afl --query "load_library('stream')"
 
 
 # Install Python requirements and SciDB-Strm
 wget --no-verbose https://bootstrap.pypa.io/get-pip.py
 
-sed --in-place "s/pandas/pandas<0.21/" /stream/py_pkg/requirements.txt
-
 python2 get-pip.py
 pip2 install --upgrade -r /stream/py_pkg/requirements.txt
 pip2 install /stream/py_pkg
 
 python3 get-pip.py
+pip3 install numpy==1.14.0 # pandas==0.19.0
 pip3 install --upgrade -r /stream/py_pkg/requirements.txt
 pip3 install /stream/py_pkg

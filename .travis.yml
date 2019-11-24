@@ -1,5 +1,6 @@
 sudo: required
 
+dist: xenial
 language: python
 
 python:
@@ -7,21 +8,26 @@ python:
   - "3.4"
   - "3.5"
   - "3.6"
+  - "3.7"
 
-env: SCIDB_VER=18.1 SCIDB_IMG=18.1-ext ARROW_VER=0.9.0
+env: SCIDB_VER=19.3 SCIDB_IMG= ARROW_VER=0.9.0
 
 services:
   - docker
 
 before_install:
-  - docker pull rvernica/scidb:${SCIDB_IMG}
+  - wget --no-verbose --output-document -
+    https://github.com/Paradigm4/accelerated_io_tools/archive/master.tar.gz
+    | tar --extract --gzip --directory=.
+
+  - docker pull rvernica/scidb:${SCIDB_VER}${SCIDB_IMG}
   - docker run
     --name scidb
     --detach
     --publish 8080:8080
     --volume `pwd`:/stream
     --env ARROW_VER=${ARROW_VER}
-    rvernica/scidb:${SCIDB_IMG}
+    rvernica/scidb:${SCIDB_VER}${SCIDB_IMG}
   - while ! curl http://localhost:8080/version; do sleep 5; done
 
 install:
@@ -29,11 +35,22 @@ install:
   - pip install --upgrade -r py_pkg/requirements.txt
   - pip install py_pkg/
 
+  - docker exec scidb apt-get install
+    --assume-yes
+    --no-install-recommends
+    libpqxx-dev
+  - docker exec scidb make --directory=/stream/accelerated_io_tools-master
+  - docker exec scidb cp
+    /stream/accelerated_io_tools-master/libaccelerated_io_tools.so
+    /opt/scidb/${SCIDB_VER}/lib/scidb/plugins/
+  - docker exec scidb iquery --afl --query "load_library('accelerated_io_tools')"
+
 script:
   - docker exec scidb /stream/tests/test.sh
   - pycodestyle .
   - pytest
-  - docker exec --env TRAVIS_PYTHON_VERSION=${TRAVIS_PYTHON_VERSION} scidb /stream/tests/py_pkg_examples.sh
+  - docker exec --env TRAVIS_PYTHON_VERSION=${TRAVIS_PYTHON_VERSION} scidb
+    /stream/tests/py_pkg_examples.sh
   - docker exec scidb rm /stream/tests/py_pkg_examples.out
   - if [ "${TRAVIS_PYTHON_VERSION}" = "2.7" -o
          "${TRAVIS_PYTHON_VERSION}" = "3.4" ]; then
@@ -42,7 +59,11 @@ script:
 
 after_failure:
   - docker logs scidb
-  - docker exec --tty scidb cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/0/scidb-stdout.log
-  - docker exec --tty scidb cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/0/scidb-stderr.log
-  - docker exec --tty scidb cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/1/scidb-stdout.log
-  - docker exec --tty scidb cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/1/scidb-stderr.log
+  - docker exec --tty scidb
+    cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/0/scidb-stdout.log
+  - docker exec --tty scidb
+    cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/0/scidb-stderr.log
+  - docker exec --tty scidb
+    cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/1/scidb-stdout.log
+  - docker exec --tty scidb
+    cat /opt/scidb/${SCIDB_VER}/DB-scidb/0/1/scidb-stderr.log
