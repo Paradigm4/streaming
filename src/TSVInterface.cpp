@@ -125,7 +125,7 @@ void TSVInterface::streamData(std::vector<ConstChunk const*> const& inputChunks,
     string output;
     for(size_t i =0, n= _inputTypes.size(); i<n; ++i)
     {
-        citers[i] = inputChunks[i]->getConstIterator(ConstChunkIterator::IGNORE_OVERLAPS | ConstChunkIterator::IGNORE_EMPTY_CELLS);
+        citers[i] = inputChunks[i]->getConstIterator(ConstChunkIterator::IGNORE_OVERLAPS);
     }
     convertChunks(citers, nCells, output);
     writeTSV(nCells, output, child);

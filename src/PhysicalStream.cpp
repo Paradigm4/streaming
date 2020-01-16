@@ -135,13 +135,13 @@ public:
     }
 
     // required to allow replicated input
-    std::vector<bool> isReplicatedInputOk(size_t numChildren) const override
+/*    std::vector<uint8_t> isReplicatedInputOk(size_t numChildren) const override
     {
-        vector<bool> result(numChildren, false);
+        vector<uint8_t> result(numChildren, false);
         SCIDB_ASSERT(numChildren==2);
         result[1] = true;   // permitted on the right-hand input
         return result;
-    }
+        }*/
 
     virtual bool changesDistribution(std::vector<ArrayDesc> const&) const
     {

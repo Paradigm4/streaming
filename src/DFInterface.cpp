@@ -193,7 +193,7 @@ void DFInterface::writeDF(vector<ConstChunk const*> const& chunks, int32_t const
         default:         throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION) << "internal error: unknown type";
         }
         child.hardWrite(&numRows, sizeof(int32_t));
-        shared_ptr<ConstChunkIterator> citer = chunks[i]->getConstIterator(ConstChunkIterator::IGNORE_OVERLAPS | ConstChunkIterator::IGNORE_EMPTY_CELLS);
+        shared_ptr<ConstChunkIterator> citer = chunks[i]->getConstIterator(ConstChunkIterator::IGNORE_OVERLAPS);
         _writeBuf.reset();
         while((!citer->end()))
         {
