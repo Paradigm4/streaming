@@ -137,7 +137,6 @@ public:
     // required to allow replicated input
 /*    std::vector<uint8_t> isReplicatedInputOk(size_t numChildren) const override
     {
-        LOG4CXX_TRACE(logger, "[Stream:isReplicatedOk] :" << numChildren);
         vector<uint8_t> result(numChildren, false);
         SCIDB_ASSERT(numChildren==2);
         result[1] = true;   // permitted on the right-hand input
