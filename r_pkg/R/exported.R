@@ -71,13 +71,13 @@ map <- function(f, final, convertFactor=as.integer)
       if(nrow(input) == 0) # this is the last message
       {
         if(!missing(final))
-          writeBin(serialize(asTypedList(final(output), convertFactor), NULL, xdr=FALSE), .scidbstream.env$con_out)
+          writeBin(serialize(asTypedList(final(output), convertFactor), NULL, xdr=FALSE, version=2), .scidbstream.env$con_out)
         else
-          writeBin(serialize(list(), NULL, xdr=FALSE), .scidbstream.env$con_out)
+          writeBin(serialize(list(), NULL, xdr=FALSE, version=2), .scidbstream.env$con_out)
         q(save="no")
       }
     output <- f(input)
-    writeBin(serialize(asTypedList(output, convertFactor), NULL, xdr=FALSE), .scidbstream.env$con_out)
+    writeBin(serialize(asTypedList(output, convertFactor), NULL, xdr=FALSE, version=2), .scidbstream.env$con_out)
     flush(.scidbstream.env$con_out)
     }, error=function(e) {cat(as.character(e), "\n", file=stderr()); q()})
   closeStreams()
@@ -97,7 +97,7 @@ getChunk <- function(output = list())
   if(!exists("con_in", envir=.scidbstream.env)) .scidbstream.env$con_in <- file("stdin", "rb")
   if(!exists("con_out", envir=.scidbstream.env)) .scidbstream.env$con_out <- pipe("cat", "wb")
   ans <- unserialize(.scidbstream.env$con_in)
-  writeBin(serialize(output, NULL, xdr=FALSE), .scidbstream.env$con_out)
+  writeBin(serialize(output, NULL, xdr=FALSE, version=2), .scidbstream.env$con_out)
   flush(.scidbstream.env$con_out)
   ans
 }
@@ -157,3 +157,4 @@ run <- function()
   attach(attr(program, "env"))
   eval(program)
 }
+

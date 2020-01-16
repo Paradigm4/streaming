@@ -59,7 +59,7 @@ ChildProcess::ChildProcess(string const& commandLine, shared_ptr<Query>& query, 
     int child_parent[2];          // pipe descriptors child writes to parent
     pipe (parent_child);
     pipe (child_parent);
-    _childPid = fork ();
+    _childPid = ::fork ();
     switch (_childPid )
     {
     case -1:
