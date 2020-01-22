@@ -12,11 +12,11 @@ while( TRUE )
   {
     if(is.na(total))
     {
-      writeBin(serialize(list(), NULL, xdr=FALSE), con_out)
+      writeBin(serialize(list(), NULL, xdr=FALSE, version=2), con_out)
     }
     else
     {
-      writeBin(serialize(list(s=total), NULL, xdr=FALSE), con_out)
+      writeBin(serialize(list(s=total), NULL, xdr=FALSE, version=2), con_out)
     }
     flush(con_out)
     break
@@ -26,7 +26,7 @@ while( TRUE )
     total = 0
   }
   total = total + sum(input_list[[1]])
-  writeBin(serialize(list(), NULL, xdr=FALSE), con_out)
+  writeBin(serialize(list(), NULL, xdr=FALSE, version=2), con_out)
   flush(con_out)
 }
 close(con_in)
