@@ -10,7 +10,7 @@ while( TRUE )
   ncol = length(input_list)
   if(ncol == 0) #this is the last message
   {
-    writeBin(serialize(list(), NULL, xdr=FALSE), con_out)
+    writeBin(serialize(list(), NULL, xdr=FALSE, version=2), con_out)
     flush(con_out)
     break
   }
@@ -18,7 +18,7 @@ while( TRUE )
   strings = sprintf("Hello, %s!", strings)
   strings = c(strings, "")
   strings = c(strings, "Thx!")
-  writeBin(serialize(list(s=strings), NULL, xdr=FALSE), con_out)
+  writeBin(serialize(list(s=strings), NULL, xdr=FALSE, version=2), con_out)
   flush(con_out)
 }
 close(con_in)

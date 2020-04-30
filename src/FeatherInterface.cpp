@@ -225,8 +225,7 @@ void FeatherInterface::writeFeather(vector<ConstChunk const*> const& chunks,
     for(size_t i = 0; i < _inputTypes.size(); ++i)
     {
         shared_ptr<ConstChunkIterator> citer =
-          chunks[i]->getConstIterator(ConstChunkIterator::IGNORE_OVERLAPS
-                                      | ConstChunkIterator::IGNORE_EMPTY_CELLS);
+            chunks[i]->getConstIterator(ConstChunkIterator::IGNORE_OVERLAPS);
 
         std::shared_ptr<arrow::Array> array;
         switch(_inputTypes[i])

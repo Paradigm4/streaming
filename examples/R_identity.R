@@ -10,11 +10,11 @@ while( TRUE )
   if(ncol == 0) #this is the last message
   {
     res = list()
-    writeBin(serialize(res, NULL, xdr=FALSE), con_out)
+    writeBin(serialize(res, NULL, xdr=FALSE, version=2), con_out)
     flush(con_out)
     break
   }
-  writeBin(serialize(input_list, NULL, xdr=FALSE), con_out)
+  writeBin(serialize(input_list, NULL, xdr=FALSE, version=2), con_out)
   flush(con_out)
 }
 close(con_in)

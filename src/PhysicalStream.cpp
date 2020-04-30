@@ -135,11 +135,11 @@ public:
     }
 
     // required to allow replicated input
-    std::vector<bool> isReplicatedInputOk(size_t numChildren) const override
+    std::vector<uint8_t> isReplicatedInputOk(size_t numChildren) const override
     {
-        vector<bool> result(numChildren, false);
+        vector<uint8_t> result(numChildren, true);
         SCIDB_ASSERT(numChildren==2);
-        result[1] = true;   // permitted on the right-hand input
+        result[0] = false;   // permitted on the right-hand input
         return result;
     }
 

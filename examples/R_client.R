@@ -10,7 +10,7 @@ while( TRUE )
   if(ncol == 0) #this is the last message
   {
     res = list()
-    writeBin(serialize(res, NULL, xdr=FALSE), con_out)
+    writeBin(serialize(res, NULL, xdr=FALSE, version=2), con_out)
     flush(con_out)
     break
   }
@@ -18,7 +18,7 @@ while( TRUE )
   #Example modification: double the first column
   input_list[[1]] = input_list[[1]] * 2
   input_list[[2]] = as.integer(input_list[[1]] * 4)
-  writeBin(serialize(input_list, NULL, xdr=FALSE), con_out)
+  writeBin(serialize(input_list, NULL, xdr=FALSE, version=2), con_out)
   flush(con_out)
 }
 close(con_in)
