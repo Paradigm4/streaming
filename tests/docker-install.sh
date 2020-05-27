@@ -26,7 +26,7 @@ apt-get install --assume-yes --no-install-recommends \
 apt-get install                                      \
         --assume-yes                                 \
         --no-install-recommends                      \
-        R-base-core                                  \
+        r-base-core                                  \
         cython3                                      \
         g++                                          \
         python3                                      \
