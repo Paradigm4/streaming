@@ -1,6 +1,3 @@
-sudo: required
-
-dist: xenial
 language: python
 
 python:
@@ -10,24 +7,28 @@ python:
   - "3.6"
   - "3.7"
 
-env: SCIDB_VER=19.3 SCIDB_IMG= ARROW_VER=0.9.0
+env: SCIDB_VER=19.11 SCIDB_IMG= ARROW_VER=0.9.0
 
 services:
   - docker
 
 before_install:
   - wget --no-verbose --output-document -
-    https://github.com/Paradigm4/accelerated_io_tools/archive/master.tar.gz
+    https://github.com/Paradigm4/accelerated_io_tools/archive/v${SCIDB_VER}.2.tar.gz
     | tar --extract --gzip --directory=.
 
   - docker pull rvernica/scidb:${SCIDB_VER}${SCIDB_IMG}
+
   - docker run
-    --name scidb
     --detach
-    --publish 8080:8080
-    --volume `pwd`:/stream
     --env ARROW_VER=${ARROW_VER}
+    --name scidb
+    --publish 8080:8080
+    --volume /sys/fs/cgroup:/sys/fs/cgroup:ro
+    --volume /tmp/$(mktemp --directory):/run
+    --volume `pwd`:/stream
     rvernica/scidb:${SCIDB_VER}${SCIDB_IMG}
+
   - while ! curl http://localhost:8080/version; do sleep 5; done
 
 install:
@@ -39,9 +40,10 @@ install:
     --assume-yes
     --no-install-recommends
     libpqxx-dev
-  - docker exec scidb make --directory=/stream/accelerated_io_tools-master
+  - docker exec scidb make
+    --directory=/stream/accelerated_io_tools-${SCIDB_VER}.2
   - docker exec scidb cp
-    /stream/accelerated_io_tools-master/libaccelerated_io_tools.so
+    /stream/accelerated_io_tools-${SCIDB_VER}.2/libaccelerated_io_tools.so
     /opt/scidb/${SCIDB_VER}/lib/scidb/plugins/
   - docker exec scidb iquery --afl --query "load_library('accelerated_io_tools')"
 
