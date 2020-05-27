@@ -1,6 +1,6 @@
 # stream
 
-[![SciDB 19.3](https://img.shields.io/badge/SciDB-19.3-blue.svg)](https://forum.paradigm4.com/t/scidb-release-19-3/2359)
+[![SciDB 19.11](https://img.shields.io/badge/SciDB-19.11-blue.svg)](https://forum.paradigm4.com/t/scidb-release-19-11/2411)
 [![Build Status](https://travis-ci.org/Paradigm4/stream.svg)](https://travis-ci.org/Paradigm4/stream)
 
 Prototype SciDB API similar to Hadoop Streaming. The operator sends SciDB array data into the stdin of the process and reads its stdout (hence 'streaming').
