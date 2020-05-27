@@ -159,7 +159,7 @@ class Train:
         if Train.count == 0:
             return None
         buf = io.BytesIO()
-        sklearn.externals.joblib.dump(Train.model, buf)
+        joblib.dump(Train.model, buf)
         return pandas.DataFrame({
             'count': [Train.count],
             'model': [buf.getvalue()]})
@@ -172,9 +172,9 @@ import io
 import os
 os.environ.setdefault(\\\"PATH\\\", \\\"\\\")
 import numpy
+import joblib
 import pandas
 import scidbstrm
-import sklearn.externals
 import sklearn.linear_model
 
 Train = scidbstrm.read_func()
@@ -203,11 +203,11 @@ que = db.stream(
 
 def merge_models(df):
     import io
+    import joblib
     import pandas
     import sklearn.ensemble
-    import sklearn.externals
 
-    estimators = [sklearn.externals.joblib.load(io.BytesIO(byt))
+    estimators = [joblib.load(io.BytesIO(byt))
                   for byt in df['model']]
     if not estimators:
         return None
@@ -220,7 +220,7 @@ def merge_models(df):
     model.le_ = labelencoder
 
     buf = io.BytesIO()
-    sklearn.externals.joblib.dump(model, buf)
+    joblib.dump(model, buf)
 
     return pandas.DataFrame({'count': df.sum()['count'],
                              'model': [buf.getvalue()]})
@@ -268,12 +268,12 @@ import io
 import os
 os.environ.setdefault(\\\"PATH\\\", \\\"\\\")
 import numpy
+import joblib
 import scidbstrm
-import sklearn.externals
 
 df = scidbstrm.read()
 predict = dill.loads(df.iloc[0, 0])
-model = sklearn.externals.joblib.load(io.BytesIO(df.iloc[0, 2]))
+model = joblib.load(io.BytesIO(df.iloc[0, 2]))
 scidbstrm.write()
 
 scidbstrm.map(predict)
@@ -358,12 +358,12 @@ import io
 import os
 os.environ.setdefault(\\\"PATH\\\", \\\"\\\")
 import numpy
+import joblib
 import scidbstrm
-import sklearn.externals
 
 df = scidbstrm.read()
 Predict = dill.loads(df.iloc[0, 0])
-Predict.model = sklearn.externals.joblib.load(io.BytesIO(df.iloc[0, 2]))
+Predict.model = joblib.load(io.BytesIO(df.iloc[0, 2]))
 scidbstrm.write()
 
 scidbstrm.map(Predict.map)
