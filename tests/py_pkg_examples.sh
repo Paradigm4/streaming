@@ -86,10 +86,10 @@ $PRE iquery --afl --query "remove(foo)"
 
 
 # 4.
-if [ "$TRAVIS_PYTHON_VERSION" = "2.7" ] || [ "$TRAVIS_PYTHON_VERSION" == "3.4" ]
+if [ "${TRAVIS_PYTHON_VERSION%.*}" = "2" ]
 then
-    $PYTHON $DIR/../py_pkg/examples/4-machine-learning.py2.7.py3.4.py   \
-            "$DIR_EXAMPLES"                                             \
+    $PYTHON $DIR/../py_pkg/examples/4-machine-learning.py2.7.py \
+            "$DIR_EXAMPLES"                                     \
             >> $DIR/py_pkg_examples.out
 else
     $PYTHON $DIR/../py_pkg/examples/4-machine-learning.py       \
