@@ -54,7 +54,7 @@ script:
     /stream/tests/py_pkg_examples.sh
   - docker exec scidb rm /stream/tests/py_pkg_examples.out
   - if [ "${TRAVIS_PYTHON_VERSION}" = "2.7" -o
-         "${TRAVIS_PYTHON_VERSION}" = "3.4" ]; then
+         "${TRAVIS_PYTHON_VERSION}" = "3.5" ]; then
     ./tests/py_pkg_examples.sh "docker exec --tty scidb";
     fi
 
