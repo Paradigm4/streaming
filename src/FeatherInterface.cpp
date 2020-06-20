@@ -2,7 +2,7 @@
 **
 * BEGIN_COPYRIGHT
 *
-* Copyright (C) 2008-2017 SciDB, Inc.
+* Copyright (C) 2008-2020 Paradigm4 Inc.
 * All Rights Reserved.
 *
 * stream is a plugin for SciDB, an Open Source Array DBMS maintained
