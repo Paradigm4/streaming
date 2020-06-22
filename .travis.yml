@@ -5,15 +5,16 @@ python:
   - "3.5"
   - "3.6"
   - "3.7"
+  - "3.8"
 
-env: SCIDB_VER=19.11 SCIDB_IMG=-xenial ARROW_VER=0.9.0
+env: SCIDB_VER=19.11 SCIDB_IMG=-xenial ARROW_VER=0.16.0
 
 services:
   - docker
 
 before_install:
   - wget --no-verbose --output-document -
-    https://github.com/Paradigm4/accelerated_io_tools/archive/v${SCIDB_VER}.2.tar.gz
+    https://github.com/Paradigm4/accelerated_io_tools/archive/master.tar.gz
     | tar --extract --gzip --directory=.
 
   - docker pull rvernica/scidb:${SCIDB_VER}${SCIDB_IMG}
@@ -40,9 +41,9 @@ install:
     --no-install-recommends
     libpqxx-dev
   - docker exec scidb make
-    --directory=/stream/accelerated_io_tools-${SCIDB_VER}.2
+    --directory=/stream/accelerated_io_tools-master
   - docker exec scidb cp
-    /stream/accelerated_io_tools-${SCIDB_VER}.2/libaccelerated_io_tools.so
+    /stream/accelerated_io_tools-master/libaccelerated_io_tools.so
     /opt/scidb/${SCIDB_VER}/lib/scidb/plugins/
   - docker exec scidb iquery --afl --query "load_library('accelerated_io_tools')"
 
