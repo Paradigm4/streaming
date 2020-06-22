@@ -28,6 +28,7 @@
 
 #include <query/PhysicalOperator.h>
 #include <query/TypeSystem.h>
+#include <arrow/api.h>
 
 namespace scidb { namespace stream
 {
