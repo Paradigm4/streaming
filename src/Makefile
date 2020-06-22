@@ -22,13 +22,13 @@ ifeq ($(SCIDB_THIRDPARTY_PREFIX),)
 endif
 
 # Debug:
-#CFLAGS=-pedantic -W -Wextra -Wall -Wno-variadic-macros -Wno-strict-aliasing -Wno-long-long -Wno-unused-parameter -fPIC -D_STDC_FORMAT_MACROS -Wno-system-headers -g -ggdb3  -D_STDC_LIMIT_MACROS
-CFLAGS=-W -Wextra -Wall -Wno-unused-parameter -Wno-variadic-macros -Wno-strict-aliasing -Wno-long-long -Wno-unused -fPIC -D_STDC_FORMAT_MACROS -Wno-system-headers -O3 -g -DNDEBUG -D_STDC_LIMIT_MACROS -fno-omit-frame-pointer
-INC=-I. -DPROJECT_ROOT="\"$(SCIDB)\"" -I"$(SCIDB_THIRDPARTY_PREFIX)/3rdparty/boost/include/" -I"$(SCIDB)/include"
-LIBS=-shared -Wl,-soname,libstream.so -L. -L"$(SCIDB_THIRDPARTY_PREFIX)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -Wl,-rpath,$(SCIDB)/lib:$(RPATH) -lm -larrow
-CFLAGS+=-std=c++14 -DCPP11 -DARROW_NO_DEPRECATED_API
+CFLAGS := -DARROW_NO_DEPRECATED_API -DNDEBUG -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -O3 -Wall -Wextra -Wno-long-long -Wno-strict-aliasing -Wno-system-headers -Wno-unused -Wno-unused-parameter -Wno-variadic-macros -fPIC -fno-omit-frame-pointer -g -std=c++14
 
-SRCS=plugin.cpp LogicalStream.cpp PhysicalStream.cpp ChildProcess.cpp TSVInterface.cpp DFInterface.cpp FeatherInterface.cpp
+INC    := -I. -DPROJECT_ROOT="\"$(SCIDB)\"" -I"$(SCIDB_THIRDPARTY_PREFIX)/3rdparty/boost/include/" -I"$(SCIDB)/include"
+LIBS   := -shared -Wl,-soname,libstream.so -L. -L"$(SCIDB_THIRDPARTY_PREFIX)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -Wl,-rpath,$(SCIDB)/lib:$(RPATH) -lm -larrow
+
+SRCS   := plugin.cpp LogicalStream.cpp PhysicalStream.cpp ChildProcess.cpp TSVInterface.cpp DFInterface.cpp FeatherInterface.cpp
+
 # Compiler settings for SciDB version >= 15.7
 ifneq ("$(wildcard /usr/bin/g++-4.9)","")
   CC := "/usr/bin/gcc-4.9"
