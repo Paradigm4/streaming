@@ -40,6 +40,17 @@ using std::vector;
 using std::shared_ptr;
 using std::string;
 
+#define THROW_NOT_OK(s)                                                 \
+    {                                                                   \
+        arrow::Status _s = (s);                                         \
+        if (!_s.ok())                                                   \
+        {                                                               \
+            throw USER_EXCEPTION(                                       \
+                SCIDB_SE_ARRAY_WRITER, SCIDB_LE_ILLEGAL_OPERATION)      \
+                    << _s.ToString().c_str();                           \
+        }                                                               \
+    }
+
 namespace scidb { namespace stream {
 
 ArrayDesc FeatherInterface::getOutputSchema(
@@ -193,7 +204,7 @@ void FeatherInterface::streamData(
         throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL, SCIDB_LE_ILLEGAL_OPERATION)
           << "child exited early";
     }
-    writeFeather(inputChunks, numRows, child);
+    THROW_NOT_OK(writeFeather(inputChunks, numRows, child));
     readFeather(child);
 }
 
@@ -205,7 +216,7 @@ shared_ptr<Array> FeatherInterface::finalize(ChildProcess& child)
     return _result;
 }
 
-void FeatherInterface::writeFeather(vector<ConstChunk const*> const& chunks,
+arrow::Status FeatherInterface::writeFeather(vector<ConstChunk const*> const& chunks,
                                     int32_t const numRows,
                                     ChildProcess& child)
 {
@@ -214,8 +225,9 @@ void FeatherInterface::writeFeather(vector<ConstChunk const*> const& chunks,
                   << ":numRows:" << numRows);
 
     std::shared_ptr<arrow::io::BufferOutputStream> stream;
-    arrow::io::BufferOutputStream::Create(
-        1024, arrow::default_memory_pool(), &stream);
+    ARROW_ASSIGN_OR_RAISE(
+        stream,
+        arrow::io::BufferOutputStream::Create(1024, arrow::default_memory_pool()));
 
     std::unique_ptr<arrow::ipc::feather::TableWriter> writer;
     arrow::ipc::feather::TableWriter::Open(stream, &writer);
@@ -330,12 +342,14 @@ void FeatherInterface::writeFeather(vector<ConstChunk const*> const& chunks,
     writer->Finalize();
 
     std::shared_ptr<arrow::Buffer> buffer;
-    stream->Finish(&buffer);
+    ARROW_ASSIGN_OR_RAISE(buffer, stream->Finish());
 
     uint64_t writeSize = buffer->size();
     LOG4CXX_DEBUG(logger, "writeFeather::writeSize:" << writeSize);
     child.hardWrite(&writeSize, sizeof(uint64_t));
     child.hardWrite(buffer->data(), writeSize);
+
+    return arrow::Status::OK();
 }
 
 void FeatherInterface::writeFinalFeather(ChildProcess& child)
@@ -385,7 +399,7 @@ void FeatherInterface::readFeather(ChildProcess& child,
         return;
     }
 
-    std::shared_ptr<arrow::Column> col;
+    std::shared_ptr<arrow::ChunkedArray> col;
     for(int64_t i = 0; i < numColumns; ++i)
     {
         LOG4CXX_DEBUG(logger, "readFeather::column:" << i);
@@ -393,7 +407,7 @@ void FeatherInterface::readFeather(ChildProcess& child,
         reader->GetColumn(i, &col);
         // Feather files have only one chunk
         // http://mail-archives.apache.org/mod_mbox/arrow-dev/201709.mbox/%3CCAJPUwMApjFdQFaiTXHYZJJCGcndrPn95UESS1ptDeWZ1zURubQ%40mail.gmail.com%3E
-        std::shared_ptr<arrow::Array> array(col->data()->chunk(0));
+        std::shared_ptr<arrow::Array> array(col->chunk(0));
         int64_t nullCount = array->null_count();
         const uint8_t* nullBitmap = array->null_bitmap_data();
 

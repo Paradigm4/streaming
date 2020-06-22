@@ -105,9 +105,9 @@ private:
     std::vector<std::string>                    _inputNames;
     std::vector<FunctionPointer>                _inputConverters;
 
-    void writeFeather(std::vector<ConstChunk const*> const& chunks,
-                      int32_t const numRows,
-                      ChildProcess& child);
+    arrow::Status writeFeather(std::vector<ConstChunk const*> const& chunks,
+                               int32_t const numRows,
+                               ChildProcess& child);
     void writeFinalFeather(ChildProcess& child);
     void readFeather(ChildProcess& child, bool lastMessage = false);
 };
