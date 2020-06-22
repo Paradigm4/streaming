@@ -26,9 +26,9 @@
     stream(
       foo,
       'python -u /stream/py_pkg/examples/1-map-finalize.py',
-      'format=feather',
-      'types=int64,double,string',
-      'names=x,y,info')"
+      format:'feather',
+      types:('int64','double','string'),
+      names:('x','y','info'))"
 {instance_id,chunk_no,value_no} x,y,info
 {0,0,0} 15,150.5,'local'
 {0,1,0} 15,150.5,'total'
