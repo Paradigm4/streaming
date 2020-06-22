@@ -3,34 +3,8 @@
 set -o errexit
 
 
-# Install prerequisites
-# ## https://github.com/red-data-tools/packages.red-data-tools.org#ubuntu
-# ## No packages for Debian jessie, use Ubuntu trusty
-# cat <<APT_LINE | tee /etc/apt/sources.list.d/red-data-tools.list
-# deb https://packages.red-data-tools.org/ubuntu/ trusty universe
-# APT_LINE
-
 wget -O- https://paradigm4.github.io/extra-scidb-libs/install.sh \
 |  sh -s -- --only-prereq
-
-# sed --in-place                                                  \
-#     "\#deb http://deb.debian.org/debian jessie-updates main#d"  \
-#     /etc/apt/sources.list
-
-# apt-get update
-# apt-get install --assume-yes --no-install-recommends --allow-unauthenticated \
-#         red-data-tools-keyring
-# apt-get update
-# apt-get install --assume-yes --no-install-recommends \
-#         libarrow-dev=$ARROW_VER-1
-# apt-get install                                      \
-#         --assume-yes                                 \
-#         --no-install-recommends                      \
-#         r-base-core                                  \
-#         cython3                                      \
-#         g++                                          \
-#         python3                                      \
-#         python3-dev
 
 id=`lsb_release --id --short`
 codename=`lsb_release --codename --short`
