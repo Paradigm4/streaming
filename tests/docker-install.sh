@@ -49,7 +49,8 @@ apt-get update
 apt-get install                              \
         --assume-yes --no-install-recommends \
         libarrow-dev=$ARROW_VER-1            \
-        libpqxx-dev
+        libpqxx-dev                          \
+        r-base-core
 
 # Compile and install plugin
 # iquery --afl --query "unload_library('stream')"
