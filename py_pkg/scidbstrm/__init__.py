@@ -15,7 +15,7 @@ except KeyError:
     import pandas
 
 
-__version__ = '19.11.1'
+__version__ = '19.11.2'
 
 
 python_map = ("'" +
