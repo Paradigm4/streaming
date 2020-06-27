@@ -1,14 +1,23 @@
 SciDB-Strm: Python Library for SciDB Streaming
 ==============================================
 
+.. image:: https://img.shields.io/badge/SciDB-19.11-blue.svg
+    :target: https://forum.paradigm4.com/t/scidb-release-19-11/2411
+
+.. image:: https://img.shields.io/badge/arrow-0.16.0-blue.svg
+    :target: https://arrow.apache.org/release/0.16.0.html
+
+.. image:: https://travis-ci.org/Paradigm4/stream.svg
+    :target: https://travis-ci.org/Paradigm4/stream
+
 Requirements
 ------------
 
-SciDB ``16.9`` or newer
+SciDB ``19.11`` or newer
 
-Apache Arrow ``0.6.0`` or newer.
+Apache Arrow ``0.16.0`` or newer.
 
-Python ``2.7.x``, ``3.4.x``, ``3.5.x``, ``3.6.x`` or newer.
+Python ``2.7.x``, ``3.5.x``, ``3.6.x``, ``3.7.x``, ``3.8.x``, or newer.
 
 Required Python packages::
 
