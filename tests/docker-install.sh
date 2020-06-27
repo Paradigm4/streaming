@@ -38,7 +38,6 @@ iquery --afl --query "load_library('stream')"
 # Install Python requirements and SciDB-Strm
 wget --no-verbose https://bootstrap.pypa.io/get-pip.py
 python2 get-pip.py
-pip2 install --upgrade -r https://github.com/Paradigm4/SciDB-Py/raw/master/requirements.txt
 pip2 install --upgrade -r /stream/py_pkg/requirements.txt
 pip2 install /stream/py_pkg
 
@@ -47,6 +46,5 @@ wget --no-verbose                               \
      https://bootstrap.pypa.io/3.4/get-pip.py
 python3 get-pip-py3.4.py
 # pip3 install numpy==1.14.0 # pandas==0.19.0
-pip3 install --upgrade -r https://github.com/Paradigm4/SciDB-Py/raw/master/requirements.txt
 pip3 install --upgrade -r /stream/py_pkg/requirements.txt
 pip3 install /stream/py_pkg

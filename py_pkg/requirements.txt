@@ -2,6 +2,6 @@ dill
 feather-format
 pyarrow==0.16.0
 pycodestyle
-git+git://github.com/paradigm4/scidb-py.git@master#egg=scidb-py
+scidb-py
 scipy
 sklearn
