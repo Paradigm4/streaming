@@ -227,7 +227,7 @@ arrow::Status FeatherInterface::writeFeather(vector<ConstChunk const*> const& ch
     std::shared_ptr<arrow::io::BufferOutputStream> stream;
     ARROW_ASSIGN_OR_RAISE(
         stream,
-        arrow::io::BufferOutputStream::Create(1024, arrow::default_memory_pool()));
+        arrow::io::BufferOutputStream::Create(4096, arrow::default_memory_pool()));
 
     std::unique_ptr<arrow::ipc::feather::TableWriter> writer;
     arrow::ipc::feather::TableWriter::Open(stream, &writer);
