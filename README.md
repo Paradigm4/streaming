@@ -114,8 +114,8 @@ respond to each message from SciDB using either an empty or non-empty
 message. The data from the child is expected in the same format, the
 size in bytes followed by data in Feather format.
 
-To use the Feather format, specify format:'feather` as an argument to
-the `stream` operator. For data coming from the child process, the
+To use the Feather format, specify `format:'feather'` as an argument
+to the `stream` operator. For data coming from the child process, the
 type of each attribute has to be specified using the `types:...`
 argument. The names of each attribute can be specified as well using
 the `names:...` argument. See the Python
