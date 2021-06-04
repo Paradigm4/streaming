@@ -252,7 +252,7 @@ private:
         return kwPair == kwp.end() ? Parameter() : kwPair->second;
     }
 
-    string paramToString(shared_ptr <OperatorParam> const& parameter, shared_ptr<Query>& query, bool logical)
+    string paramToString(shared_ptr <OperatorParam> const& parameter, const shared_ptr<Query>& query, bool logical)
     {
         if(logical)
         {
@@ -266,7 +266,7 @@ public:
     Settings(vector<shared_ptr <OperatorParam> > const& operatorParameters,
              KeywordParameters const& kwParams,
              bool logical,
-             shared_ptr<Query>& query):
+             const shared_ptr<Query>& query):
                  _transferFormat(TSV),
                  _types(0),
                  _outputChunkSize(1024*1024*1024),

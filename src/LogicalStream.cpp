@@ -94,7 +94,7 @@ public:
         return &argSpec;
     }
 
-    void inferAccess(const std::shared_ptr<Query>& query)
+    void inferAccess(const std::shared_ptr<Query>& query) override
     {
         //Read the file at /opt/scidb/VV.VV/etc/stream_allowed, one command per line
         //If our command is in that file, it is "blessed" and we let it run by anyone.
