@@ -61,7 +61,7 @@ ArrayDesc TSVInterface::getOutputSchema(vector<ArrayDesc> const& inputSchemas, S
     Attributes outputAttributes;
     outputAttributes.push_back( AttributeDesc(settings.getNames().size() ? settings.getNames()[0] : "response",   TID_STRING,    0, CompressorType::NONE));
     outputAttributes.addEmptyTagAttribute();
-    return ArrayDesc(inputSchemas[0].getName(), outputAttributes, outputDimensions, createDistribution(defaultDistType()), query->getDefaultArrayResidency());
+    return ArrayDesc(inputSchemas[0].getName(), outputAttributes, outputDimensions, createDistribution(dtUndefined), query->getDefaultArrayResidency());
 }
 
 TSVInterface::TSVInterface(Settings const& settings, ArrayDesc const& outputSchema, std::shared_ptr<Query> const& query):

@@ -118,7 +118,7 @@ ArrayDesc FeatherInterface::getOutputSchema(
     return ArrayDesc(inputSchemas[0].getName(),
                      outputAttributes,
                      outputDimensions,
-                     createDistribution(defaultDistType()),
+                     createDistribution(dtUndefined),
                      query->getDefaultArrayResidency());
 }
 
