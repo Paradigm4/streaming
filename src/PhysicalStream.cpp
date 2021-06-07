@@ -143,11 +143,6 @@ public:
         return result;
     }
 
-    virtual bool changesDistribution(std::vector<ArrayDesc> const&) const
-    {
-        return true;
-    }
-
     void checkInputDistAgreement(std::vector<DistType> const& inDist, size_t /*depth*/) const override
     {
         SCIDB_ASSERT(inDist.size() == 2);
