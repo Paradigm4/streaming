@@ -1,3 +1,26 @@
+# BEGIN_COPYRIGHT
+#
+# Copyright (C) 2017-2021 Paradigm4 Inc.
+# All Rights Reserved.
+#
+# scidbbridge is a plugin for SciDB, an Open Source Array DBMS
+# maintained by Paradigm4. See http://www.paradigm4.com/
+#
+# scidbbridge is free software: you can redistribute it and/or modify
+# it under the terms of the AFFERO GNU General Public License as
+# published by the Free Software Foundation.
+#
+# scidbbridge is distributed "AS-IS" AND WITHOUT ANY WARRANTY OF ANY
+# KIND, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,
+# NON-INFRINGEMENT, OR FITNESS FOR A PARTICULAR PURPOSE. See the
+# AFFERO GNU General Public License for the complete license terms.
+#
+# You should have received a copy of the AFFERO GNU General Public
+# License along with scidbbridge. If not, see
+# <http://www.gnu.org/licenses/agpl-3.0.html>
+#
+# END_COPYRIGHT
+
 #' Return a SciDB streaming-compatible output schema for a function
 #'
 #' The SciDB streaming API works with R functions that map a data frame input value
@@ -33,7 +56,7 @@ schema <- function(f, input)
 #' The SciDB streaming API works with R functions that take a data frame input value
 #' and produce a data frame output value. The output data frame column types must match the
 #' types declared in the SciDB stream operator.
-#' 
+#'
 #' @param f a function of a single data frame input argument that returns a data frame
 #' output. The output data frame column types must match the SciDB stream operator
 #' 'types' argument.
@@ -42,7 +65,7 @@ schema <- function(f, input)
 #' @param convertFactor a function for conversion of R factor values into one of double, integer, or character for return to SciDB.
 #' @note Factor and logical values are converted by default into integer values. Set
 #' \code{convertFactor=as.character} to convert factor values to character strings instead.
-#' 
+#'
 #' Nothing is returned to SciDB when then function \code{f} returns \code{NULL}. Use this in combination
 #' with the \code{final} function to perform aggregation across chunks (see the examples).
 #' @seealso \code{\link{schema}}
@@ -124,8 +147,8 @@ closeStreams <- function()
 #' @examples
 #' \dontrun{
 #' # Consider the polca_example.R code included in this package, which shows:
-#' query <- sprintf("stream(gss82, 
-#'                  'R --slave -e \"library(scidbstrm);eval(unserialize(jsonlite::base64_dec(getChunk()[[1]])))\"', 
+#' query <- sprintf("stream(gss82,
+#'                  'R --slave -e \"library(scidbstrm);eval(unserialize(jsonlite::base64_dec(getChunk()[[1]])))\"',
 #'                  'format=df',  'types=double,string', 'names=llik,model', _sg(%s,0))", program@name)
 #' # Equivalent simpler version using the run() function:
 #' query <- sprintf("stream(gss82, 'R --slave -e \"library(scidbstrm);run()\"',
@@ -157,4 +180,3 @@ run <- function()
   attach(attr(program, "env"))
   eval(program)
 }
-
