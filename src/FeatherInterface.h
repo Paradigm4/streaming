@@ -28,6 +28,7 @@
 
 #include <query/PhysicalOperator.h>
 #include <query/TypeSystem.h>
+
 #include <arrow/api.h>
 
 namespace scidb { namespace stream
@@ -98,13 +99,17 @@ private:
     size_t                                      _outputChunkSize;
     int32_t                                     _nOutputAttrs;
     std::vector<std::shared_ptr<ArrayIterator>> _oaiters;
-    std::vector <TypeEnum>                      _outputTypes;
+    const std::vector <TypeEnum>                _outputTypes;
     std::vector<uint8_t>                        _readBuf;
     Value                                       _val;
     Value                                       _nullVal;
     std::vector<TypeEnum>                       _inputTypes;
-    std::vector<std::string>                    _inputNames;
-    std::vector<FunctionPointer>                _inputConverters;
+
+    std::shared_ptr<arrow::Schema>                    _inputArrowSchema;
+    std::vector<std::unique_ptr<arrow::ArrayBuilder>> _inputArrowBuilders;
+    arrow::MemoryPool*                                _arrowPool =
+        arrow::default_memory_pool();
+
 
     arrow::Status writeFeather(std::vector<ConstChunk const*> const& chunks,
                                int32_t const numRows,

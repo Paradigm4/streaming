@@ -15,7 +15,7 @@ if [ "$TRAVIS_PYTHON_VERSION" != "" ]
 then
     PYTHON=python${TRAVIS_PYTHON_VERSION%.*}
 else
-    PYTHON=python
+    PYTHON=python3
 fi
 
 
@@ -23,7 +23,7 @@ fi
 $PRE iquery --afl --query "
   stream(
     build(<x:int64 not null>[i=1:10:0:5], i),
-    'python -uc \"
+    'python3 -uc \"
 
 import scidbstrm, pandas
 

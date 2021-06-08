@@ -31,6 +31,9 @@
         y, double(i) * 10 + .1,
         z, 'foo' + string(i)),
       foo)"
+Query was executed successfully
+
+> iquery --afl --query "scan(foo)"
 {i} x,y,z
 {1} 1,10.1,'foo1'
 {2} 2,20.1,'foo2'
@@ -48,7 +51,7 @@
 > iquery --afl --query "
     stream(
       foo,
-      'python -u /stream/py_pkg/examples/1-map-finalize.py',
+      'python3 -u /stream/py_pkg/examples/1-map-finalize.py',
       format:'feather',
       types:('int64','double','string'),
       names:('x','y','info'))"

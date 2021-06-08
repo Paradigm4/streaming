@@ -23,7 +23,7 @@
 
 """Usage:
 
-> python 2-pack-func.py
+> python3 2-pack-func.py
 [(0, 0, 0, (255, 1.))]
 
 Setup:
@@ -54,13 +54,14 @@ ar_fun = db.input(upload_data=scidbstrm.pack_func(get_first),
 que = db.stream(
     'build(<x:double>[i=1:5], i)',
     '_sg({}, 0)'.format(ar_fun.name),  # Array with Serialized function
-    """'python{major} -uc "
+    """'python{major}.{minor} -uc "
 import scidbstrm
 
 map_fun = scidbstrm.read_func()
 scidbstrm.map(map_fun)
 
-"'""".format(major=sys.version_info.major),
+"'""".format(major=sys.version_info.major,
+             minor=sys.version_info.minor),
     "format:'feather'",
     "types:'double'"
 )
