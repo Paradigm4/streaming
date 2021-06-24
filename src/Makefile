@@ -30,7 +30,7 @@ ifneq ("$(wildcard /opt/apache-arrow/lib64)","")
   # -- - CentOS - --
   ARROW_PATH := /opt/apache-arrow
   INC     += -I$(ARROW_PATH)/include
-  LIBS    += -L$(ARROW_PATH)/lib64
+  LIBS    += -L$(ARROW_PATH)/lib64 -Wl,-rpath,$(ARROW_PATH)/lib64
   $(info Using Apache Arrow in $(ARROW_PATH))
 endif
 
