@@ -1,7 +1,7 @@
 > iquery --afl --query "
   stream(
     build(<x:int64 not null>[i=1:10:0:5], i),
-    'python -uc \"
+    'python3 -uc \"
 
 import scidbstrm, pandas
 

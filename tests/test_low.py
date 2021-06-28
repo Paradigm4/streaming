@@ -75,7 +75,7 @@ def test_one_chunk(db, scidb_ty, name):
     res = db.iquery("""
         stream(
           {input},
-          'python -u /stream/tests/scripts/one_chunk.py',
+          'python3 -u /stream/tests/scripts/one_chunk.py',
           format:'feather',
           types:'{scidb_ty}'{names})""".format(
               input=input,
@@ -85,7 +85,7 @@ def test_one_chunk(db, scidb_ty, name):
                     as_dataframe=False)
     assert numpy.array_equal(
         res, numpy.array(
-            [(0, 0, i, (255, eval('{}({})'.format(
+            [(1, 0, i, (255, eval('{}({})'.format(
                 py_type_map.get(scidb_ty, scidb_ty),
                 str(i).encode() if scidb_ty == 'binary' else i))))
              for i in range(3)],
@@ -116,7 +116,7 @@ def test_any_chunks(db, scidb_ty, name):
     res = db.iquery("""
         stream(
           {input},
-          'python -u /stream/tests/scripts/any_chunks.py',
+          'python3 -u /stream/tests/scripts/any_chunks.py',
           format:'feather',
           types:'{scidb_ty}'{names})""".format(
               input=input,
@@ -148,7 +148,7 @@ def test_arrow_1676(db):
           build(
             <val:string>[i=1:10000,10000,0],
             iif(i<10000, string(i), null)),
-          'python -uc "
+          'python3 -uc "
 import scidbstrm
 def f(x):
   x.to_feather(\\"/tmp/arrow_1676.feather\\")

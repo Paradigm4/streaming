@@ -31,6 +31,8 @@
         y, double(i) * 10 + .1,
         z, 'foo' + string(i)),
       foo)"
+
+> iquery --afl --query "scan(foo)"
 {i} x,y,z
 {1} 1,10.1,'foo1'
 {2} 2,20.1,'foo2'
@@ -48,7 +50,7 @@
 > iquery --afl --query "
     stream(
       foo,
-      'python -u /stream/py_pkg/examples/3-read-write.py',
+      'python3 -u /stream/py_pkg/examples/3-read-write.py',
       format:'feather',
       types:('int64','double','string'))"
 {instance_id,chunk_no,value_no} a0,a1,a2

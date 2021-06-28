@@ -21,13 +21,18 @@ ifeq ($(SCIDB_THIRDPARTY_PREFIX),)
   SCIDB_THIRDPARTY_PREFIX := $(SCIDB_3RDPARTY)
 endif
 
-# Debug:
 CFLAGS := -DARROW_NO_DEPRECATED_API -DNDEBUG -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -O3 -Wall -Wextra -Wno-long-long -Wno-strict-aliasing -Wno-system-headers -Wno-unused -Wno-unused-parameter -Wno-variadic-macros -fPIC -fno-omit-frame-pointer -g -std=c++14
-
 INC    := -I. -DPROJECT_ROOT="\"$(SCIDB)\"" -I"$(SCIDB_THIRDPARTY_PREFIX)/3rdparty/boost/include/" -I"$(SCIDB)/include"
 LIBS   := -shared -Wl,-soname,libstream.so -L. -L"$(SCIDB_THIRDPARTY_PREFIX)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -Wl,-rpath,$(SCIDB)/lib:$(RPATH) -lm -larrow
-
 SRCS   := plugin.cpp LogicalStream.cpp PhysicalStream.cpp ChildProcess.cpp TSVInterface.cpp DFInterface.cpp FeatherInterface.cpp
+
+ifneq ("$(wildcard /opt/apache-arrow/lib64)","")
+  # -- - CentOS - --
+  ARROW_PATH := /opt/apache-arrow
+  INC     += -I$(ARROW_PATH)/include
+  LIBS    += -L$(ARROW_PATH)/lib64 -Wl,-rpath,$(ARROW_PATH)/lib64
+  $(info Using Apache Arrow in $(ARROW_PATH))
+endif
 
 # Compiler settings for SciDB version >= 15.7
 ifneq ("$(wildcard /usr/bin/g++-4.9)","")

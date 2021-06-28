@@ -15,28 +15,15 @@ Requirements
 
 SciDB ``19.11`` or newer.
 
-Apache Arrow ``0.16.0``.
+Apache Arrow ``3.0.0``.
 
-Python ``2.7.x``, ``3.5.x``, ``3.6.x``, ``3.7.x``, ``3.8.x``, or newer.
+Python ``3.5.x``, ``3.6.x``, ``3.7.x``, ``3.8.x``, or ``3.9.x``.
 
 Required Python packages::
 
   dill
-  feather-format
   pandas
   pyarrow
-
-Note
-^^^^
-
-Apache Arrow versions older than ``0.8.0`` contain a bug which might
-affect Stream users. The bug manifests on chunks of more than ``128``
-records with null-able values. For more details, see the full bug
-description `here
-<https://issues.apache.org/jira/browse/ARROW-1676>`_. This bug has
-been `fixed <https://github.com/apache/arrow/pull/1204>`_ in Apache
-Arrow version ``0.8.0``.
-
 
 Installation
 ------------
@@ -107,8 +94,8 @@ A convenience invocation of the Python interpreter is provided in
   python -uc "import scidbstrm; scidbstrm.map(scidbstrm.read_func())"
 
 Finally, see `4-machine-learning.py <examples/4-machine-learning.py>`_
-for a more complex example of going throught the steps of using
-machine larning (preprocessing, training, and prediction).
+for a more complex example of going through the steps of using
+machine learning (preprocessing, training, and prediction).
 
 
 Debugging Python Code
@@ -120,8 +107,14 @@ communicates with the Python process using ``stdout``. The ``print``
 function writes output to ``stdout``. So, using the ``print`` function
 would interfere with the inter-process communication.
 
-Instead, write debug output to ``stderr`` using the ``write``
-function. For example::
+Instead, use the ``debug`` function provided by the library. The
+function formats the arguments as strings and printed them all out
+separated by space. For example::
+
+  debug("Value of i is", 10)
+
+Alternatively, output can be written directly to ``stderr`` using the
+``write`` function. For example::
 
   import sys
 

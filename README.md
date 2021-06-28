@@ -1,7 +1,7 @@
 # stream
 
 [![SciDB 19.11](https://img.shields.io/badge/SciDB-19.11-blue.svg)](https://forum.paradigm4.com/t/scidb-release-19-11/2411)
-[![arrow 0.16.0](https://img.shields.io/badge/arrow-0.16.0-blue.svg)](https://arrow.apache.org/release/0.16.0.html)
+[![arrow 3.0.0](https://img.shields.io/badge/arrow-3.0.0-blue.svg)](https://arrow.apache.org/release/3.0.0.html)
 [![Build Status](https://travis-ci.org/Paradigm4/stream.svg)](https://travis-ci.org/Paradigm4/stream)
 
 Prototype SciDB API similar to Hadoop Streaming. The operator sends SciDB array data into the stdin of the process and reads its stdout (hence 'streaming').
@@ -17,7 +17,7 @@ where
 * ARRAY is a SciDB array expression
 * PROGRAM is a full command line to the child program to stream data through
 * format is either `format:'tsv'` for the tab-separated values (TSV)
-  interface, `format:'feather'` for Apache Arrow, Feather format, or
+  interface, `format:'feather'` for Apache Arrow format, or
   `format:'df'` for the R binary data.frame interface (see below);
   `tsv` is the default
 * types is a comma-separated list of expected returned column SciDB
@@ -101,10 +101,10 @@ $ iquery -aq "parse(stream(apply(build(<a:double>[i=1:10,10,0], random()%5), b, 
 All SciDB missing codes are converted to `\N` when transferring to the
 child.
 
-### Apache Arrow/Feather for Fast Transfer
+### Apache Arrow for Fast Transfer
 
 Each chunk is converted Apache Arrow and written to the output in
-Feather format. The Feather data is preceded by its size in
+Arrow format. The Arrow data is preceded by its size in
 bytes. The supported types are int64, double, string and binary.
 
 Just like in the TSV case, SciDB shall send one message per chunk to
@@ -112,9 +112,9 @@ the child, each time waiting for a response. SciDB then sends an empty
 message to the child at the end of the interaction. The child must
 respond to each message from SciDB using either an empty or non-empty
 message. The data from the child is expected in the same format, the
-size in bytes followed by data in Feather format.
+size in bytes followed by data in Arrow format.
 
-To use the Feather format, specify `format:'feather'` as an argument
+To use the Arrow format, specify `format:'feather'` as an argument
 to the `stream` operator. For data coming from the child process, the
 type of each attribute has to be specified using the `types:...`
 argument. The names of each attribute can be specified as well using
@@ -251,39 +251,42 @@ Beyond this, the user assumes risks inherent in running arbitrary code next to a
 
 ### Install Apache Arrow
 
-Due to a version conflict with the Protocol Buffers library included
-with the official Apache Arrow packages, we use Apache Arrow packages
-custom built for SciDB.
+Apache Arrow library version `3.0.0` is required.
 
-#### CentOS 6
-```bash
-> sudo yum install \
-    https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm
+##### Ubuntu
 
-> sudo wget --output-document /etc/yum.repos.d/bintray-rvernica-rpm.repo \
-    https://bintray.com/rvernica/rpm/rpm
-> sudo yum install arrow-devel
+1. Setup Apache Arrow repository and install runtime library:
+   ```
+   wget -O- https://paradigm4.github.io/extra-scidb-libs/install.sh \
+   | sudo sh -s -- --only-prereq
+   ```
+1. Install Apache Arrow development library:
+   ```
+   apt-get install libarrow-dev=3.0.0-1
+   ```
+
+##### RHEL/CentOS
+
+The Apache Arrow library and SciDB are compiled using different
+tool-chains. As a consequence, the Apache Arrow library needs to be
+compiled from source.
+
 ```
-
-#### CentOS 7
-```bash
-> sudo yum install \
-     https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-
-> sudo wget --output-document /etc/yum.repos.d/bintray-rvernica-rpm.repo \
-    https://bintray.com/rvernica/rpm/rpm
-> sudo yum install arrow-devel
-```
-
-#### Ubuntu
-```bash
-> cat <<APT_LINE | tee /etc/apt/sources.list.d/bintray-rvernica.list
-deb https://dl.bintray.com/rvernica/deb trusty universe
-APT_LINE
-
-> apt-key adv --keyserver hkp://keyserver.ubuntu.com --recv 46BD98A354BA5235
-> apt-get update
-> apt-get install libarrow-dev libarrow0
+curl --location \
+    "https://www.apache.org/dyn/closer.lua?action=download&filename=arrow/arrow-3.0.0/apache-arrow-3.0.0.tar.gz" \
+    | tar --extract --gzip
+cd apache-arrow-3.0.0/cpp
+mkdir build
+cd build
+scl enable devtoolset-3                                             \
+    "cmake3 ..                                                      \
+         -DARROW_WITH_LZ4=ON                                        \
+         -DARROW_WITH_ZLIB=ON                                       \
+         -DCMAKE_CXX_COMPILER=/opt/rh/devtoolset-3/root/usr/bin/g++ \
+         -DCMAKE_C_COMPILER=/opt/rh/devtoolset-3/root/usr/bin/gcc   \
+         -DCMAKE_INSTALL_PREFIX=/opt/apache-arrow"
+make
+make install
 ```
 
 ### Install plug-in

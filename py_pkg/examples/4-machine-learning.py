@@ -36,7 +36,8 @@ import sys
 # pip install sklearn scipy
 
 
-python = 'python{}'.format(sys.version_info.major)
+python = 'python{major}.{minor}'.format(major=sys.version_info.major,
+                                        minor=sys.version_info.minor)
 db = scidbpy.connect()
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
