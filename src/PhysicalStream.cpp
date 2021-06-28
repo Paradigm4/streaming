@@ -2,7 +2,7 @@
 **
 * BEGIN_COPYRIGHT
 *
-* Copyright (C) 2008-2020 Paradigm4 Inc.
+* Copyright (C) 2008-2021 Paradigm4 Inc.
 * All Rights Reserved.
 *
 * stream is a plugin for SciDB, an Open Source Array DBMS maintained
@@ -141,11 +141,6 @@ public:
         SCIDB_ASSERT(numChildren==2);
         result[0] = false;   // permitted on the right-hand input
         return result;
-    }
-
-    virtual bool changesDistribution(std::vector<ArrayDesc> const&) const
-    {
-        return true;
     }
 
     void checkInputDistAgreement(std::vector<DistType> const& inDist, size_t /*depth*/) const override

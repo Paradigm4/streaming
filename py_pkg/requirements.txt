@@ -1,6 +1,5 @@
 dill
-feather-format
-pyarrow==0.16.0
+pyarrow==3.0.0
 pycodestyle
 scidb-py
 scipy

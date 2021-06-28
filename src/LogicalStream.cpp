@@ -2,7 +2,7 @@
 **
 * BEGIN_COPYRIGHT
 *
-* Copyright (C) 2008-2020 Paradigm4 Inc.
+* Copyright (C) 2008-2021 Paradigm4 Inc.
 * All Rights Reserved.
 *
 * stream is a plugin for SciDB, an Open Source Array DBMS maintained
@@ -94,7 +94,7 @@ public:
         return &argSpec;
     }
 
-    void inferAccess(std::shared_ptr<Query>& query)
+    void inferAccess(const std::shared_ptr<Query>& query) override
     {
         //Read the file at /opt/scidb/VV.VV/etc/stream_allowed, one command per line
         //If our command is in that file, it is "blessed" and we let it run by anyone.

@@ -2,7 +2,7 @@
 **
 * BEGIN_COPYRIGHT
 *
-* Copyright (C) 2008-2020 Paradigm4 Inc.
+* Copyright (C) 2008-2021 Paradigm4 Inc.
 * All Rights Reserved.
 *
 * stream is a plugin for SciDB, an Open Source Array DBMS maintained
@@ -89,7 +89,7 @@ ArrayDesc DFInterface::getOutputSchema(std::vector<ArrayDesc> const& inputSchema
         outputAttributes.push_back( AttributeDesc(outputNames[i], typeEnum2TypeId(outputTypes[i]), AttributeDesc::IS_NULLABLE, CompressorType::NONE));
     }
     outputAttributes.addEmptyTagAttribute();
-    return ArrayDesc(inputSchemas[0].getName(), outputAttributes, outputDimensions, createDistribution(defaultDistType()), query->getDefaultArrayResidency());
+    return ArrayDesc(inputSchemas[0].getName(), outputAttributes, outputDimensions, createDistribution(dtUndefined), query->getDefaultArrayResidency());
 }
 
 DFInterface::DFInterface(Settings const& settings, ArrayDesc const& outputSchema, std::shared_ptr<Query> const& query):

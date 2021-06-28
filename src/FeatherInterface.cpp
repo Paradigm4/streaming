@@ -2,7 +2,7 @@
 **
 * BEGIN_COPYRIGHT
 *
-* Copyright (C) 2008-2020 Paradigm4 Inc.
+* Copyright (C) 2008-2021 Paradigm4 Inc.
 * All Rights Reserved.
 *
 * stream is a plugin for SciDB, an Open Source Array DBMS maintained
@@ -23,22 +23,14 @@
 * END_COPYRIGHT
 */
 
-#include <vector>
-#include <string>
-#include <memory>
-#include <arrow/api.h>
-#include <arrow/io/memory.h>
-#include <arrow/ipc/feather.h>
-#include <array/MemArray.h>
-#include <query/Query.h>
-
 #include "StreamSettings.h"
 #include "ChildProcess.h"
 #include "FeatherInterface.h"
 
-using std::vector;
-using std::shared_ptr;
-using std::string;
+#include <array/MemArray.h>
+#include <arrow/io/memory.h>
+#include <arrow/ipc/reader.h>
+#include <arrow/ipc/writer.h>
 
 #define THROW_NOT_OK(s)                                                 \
     {                                                                   \
@@ -49,6 +41,13 @@ using std::string;
                 SCIDB_SE_ARRAY_WRITER, SCIDB_LE_ILLEGAL_OPERATION)      \
                     << _s.ToString().c_str();                           \
         }                                                               \
+    }
+
+#define ASSIGN_OR_THROW(lhs, rexpr)                     \
+    {                                                   \
+        auto status_name = (rexpr);                     \
+        THROW_NOT_OK(status_name.status());             \
+        lhs = std::move(status_name).ValueOrDie();      \
     }
 
 namespace scidb { namespace stream {
@@ -118,7 +117,7 @@ ArrayDesc FeatherInterface::getOutputSchema(
     return ArrayDesc(inputSchemas[0].getName(),
                      outputAttributes,
                      outputDimensions,
-                     createDistribution(defaultDistType()),
+                     createDistribution(dtUndefined),
                      query->getDefaultArrayResidency());
 }
 
@@ -131,18 +130,18 @@ FeatherInterface::FeatherInterface(Settings const& settings,
     _outputChunkSize(settings.getChunkSize()),
     _nOutputAttrs((int32_t)outputSchema.getAttributes(true).size()),
     _oaiters(_nOutputAttrs + 1),
-    _outputTypes(_nOutputAttrs),
+    _outputTypes(settings.getTypes()),
     _readBuf(1024*1024)
 {
-    //for(int32_t i = 0; i < _nOutputAttrs; ++i)
-    int32_t i = 0;
+    // Set output iterators
+    size_t i = 0;
     for (const auto& attr : outputSchema.getAttributes(true))
     {
         _oaiters[i] = _result->getIterator(attr);
-        _outputTypes[i] = settings.getTypes()[i];
         i++;
     }
-    _oaiters[_nOutputAttrs] = _result->getIterator(*outputSchema.getEmptyBitmapAttribute());
+    _oaiters[_nOutputAttrs] = _result->getIterator(
+        *outputSchema.getEmptyBitmapAttribute());
     _nullVal.setNull();
 }
 
@@ -150,34 +149,53 @@ void FeatherInterface::setInputSchema(ArrayDesc const& inputSchema)
 {
     Attributes const& attrs = inputSchema.getAttributes(true);
     size_t const nInputAttrs = attrs.size();
+
     _inputTypes.resize(nInputAttrs);
-    _inputNames.resize(nInputAttrs);
-    _inputConverters.resize(nInputAttrs);
+    _inputArrowBuilders.resize(nInputAttrs);
+    std::vector<std::shared_ptr<arrow::Field>> arrowFields(nInputAttrs);
+
     size_t i = 0;
-//    for(size_t i=0; i < nInputAttrs; ++i)
     for (const auto& attr : attrs)
     {
         TypeId const& inputType = attr.getType();
         _inputTypes[i] = typeId2TypeEnum(inputType, true);
-        switch(_inputTypes[i])
-        {
-        case TE_BOOL:
-        case TE_DOUBLE:
-        case TE_FLOAT:
-        case TE_UINT8:
-        case TE_INT8:
-        case TE_BINARY:
-            _inputConverters[i] = NULL;
+
+        std::shared_ptr<arrow::DataType> arrowType;
+        auto scidbType = _inputTypes[i];
+        switch (scidbType) {
+        case TE_BINARY: {
+            arrowType = arrow::binary();
             break;
-        default:
-            _inputConverters[i] = FunctionLibrary::getInstance()->findConverter(
-                inputType,
-                TID_STRING,
-                false);
         }
-        _inputNames[i]= attr.getName();
+        case TE_DOUBLE: {
+            arrowType = arrow::float64();
+            break;
+        }
+        case TE_INT64: {
+            arrowType = arrow::int64();
+            break;
+        }
+        case TE_STRING: {
+            arrowType = arrow::utf8();
+            break;
+        }
+        default: {
+            std::ostringstream error;
+            error << "Type " << scidbType << " not supported by Stream plug-in";
+            throw SYSTEM_EXCEPTION(SCIDB_SE_ARRAY_WRITER,
+                                   SCIDB_LE_ILLEGAL_OPERATION) << error.str();
+        }
+        }
+        arrowFields[i] = arrow::field(
+            attr.getName(), arrowType, false); // attr.isNullable()
+
+        THROW_NOT_OK(
+            arrow::MakeBuilder(_arrowPool, arrowType, &_inputArrowBuilders[i]));
+
         i++;
     }
+
+    _inputArrowSchema = arrow::schema(arrowFields);
 }
 
 void FeatherInterface::streamData(
@@ -220,154 +238,165 @@ arrow::Status FeatherInterface::writeFeather(vector<ConstChunk const*> const& ch
                                     int32_t const numRows,
                                     ChildProcess& child)
 {
-    int32_t numColumns = chunks.size();
-    LOG4CXX_DEBUG(logger, "writeFeather::numColumns:" << numColumns
-                  << ":numRows:" << numRows);
+    size_t numColumns = chunks.size();
+    if (numColumns != _inputTypes.size()) {
+        std::ostringstream error;
+        error << "Number of chunks " << numColumns
+              << " does not match number of input types " << _inputTypes.size();
+        throw SYSTEM_EXCEPTION(SCIDB_SE_ARRAY_WRITER,
+                               SCIDB_LE_ILLEGAL_OPERATION) << error.str();
+    }
 
-    std::shared_ptr<arrow::io::BufferOutputStream> stream;
-    ARROW_ASSIGN_OR_RAISE(
-        stream,
-        arrow::io::BufferOutputStream::Create(4096, arrow::default_memory_pool()));
+    LOG4CXX_DEBUG(logger, "stream|" << _query->getInstanceID()
+                  << "|write|numColumns: " << numColumns
+                  << ", numRows: " << numRows);
 
-    std::unique_ptr<arrow::ipc::feather::TableWriter> writer;
-    arrow::ipc::feather::TableWriter::Open(stream, &writer);
-
-    writer->SetNumRows(numRows);
-
-    for(size_t i = 0; i < _inputTypes.size(); ++i)
+    std::vector<std::shared_ptr<arrow::Array>> arrowArrays(numColumns);
+    for(size_t i = 0; i < numColumns; ++i)
     {
         shared_ptr<ConstChunkIterator> citer =
             chunks[i]->getConstIterator(ConstChunkIterator::IGNORE_OVERLAPS);
 
-        std::shared_ptr<arrow::Array> array;
-        switch(_inputTypes[i])
+        auto scidbType = _inputTypes[i];
+        switch(scidbType)
         {
         case TE_INT64:
         {
-            arrow::Int64Builder builder;
-
             while((!citer->end()))
             {
                 Value const& value = citer->getItem();
                 if(value.isNull())
                 {
-                    builder.AppendNull();
+                    _inputArrowBuilders[i]->AppendNull();
                 }
                 else
                 {
-                    builder.Append(value.getInt64());
+                    static_cast<arrow::Int64Builder*>(
+                        _inputArrowBuilders[i].get())->Append(value.getInt64());
                 }
                 ++(*citer);
             }
-
-            builder.Finish(&array);
             break;
         }
         case TE_DOUBLE:
         {
-            arrow::DoubleBuilder builder;
-
             while((!citer->end()))
             {
                 Value const& value = citer->getItem();
                 if(value.isNull())
                 {
-                    builder.AppendNull();
+                    _inputArrowBuilders[i]->AppendNull();
                 }
                 else
                 {
-                    builder.Append(value.getDouble());
+                    static_cast<arrow::DoubleBuilder*>(
+                        _inputArrowBuilders[i].get())->Append(value.getDouble());
                 }
                 ++(*citer);
             }
-
-            builder.Finish(&array);
             break;
         }
         case TE_STRING:
         {
-            arrow::StringBuilder builder;
-
             while((!citer->end()))
             {
                 Value const& value = citer->getItem();
                 if(value.isNull())
                 {
-                    builder.AppendNull();
+                    _inputArrowBuilders[i]->AppendNull();
                 }
                 else
                 {
-                    builder.Append(value.getString());
+                    static_cast<arrow::StringBuilder*>(
+                        _inputArrowBuilders[i].get())->Append(value.getString());
                 }
                 ++(*citer);
             }
-
-            builder.Finish(&array);
             break;
         }
         case TE_BINARY:
         {
-            arrow::BinaryBuilder builder;
-
             while((!citer->end()))
             {
                 Value const& value = citer->getItem();
                 if(value.isNull())
                 {
-                    builder.AppendNull();
+                    _inputArrowBuilders[i]->AppendNull();
                 }
                 else
                 {
-                    builder.Append((const uint8_t*)value.data(), value.size());
+                    static_cast<arrow::BinaryBuilder*>(
+                        _inputArrowBuilders[i].get())->Append(
+                            (const uint8_t*)value.data(), value.size());
                 }
                 ++(*citer);
             }
-
-            builder.Finish(&array);
             break;
         }
-        default: throw SYSTEM_EXCEPTION(SCIDB_SE_INTERNAL,
-                                        SCIDB_LE_ILLEGAL_OPERATION)
-            << "internal error: unsupported type";
+        default:
+        {
+            std::ostringstream error;
+            error << "Type " << scidbType << " not supported by Stream plug-in";
+            throw SYSTEM_EXCEPTION(SCIDB_SE_ARRAY_WRITER,
+                                   SCIDB_LE_ILLEGAL_OPERATION) << error.str();
         }
-
-        // Print array for debugging
-        // std::stringstream prettyprint_stream;
-        // arrow::PrettyPrint(*array, 0, &prettyprint_stream);
-        // LOG4CXX_DEBUG(logger, "writeFeather::array:"
-        //               << prettyprint_stream.str().c_str());
-
-        writer->Append(_inputNames[i].c_str(), *array);
+        }
     }
-    writer->Finalize();
 
-    std::shared_ptr<arrow::Buffer> buffer;
-    ARROW_ASSIGN_OR_RAISE(buffer, stream->Finish());
+    // Finalize Arrow Builders and write Arrow Arrays (resets builders)
+    for (size_t i = 0; i < numColumns; ++i)
+        // Resets Builder!
+        THROW_NOT_OK(_inputArrowBuilders[i]->Finish(&arrowArrays[i]));
 
-    uint64_t writeSize = buffer->size();
-    LOG4CXX_DEBUG(logger, "writeFeather::writeSize:" << writeSize);
+    // Create Arrow Record Batch
+    std::shared_ptr<arrow::RecordBatch> arrowBatch;
+    arrowBatch = arrow::RecordBatch::Make(
+        _inputArrowSchema, numRows, arrowArrays);
+    ARROW_RETURN_NOT_OK(arrowBatch->Validate());
+
+    // Stream Arrow Record Batch to Arrow Buffer using Arrow
+    // Record Batch Writer and Arrow Buffer Output Stream
+    std::shared_ptr<arrow::io::BufferOutputStream> arrowBufferStream;
+    ARROW_ASSIGN_OR_RAISE(
+        arrowBufferStream,
+        // TODO Better initial estimate for Create
+        arrow::io::BufferOutputStream::Create(4096, _arrowPool));
+
+    // Setup Arrow Compression, If Enabled
+    std::shared_ptr<arrow::ipc::RecordBatchWriter> arrowWriter;
+    ASSIGN_OR_THROW(
+        arrowWriter,
+        arrow::ipc::MakeStreamWriter(&*arrowBufferStream, _inputArrowSchema));
+
+    ARROW_RETURN_NOT_OK(arrowWriter->WriteRecordBatch(*arrowBatch));
+    ARROW_RETURN_NOT_OK(arrowWriter->Close());
+
+    std::shared_ptr<arrow::Buffer> arrowBuffer;
+    ARROW_ASSIGN_OR_RAISE(arrowBuffer, arrowBufferStream->Finish());
+
+    uint64_t writeSize = arrowBuffer->size();
+    LOG4CXX_DEBUG(logger, "stream|" << _query->getInstanceID()
+                  << "|write|writeSize: " << writeSize);
     child.hardWrite(&writeSize, sizeof(uint64_t));
-    child.hardWrite(buffer->data(), writeSize);
+    child.hardWrite(arrowBuffer->data(), writeSize);
 
     return arrow::Status::OK();
 }
 
 void FeatherInterface::writeFinalFeather(ChildProcess& child)
 {
-    LOG4CXX_DEBUG(logger, "writeFinalFeather::0");
+    LOG4CXX_DEBUG(logger, "stream|" << _query->getInstanceID() << "|writeFinal");
 
     int64_t zero = 0;
     child.hardWrite(&zero, sizeof(int64_t));
 }
 
-void FeatherInterface::readFeather(ChildProcess& child,
-                                   bool lastMessage)
+void FeatherInterface::readFeather(ChildProcess& child, bool lastMessage)
 {
-    LOG4CXX_DEBUG(logger, "readFeather");
-
     uint64_t readSize;
     child.hardRead(&readSize, sizeof(uint64_t), !lastMessage);
-    LOG4CXX_DEBUG(logger, "readFeather::readSize:" << readSize);
+    LOG4CXX_DEBUG(logger, "stream|" << _query->getInstanceID()
+                  << "|read|readSize: " << readSize);
     if (readSize == 0)
     {
         return;
@@ -378,16 +407,33 @@ void FeatherInterface::readFeather(ChildProcess& child,
         _readBuf.resize(readSize);
     }
     child.hardRead(&(_readBuf[0]), readSize, !lastMessage);
-    std::shared_ptr<arrow::io::BufferReader> buffer(
-        new arrow::io::BufferReader(&(_readBuf[0]), readSize));
 
-    std::unique_ptr<arrow::ipc::feather::TableReader> reader;
-    arrow::ipc::feather::TableReader::Open(buffer, &reader);
+    arrow::Buffer arrowBuffer(&(_readBuf[0]), readSize);
+    auto arrowBufferReader = std::make_shared<arrow::io::BufferReader>(
+            arrowBuffer);
 
-    int64_t numColumns = reader->num_columns();
-    int64_t numRows = reader->num_rows();
-    LOG4CXX_DEBUG(logger, "readFeather::numColumns:" << numColumns
-                  << ":numRows:" << numRows);
+    std::shared_ptr<arrow::RecordBatchReader> arrowBatchReader;
+    ASSIGN_OR_THROW(
+            arrowBatchReader,
+            arrow::ipc::RecordBatchStreamReader::Open(arrowBufferReader));
+
+    std::shared_ptr<arrow::RecordBatch> arrowBatch;
+    THROW_NOT_OK(arrowBatchReader->ReadNext(&arrowBatch));
+
+    // No More Record Batches are Expected
+    std::shared_ptr<arrow::RecordBatch> arrowBatchNext;
+    THROW_NOT_OK(arrowBatchReader->ReadNext(&arrowBatchNext));
+    if (arrowBatchNext != NULL)
+        throw SYSTEM_EXCEPTION(
+            SCIDB_SE_ARRAY_WRITER,
+            SCIDB_LE_UNKNOWN_ERROR)
+            << "More than one Arrow Record Batch found in response from client";
+
+    int64_t numColumns = arrowBatch->num_columns();
+    int64_t numRows = arrowBatch->num_rows();
+    LOG4CXX_DEBUG(logger, "stream|" << _query->getInstanceID()
+                  << "|read|numColumns:" << numColumns
+                  << ", numRows:" << numRows);
 
     if (numColumns > 0 && numColumns != _nOutputAttrs)
     {
@@ -402,17 +448,9 @@ void FeatherInterface::readFeather(ChildProcess& child,
     std::shared_ptr<arrow::ChunkedArray> col;
     for(int64_t i = 0; i < numColumns; ++i)
     {
-        LOG4CXX_DEBUG(logger, "readFeather::column:" << i);
-
-        reader->GetColumn(i, &col);
-        // Feather files have only one chunk
-        // http://mail-archives.apache.org/mod_mbox/arrow-dev/201709.mbox/%3CCAJPUwMApjFdQFaiTXHYZJJCGcndrPn95UESS1ptDeWZ1zURubQ%40mail.gmail.com%3E
-        std::shared_ptr<arrow::Array> array(col->chunk(0));
+        std::shared_ptr<arrow::Array> array = arrowBatch->column(i);
         int64_t nullCount = array->null_count();
         const uint8_t* nullBitmap = array->null_bitmap_data();
-
-        // LOG4CXX_DEBUG(logger, "readFeather::array:" << *array);
-        LOG4CXX_DEBUG(logger, "readFeather::array.null:" << nullCount);
 
         shared_ptr<ChunkIterator> ociter = _oaiters[i]->newChunk(
             _outPos).getIterator(_query,
@@ -425,8 +463,7 @@ void FeatherInterface::readFeather(ChildProcess& child,
         case TE_INT64:
         {
             const int64_t* arrayData =
-                std::static_pointer_cast<arrow::Int64Array>(
-                    array)->raw_values();
+                arrowBatch->column_data(i)->GetValues<int64_t>(1);
 
             for(int64_t j = 0; j < numRows; ++j)
             {
@@ -447,8 +484,7 @@ void FeatherInterface::readFeather(ChildProcess& child,
         case TE_DOUBLE:
         {
             const double* arrayData =
-                std::static_pointer_cast<arrow::DoubleArray>(
-                    array)->raw_values();
+                arrowBatch->column_data(i)->GetValues<double>(1);
 
             for(int64_t j = 0; j < numRows; ++j)
             {
@@ -520,7 +556,6 @@ void FeatherInterface::readFeather(ChildProcess& child,
     }
 
     // populate the empty tag
-    LOG4CXX_DEBUG(logger, "readFeather::empty tags...");
     Value bmVal;
     bmVal.setBool(true);
     shared_ptr<ChunkIterator> bmCiter = _oaiters[_nOutputAttrs]->newChunk(
